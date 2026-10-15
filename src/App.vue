@@ -14,7 +14,7 @@
       @field-map="fieldMapVisible = true"
       @print-center="printCenterVisible = true"
       @preview="previewVisible = true"
-      @ai="aiDialogVisible = true"
+      @ai="openAI"
     />
     <div class="main">
       <ProjectSidebar
@@ -26,7 +26,7 @@
       />
       <ComponentPanel class="left" />
       <DesignCanvas class="center" />
-      <!-- 属性栏：支持拖拽调宽 / 收起，表格属性编辑空间不足问题 -->
+      <!-- 属性栏：支持拖拽调宽 / 收起。AI 调整跟属性共用这一栏，避免再挤掉画布。 -->
       <div class="right-panel" :class="{ resizing }" :style="rightPanelStyle">
         <div
           v-show="!panelHidden"
@@ -41,10 +41,20 @@
             @click="togglePanel"
             :title="panelHidden ? '展开属性栏' : '收起属性栏'"
           >{{ panelHidden ? '⟨' : '⟩' }}</button>
-          <span v-if="!panelHidden" class="right-title">{{ t('属性') }}</span>
-          <span v-else class="right-title-v">{{ t('属性') }}</span>
+          <template v-if="!panelHidden">
+            <button class="right-tab" :class="{ active: !aiDialogVisible }" @click="aiDialogVisible = false">{{ t('属性') }}</button>
+            <button class="right-tab" :class="{ active: aiDialogVisible }" @click="aiDialogVisible = true">{{ t('AI 调整') }}</button>
+          </template>
+          <span v-else class="right-title-v">{{ aiDialogVisible ? t('AI') : t('属性') }}</span>
         </div>
-        <PropertyPanel v-show="!panelHidden" class="right-body" @field-map="fieldMapVisible = true" />
+        <PropertyPanel v-show="!panelHidden && !aiDialogVisible" class="right-body" @field-map="fieldMapVisible = true" />
+        <AIDialog
+          v-show="!panelHidden && aiDialogVisible"
+          class="right-body"
+          @close="aiDialogVisible = false"
+          @open-settings="aiSettingsVisible = true"
+          @applied="onAIApplied"
+        />
       </div>
     </div>
     <DataPanel class="bottom" @import="onImportData" />
@@ -61,12 +71,6 @@
     <PrintConfig v-if="printConfigVisible" @close="printConfigVisible = false" />
     <LayoutEditor v-if="layoutEditorVisible" @close="layoutEditorVisible = false" />
     <PreviewDialog ref="previewRef" v-if="previewVisible" :auto-export="pendingExport" @close="previewVisible = false" />
-    <AIDialog
-      v-if="aiDialogVisible"
-      @close="aiDialogVisible = false"
-      @open-settings="aiSettingsVisible = true"
-      @applied="onAIApplied"
-    />
     <AISettingsDialog
       v-if="aiSettingsVisible"
       @close="aiSettingsVisible = false"
@@ -192,6 +196,9 @@ function migrateLegacyData() {
 
 applyProjectData(project.project)
 migrateLegacyData()
+project.hydrateFromIdb().then((replaced) => {
+  if (replaced) applyProjectData(project.project)
+})
 
 const paperConfigVisible = ref(false)
 const printConfigVisible = ref(false)
@@ -293,6 +300,11 @@ function resetPanelWidth() {
 function togglePanel() {
   panelHidden.value = !panelHidden.value
   try { localStorage.setItem(PANEL_HIDDEN_KEY, panelHidden.value ? '1' : '0') } catch (e) {}
+}
+
+function openAI() {
+  aiDialogVisible.value = !aiDialogVisible.value
+  if (aiDialogVisible.value && panelHidden.value) togglePanel()
 }
 
 function sanitizeName(s) {
@@ -488,6 +500,7 @@ function buildPreflightReport() {
     dataFields: data.fields,
     fieldMap: p.dataSource?.fieldMap || {},
     rowCount: data.rows.length,
+    rows: data.displayRows,
     label: p.label,
     paper: p.paper,
     perPage: project.labelsPerPage,
@@ -679,8 +692,19 @@ window.addEventListener('keydown', onGlobalKey)
   background: var(--bg-hover);
   color: var(--primary);
 }
-.right-title {
+.right-tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
   font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.right-tab.active {
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.12);
 }
 .right-title-v {
   writing-mode: vertical-rl;
@@ -690,6 +714,7 @@ window.addEventListener('keydown', onGlobalKey)
 .right-body {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 .center {
   flex: 1;

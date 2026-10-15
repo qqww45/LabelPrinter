@@ -2,7 +2,7 @@
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
-        👁️ {{ t('打印预览') }} ({{ data.displayRows.length || 0 }} {{ t('条') }} / {{ totalPages }} {{ t('页') }})
+        👁️ {{ t('打印预览') }} ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
         <div class="header-tools">
           <input class="input" style="width:80px" type="number" :value="currentPage"
             min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
@@ -75,10 +75,12 @@ import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineCo
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
+import { expandPrintLabels, paginateLabels, componentHidden } from '../utils/printModel'
+import { exportVectorPDF } from '../utils/vectorPdf'
 import { generateQRCode } from '../utils/qrcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { generateBarcode } from '../utils/barcode'
-import { exportElementsToPDF, exportElementToImage } from '../utils/pdf'
+import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
 import { useI18n } from '../utils/i18n'
 import dayjs from 'dayjs'
@@ -134,32 +136,15 @@ const labelsPerPage = computed(() => {
   return l.mode === 'auto' ? l.cols * l.rws : 1
 })
 
-const pages = computed(() => {
-  const l = layoutCfg.value
-  const rows = data.displayRows.length ? data.displayRows : []
-  const per = labelsPerPage.value
-  const out = []
-  if (per === 1) {
-    // single：无数据也显示一页空白
-    const list = rows.length ? rows : [{}]
-    for (const row of list) {
-      out.push({ slots: [{ row, index: out.length }] })
-    }
-  } else {
-    for (let i = 0; i < rows.length; i += per) {
-      const slots = []
-      for (let j = 0; j < per; j++) {
-        const row = rows[i + j]
-        slots.push({ row: row || {}, index: i + j, empty: !row })
-      }
-      out.push({ slots })
-    }
-    if (!out.length) {
-      out.push({ slots: Array.from({ length: per }, (_, j) => ({ row: {}, index: j, empty: true })) })
-    }
-  }
-  return out
+const printLabels = computed(() => {
+  const cfg = project.project.printConfig || {}
+  return expandPrintLabels(data.displayRows, cfg).map(item => ({
+    ...item,
+    row: resolveRow(item.row, project.project.dataSource?.fieldMap)
+  }))
 })
+const labelCount = computed(() => data.displayRows.length ? printLabels.value.length : 0)
+const pages = computed(() => paginateLabels(printLabels.value, labelsPerPage.value))
 
 const totalPages = computed(() => Math.max(1, pages.value.length))
 const currentPageData = computed(() => {
@@ -223,6 +208,7 @@ const CompRenderer = defineComponent({
     return () => {
       const c = props.c
       const row = props.row || {}
+      if (componentHidden(c, row)) return null
       const style = compStyle(c)
       let inner = null
       switch (c.type) {
@@ -620,7 +606,7 @@ async function printPages(opts = {}) {
   // 等二维码/条形码 data:URL 生成完（生成是异步的，且 await 链可达）
   await waitForImages(els, 3000)
 
-  const copies = Math.max(1, Math.floor(opts.copies || 1))
+  // 份数已经在 printLabels 里展开成独立的页，这里按页输出一次
   const iframe = document.createElement('iframe')
   iframe.style.position = 'fixed'
   iframe.style.right = '0'
@@ -664,18 +650,7 @@ async function printPages(opts = {}) {
     clone.style.background = 'white'
     doc.body.appendChild(clone)
   }
-  // 份数 + 逐份/逐页
-  // collate=true (默认):  1,2,3, 1,2,3, 1,2,3 — 每"套"重复 N 遍
-  // collate=false:         1,1,1, 2,2,2, 3,3,3 — 每页重复 N 遍
-  if (opts.collate !== false) {
-    for (let c = 0; c < copies; c++) {
-      for (const el of els) appendPage(el)
-    }
-  } else {
-    for (const el of els) {
-      for (let c = 0; c < copies; c++) appendPage(el)
-    }
-  }
+  for (const el of els) appendPage(el)
 
   // 等 iframe 内所有图片真正加载完（data:URL 同步完成；外部 URL 等待或超时）
   await waitForImages([doc.body], 3000)
@@ -709,7 +684,7 @@ async function onPrint() {
       projectId: project.currentId,
       projectName: project.project.meta.name,
       pages: pagesForTask(opts).length,
-      copies: opts.copies,
+      copies: 1,
       detail: rangeLabel(opts)
     })
   }
@@ -724,9 +699,9 @@ function addQueue() {
     range: opts.range,
     rangeStart: opts.rangeStart,
     rangeEnd: opts.rangeEnd,
-    copies: opts.copies,
+    copies: 1,
     pages: pagesForTask(opts).length,
-    label: `${rangeLabel(opts)} × ${opts.copies} 份`
+    label: rangeLabel(opts)
   })
 }
 
@@ -745,7 +720,7 @@ async function runQueue() {
           projectId: pid,
           projectName: task.projectName,
           pages: task.pages || pagesForTask(task).length,
-          copies: task.copies,
+          copies: 1,
           detail: task.label || rangeLabel(task)
         })
       }
@@ -776,22 +751,19 @@ function convertPxToMm(root, factor) {
 }
 
 async function onExportPDF() {
-  const prev = scale.value
-  scale.value = 1
   try {
-    const els = await settleImages()
-    if (!els.length) return alert(t('没有可导出的内容'))
     const fname = (project.project.meta.name || 'label') + '.pdf'
-    await exportElementsToPDF(els, {
-      width: project.project.paper.width,
-      height: project.project.paper.height
-    }, fname)
+    const n = await exportVectorPDF({
+      project: project.project,
+      labels: printLabels.value,
+      filename: fname
+    })
     printStore.addHistory({
       type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
-      pages: els.length, copies: 1, detail: '全部'
+      pages: n, copies: 1, detail: '矢量'
     })
-  } finally {
-    scale.value = prev
+  } catch (e) {
+    alert(t('导出失败：{msg}', { msg: e?.message || e }))
   }
 }
 

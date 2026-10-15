@@ -237,14 +237,7 @@ function bindCanvasEvents() {
     // 优先：obj 自身有 __id → 普通组件（含自建 fabric.Group，如表格/图片占位）
     // 注意：fabric 6 中 ActiveSelection 的 type 也是 'group'，不能用 type 区分
     if (obj.__id) {
-      pj.updateComponent(obj.__id, {
-        left: obj.left / MM_TO_PX,
-        top: obj.top / MM_TO_PX,
-        width: obj.width * obj.scaleX / MM_TO_PX,
-        height: obj.height * obj.scaleY / MM_TO_PX,
-        angle: obj.angle
-      })
-      obj.scaleX = 1; obj.scaleY = 1
+      pj.updateComponent(obj.__id, geometryPatch(obj))
       return
     }
     // 无 __id 的 group/activeSelection → 多选整体：遍历子对象（各有独立 __id）
@@ -252,17 +245,8 @@ function bindCanvasEvents() {
       const children = (typeof obj.getObjects === 'function') ? obj.getObjects() : []
       children.forEach(child => {
         if (!child?.__id) return
-        // 子对象自身的 left/top 是绝对坐标（相对画布），去掉 ActiveSelection 的 transform
-        pj.updateComponent(child.__id, {
-          left: child.left / MM_TO_PX,
-          top: child.top / MM_TO_PX,
-          width: child.width * child.scaleX / MM_TO_PX,
-          height: child.height * child.scaleY / MM_TO_PX,
-          angle: child.angle
-        })
-        child.scaleX = 1; child.scaleY = 1
+        pj.updateComponent(child.__id, geometryPatch(child))
       })
-      return
     }
   })
   // 点击图片占位（QR/条码/图片）→ 清掉失败标记并重绘
@@ -412,6 +396,7 @@ function renderAll() {
   fabricCanvas.clear()
   fabricCanvas.backgroundColor = pj.project.label.backgroundColor || '#fff'
   pj.project.components.forEach(c => {
+    if (c.hidden) return
     const obj = buildFabricObject(c, gen)
     if (obj) fabricCanvas.add(obj)
   })
@@ -432,21 +417,27 @@ function renderAll() {
 // （条形码/二维码/图片是异步 add，不校正会永远浮在最上层，导致设计与预览覆盖关系不一致）
 function syncZOrder() {
   if (!fabricCanvas) return
+  // 网格先全部沉底。否则把组件挪到 0 号位时，会把格子挤到条码和文字上面。
+  const grids = fabricCanvas.getObjects().filter(o => o.data?.isGrid)
+  grids.forEach(g => fabricCanvas.sendObjectToBack(g))
   const order = pj.project.components.map(c => c.id)
-  const objs = fabricCanvas.getObjects().filter(o => o.__id)
-  let idx = 0
+  let idx = grids.length
   for (const id of order) {
-    const o = objs.find(x => x.__id === id)
-    if (o && fabricCanvas.getObjects().indexOf(o) !== idx) {
+    const o = fabricCanvas.getObjects().find(x => x.__id === id)
+    if (!o) continue
+    if (fabricCanvas.getObjects().indexOf(o) !== idx) {
       fabricCanvas.moveObjectTo(o, idx)
     }
-    if (o) idx++
+    idx++
   }
 }
 
 // ============ 异步图片安全添加 ============
 function safeAddAsync(img, gen) {
   if (gen !== renderGeneration) return
+  const owner = pj.project.components.find(c => c.id === img.__id)
+  if (owner?.hidden) return
+  dressHandles(img)
   fabricCanvas.add(img)
   // 异步对象插入位置可能不对，重新按 store 顺序校正
   syncZOrder()
@@ -479,9 +470,37 @@ function codePlaceholder(c, baseOpts, label) {
 }
 
 // ============ 构建 fabric 对象（坐标即相对标签 mm） ============
+function designRow() {
+  const row = { ...(resolveRow(data.activeRow, pj.project.dataSource.fieldMap) || {}) }
+  const cfg = pj.project.printConfig || {}
+  if (!cfg.serialEnabled || rowIsEmpty(row)) return row
+  if (row['序号'] == null || row['序号'] === '') {
+    const start = Math.floor(Number(cfg.serialStart) || 1)
+    row['序号'] = String(start + Math.max(0, data.activeRowIndex || 0))
+  }
+  return row
+}
+
+// 文本和表格按组件框裁切，和预览的 overflow:hidden 对齐。
+// Fabric 的 clipPath 相对对象中心，所以要把裁切框的中心挪到「从左上角量出的盒子中心」。
+function clipToBox(obj, boxW, boxH) {
+  try {
+    const w = obj.width || boxW
+    const h = obj.height || boxH
+    obj.clipPath = new fabric.Rect({
+      width: Math.max(1, boxW),
+      height: Math.max(1, boxH),
+      originX: 'center',
+      originY: 'center',
+      left: -w / 2 + boxW / 2,
+      top: -h / 2 + boxH / 2
+    })
+  } catch (e) { /* 裁切失败就保持原样，避免整张画布空白 */ }
+}
+
 function buildFabricObject(c, gen = renderGeneration) {
   // 字段映射后的行：模板字段名 → 数据源字段值
-  const row = resolveRow(data.activeRow, pj.project.dataSource.fieldMap)
+  const row = designRow()
   const baseOpts = {
     left: c.left * MM_TO_PX,
     top: c.top * MM_TO_PX,
@@ -625,8 +644,45 @@ function buildFabricObject(c, gen = renderGeneration) {
   if (obj) {
     obj.__id = c.id
     obj.__type = c.type
+    dressHandles(obj)
+    if (c.type === 'text' || c.type === 'date') obj.lockScalingY = false
+    if (c.type === 'text' || c.type === 'date' || c.type === 'table') {
+      clipToBox(obj, (c.width || 40) * MM_TO_PX, (c.height || 10) * MM_TO_PX)
+    }
   }
   return obj
+}
+
+// 角点用来放大缩小。拖完后把缩放折进宽高；文字类同时改字号，否则松手会缩回去。
+function dressHandles(obj) {
+  obj.set({
+    cornerSize: 10,
+    transparentCorners: false,
+    cornerColor: '#2563eb',
+    cornerStrokeColor: '#ffffff',
+    borderColor: '#2563eb',
+    borderScaleFactor: 1.6,
+    padding: 1
+  })
+}
+
+function geometryPatch(obj) {
+  const sx = obj.scaleX || 1
+  const sy = obj.scaleY || 1
+  const patch = {
+    left: obj.left / MM_TO_PX,
+    top: obj.top / MM_TO_PX,
+    width: obj.width * sx / MM_TO_PX,
+    height: obj.height * sy / MM_TO_PX,
+    angle: obj.angle
+  }
+  const c = pj.project.components.find(x => x.id === obj.__id)
+  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'table') && Math.abs(sy - 1) > 0.02) {
+    patch.fontSize = Math.max(6, Math.min(96, Math.round((c.fontSize || 12) * sy)))
+  }
+  obj.scaleX = 1
+  obj.scaleY = 1
+  return patch
 }
 
 // ============ 表格 ============
@@ -938,6 +994,7 @@ function onKey(e) {
 
 // ============ Watch ============
 watch(() => pj.project.components, () => renderAll(), { deep: true })
+watch(() => pj.project.printConfig, () => renderAll(), { deep: true })
 watch(() => pj.project.label, () => rebuildCanvas(), { deep: true })
 watch(() => data.activeRow, () => renderAll())
 

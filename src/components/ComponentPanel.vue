@@ -30,7 +30,7 @@
           v-for="c in [...project.project.components].reverse()"
           :key="c.id"
           class="layer-item"
-          :class="{ active: project.selectedIds.includes(c.id), primary: project.selectedId === c.id, 'drag-over': dragOverId === c.id }"
+          :class="{ active: project.selectedIds.includes(c.id), primary: project.selectedId === c.id, 'drag-over': dragOverId === c.id, hidden: c.hidden }"
           draggable="true"
           @dragstart="onLayerDragStart($event, c)"
           @dragover.prevent="onLayerDragOver(c)"
@@ -44,6 +44,7 @@
           <img v-if="c.type === 'image' && c.src" class="layer-thumb" :src="c.src" :title="c.name || '图片'" />
           <span v-else-if="c.type === 'image'" class="layer-thumb layer-thumb-empty" :title="t('未上传图片')">{{ t('空') }}</span>
           <span class="layer-name">{{ c.name || labelOf(c) }}</span>
+          <button class="layer-eye" @click.stop="project.updateComponent(c.id, { hidden: !c.hidden })" :title="c.hidden ? t('显示') : t('隐藏')">{{ c.hidden ? '◌' : '👁' }}</button>
           <button class="layer-order" @click.stop="project.bringForward(c.id)" :title="t('上移一层')">↑</button>
           <button class="layer-order" @click.stop="project.sendBackward(c.id)" :title="t('下移一层')">↓</button>
           <button class="layer-del" @click.stop="onLayerDelete(c, $event)" :title="t('删除')">×</button>
@@ -597,6 +598,18 @@ function delField(name) {
   line-height: 1;
 }
 .layer-order:hover { background: var(--primary); color: white; }
+.layer-eye {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.layer-eye:hover { background: var(--bg-hover); color: var(--text); }
+.layer-item.hidden { opacity: 0.45; }
+.layer-item.hidden .layer-name { text-decoration: line-through; }
 .layer-item.drag-over {
   outline: 2px dashed var(--primary);
   outline-offset: -2px;

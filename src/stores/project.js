@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, toRaw, watch } from 'vue'
 import { getUserDefaults, saveUserDefaults } from './userDefaults'
+import { idbGet, idbSet } from '../utils/idb'
 
 // 纸张预设（打印介质：决定打印机走纸的纸张）
 export const PAPER_PRESETS = [
@@ -64,11 +65,19 @@ const createDefaultProject = () => {
   },
   printConfig: {
     copies: 1,
+    copiesColumn: '',
+    serialEnabled: false,
+    serialStart: 1,
     range: 'all',
     rangeStart: 1,
     rangeEnd: 1,
     printer: '',
-    format: 'print'
+    format: 'print',
+    collate: false,
+    media: 'gap',
+    gapMm: 2,
+    dpi: 203,
+    direction: 1
   }
   }
 }
@@ -201,7 +210,7 @@ export const useProjectStore = defineStore('project', () => {
     if (!p.dataSource) merged.dataSource = def.dataSource
     // dataSource 深合并：旧项目补齐 fieldMap
     else merged.dataSource = { ...def.dataSource, ...p.dataSource, fieldMap: p.dataSource.fieldMap || {} }
-    if (!p.printConfig) merged.printConfig = def.printConfig
+    merged.printConfig = { ...def.printConfig, ...(p.printConfig || {}) }
     if (!p.layout) merged.layout = { ...def.layout }
     if (!p.margin) merged.margin = { ...def.margin }
     if (!p.paper) merged.paper = { ...def.paper }
@@ -553,11 +562,21 @@ export const useProjectStore = defineStore('project', () => {
   const persistError = ref('')   // 配额满等保存失败，给界面一条提示
   let saveTimer = null
   let restoring = false           // 恢复/切换/批量操作过程中暂停自动保存和历史
+  let persistReady = false        // 先等本地数据库对完，再允许写入，避免空项目盖掉库里的副本
+  let createdFresh = false
 
   function genProjId() { return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
 
+  function persistPayload() {
+    return {
+      v: 2,
+      currentId: currentId.value,
+      list: JSON.parse(JSON.stringify(toRaw(projects.value)))
+    }
+  }
+
   function persistNow() {
-    if (restoring || !currentId.value) return
+    if (!persistReady || restoring || !currentId.value) return
     const idx = projects.value.findIndex(p => p.id === currentId.value)
     if (idx < 0) return
     projects.value[idx] = {
@@ -566,18 +585,23 @@ export const useProjectStore = defineStore('project', () => {
       updatedAt: Date.now(),
       data: getExportData()
     }
+    const payload = persistPayload()
+    const MILD = '浏览器存储已满，已改存到本地数据库。刷新后仍可恢复。请尽快下载项目备份。'
+    const HARD = '自动保存失败：浏览器存储已满。请先下载项目文件备份，或删除不用的项目。'
+    const idbPromise = idbSet(STORAGE_KEY, payload).catch(() => false)
+    let localOk = true
     try {
       // v2 格式：列表顺序 + 当前项目分开存，保证顺序稳定、刷新回到原项目
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        v: 2,
-        currentId: currentId.value,
-        list: toRaw(projects.value)
-      }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
       persistError.value = ''
     } catch (e) {
+      localOk = false
       console.warn('自动保存失败（可能超出存储配额）:', e)
-      persistError.value = '自动保存失败：浏览器存储已满。请先下载项目文件备份，或删除不用的项目。'
+      persistError.value = MILD
     }
+    idbPromise.then(ok => {
+      if (ok === false && !localOk) persistError.value = HARD
+    })
   }
 
   function schedulePersist() {
@@ -602,12 +626,42 @@ export const useProjectStore = defineStore('project', () => {
         }
       }
     } catch (e) { /* 损坏则重建 */ }
-    // 首次使用：创建默认项目
+    // 首次使用：先放一个空项目，等本地数据库核对完再决定要不要落盘
+    createdFresh = true
     const p = { id: genProjId(), name: '未命名项目', updatedAt: Date.now(), data: getExportData() }
     projects.value = [p]
     currentId.value = p.id
-    persistNow()
     return false
+  }
+
+  function applyStoredList(saved) {
+    const list = saved.list
+    restoring = true
+    projects.value = list
+    const cur = list.find(p => p.id === saved.currentId) || list[0]
+    currentId.value = cur.id
+    setProject(cur.data)
+    restoring = false
+  }
+
+  async function hydrateFromIdb() {
+    let replaced = false
+    try {
+      const saved = await idbGet(STORAGE_KEY)
+      const list = saved?.list
+      if (Array.isArray(list) && list.length) {
+        const idbMax = Math.max(...list.map(p => p.updatedAt || 0))
+        const localMax = Math.max(0, ...projects.value.map(p => p.updatedAt || 0))
+        if (createdFresh || idbMax > localMax) {
+          applyStoredList(saved)
+          replaced = true
+        }
+      }
+    } catch (e) { /* 没有本地数据库就继续用 localStorage */ }
+    persistReady = true
+    if (createdFresh && !replaced) persistNow()
+    else schedulePersist()
+    return replaced
   }
 
   // 版式/选中变化入历史。数据行不进快照：单元格编辑不再整表序列化，撤销也不改数据表。
@@ -853,6 +907,6 @@ export const useProjectStore = defineStore('project', () => {
     updateFieldMap, applyTemplate,
     undo, redo, canUndo, canRedo, clearHistory,
     getExportData,
-    loadFromStorage, createProject, switchProject, deleteProject, renameCurrentProject, renameProject
+    loadFromStorage, hydrateFromIdb, createProject, switchProject, deleteProject, renameCurrentProject, renameProject
   }
 })

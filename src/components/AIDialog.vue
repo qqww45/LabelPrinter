@@ -1,120 +1,76 @@
 <template>
-  <div class="modal-mask" @mousedown.self="$emit('close')">
-    <div class="modal" @mousedown.stop>
-      <div class="modal-head">
-        <span class="title">🤖 {{ t('AI 智能排版') }}</span>
-        <button class="x" @click="$emit('close')" :title="t('关闭')">×</button>
+  <aside class="ai-dock">
+    <div class="dock-head">
+      <span class="title">🤖 {{ t('AI 调整') }}</span>
+      <button class="icon-btn" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')">⚙</button>
+      <button class="icon-btn" @click="$emit('close')" :title="t('隐藏')">⟨</button>
+    </div>
+
+    <div class="mode-switch">
+      <button class="chip" :class="{ active: mode === 'adjust' }" @click="mode = 'adjust'">{{ t('调整当前') }}</button>
+      <button class="chip" :class="{ active: mode === 'generate' }" @click="mode = 'generate'">{{ t('生成新布局') }}</button>
+    </div>
+
+    <div class="chat" ref="chatEl">
+      <p v-if="!chat.length" class="hint">
+        {{ mode === 'adjust'
+          ? t('对着已有项目微调。AI 会先读布局、已导入的数据、打印设置和纸张排版，再只改你提到的地方。')
+          : t('输入字段与风格描述，AI 帮你一键完成布局/样式/字段绑定。') }}
+      </p>
+      <p v-if="mode === 'adjust'" class="hint">{{ adjustReads }}</p>
+      <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.role">{{ m.text }}</div>
+      <div v-if="planLines.length && canApplyPlan" class="plan-lines">
+        <div v-for="(line, i) in planLines" :key="i" class="plan-line">{{ line }}</div>
+        <button class="btn btn-primary" @click="applyPlan()">{{ t('应用到画布') }}</button>
       </div>
-
-      <div class="modal-body">
-        <!-- 左侧：输入区 -->
-        <div class="left">
-          <div class="hint">
-            {{ t('输入字段与风格描述，AI 帮你一键完成布局/样式/字段绑定。') }}
-          </div>
-
-          <fieldset>
-            <legend>📄 {{ t('字段列表') }} <span class="muted">{{ t('一行一个，从数据源自动带入，可编辑') }}</span></legend>
-            <textarea
-              v-model="fieldsText"
-              class="ta"
-              rows="6"
-              :placeholder="t('例如：\n产品名称\n规格\n价格\n条码\n生产日期')"
-            ></textarea>
-            <div class="row-between">
-              <span class="muted">{{ t('已识别 {n} 个字段').replace('{n}', fieldsList.length) }}</span>
-              <button class="link" v-if="data.fields.length" @click="importFromData">
-                ⬇ {{ t('从数据源导入') }} ({{ data.fields.length }})
-              </button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>🎨 {{ t('风格描述') }} <span class="muted">{{ t('可选，影响整体观感') }}</span></legend>
-            <textarea
-              v-model="styleText"
-              class="ta ta-sm"
-              rows="3"
-              :placeholder="t('例如：极简黑白、突出价格、仓库管理风格、商品零售风...')"
-            ></textarea>
-            <div class="presets">
-              <button
-                v-for="p in stylePresets"
-                :key="p.key"
-                class="chip"
-                :class="{ active: stylePresetKey === p.key }"
-                @click="applyStylePreset(p)"
-              >{{ t(p.label) }}</button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>⚙ {{ t('模型') }}</legend>
-            <div class="row-gap">
-              <span class="tag">{{ ai.model }}</span>
-              <span class="muted">{{ ai.baseUrl }}</span>
-              <button class="link" @click="$emit('open-settings')">⚙ {{ t('设置 API Key / 模型') }}</button>
-            </div>
-            <div v-if="!ai.isConfigured()" class="warn">
-              ⚠ {{ t('请先配置 API Key') }}
-            </div>
-          </fieldset>
-
-          <div v-if="error" class="error">❌ {{ error }}</div>
-        </div>
-
-        <!-- 右侧：预览区 -->
-        <div class="right">
-          <div class="canvas-mock" :style="canvasStyle">
-            <div
-              v-for="c in components"
-              :key="c.id"
-              class="mock-comp"
-              :class="'mock-' + c.type"
-              :style="mockStyle(c)"
-              :title="cTooltip(c)"
-            >
-              <span class="mock-name">{{ c.name }}<br><small>{{ c.type }} · {{ c.left }},{{ c.top }} {{ c.width }}×{{ c.height }}</small></span>
-            </div>
-            <div v-if="!components.length && !loading" class="empty-mock">
-              {{ t('点击下方「生成」AI 排版') }}
-            </div>
-          </div>
-
-          <div v-if="warnings.length" class="warnings">
-            <div v-for="(w, i) in warnings" :key="i" class="warning">⚠ {{ w }}</div>
-          </div>
-        </div>
+      <div v-if="warnings.length" class="warnings">
+        <div v-for="(w, i) in warnings" :key="i" class="warning">⚠ {{ w }}</div>
       </div>
+      <div v-if="error" class="error">{{ error }}</div>
+      <div v-if="!ai.isConfigured()" class="warn">⚠ {{ t('请先配置 API Key') }}</div>
+    </div>
 
-      <div class="modal-foot">
-        <span class="muted small">
-          {{ t('标签尺寸') }}: {{ project.project.label.width }} × {{ project.project.label.height }} mm ·
-          {{ t('将生成') }} {{ components.length }} {{ t('个组件') }}
-        </span>
-        <div class="spacer" />
-        <button class="btn" @click="$emit('close')">{{ t('取消') }}</button>
-        <button class="btn" v-if="components.length" @click="clearPreview">🗑 {{ t('清空预览') }}</button>
-        <button class="btn" :disabled="loading || !ai.isConfigured()" @click="onGenerate">
-          <span v-if="loading" class="spin">⏳</span>
-          <span v-else>✨</span>
-          {{ loading ? t('生成中…') : t('生成') }}
-        </button>
-        <button class="btn btn-primary" :disabled="!components.length" @click="onApply">
-          ✓ {{ t('应用到画布') }}
-        </button>
+    <div v-if="mode === 'generate'" class="generate-box">
+      <textarea v-model="fieldsText" class="ta" rows="4" :placeholder="t('例如：\n产品名称\n规格\n价格\n条码\n生产日期')"></textarea>
+      <div class="row-between">
+        <span class="muted">{{ t('已识别 {n} 个字段').replace('{n}', fieldsList.length) }}</span>
+        <button class="link" v-if="data.fields.length" @click="importFromData">⬇ {{ t('从数据源导入') }} ({{ data.fields.length }})</button>
+      </div>
+      <div class="presets">
+        <button v-for="p in stylePresets" :key="p.key" class="chip" :class="{ active: stylePresetKey === p.key }" @click="applyStylePreset(p)">{{ t(p.label) }}</button>
       </div>
     </div>
-  </div>
+
+    <form class="composer" @submit.prevent="onGenerate">
+      <div v-if="mode === 'adjust'" class="presets">
+        <button v-for="h in talkHints" :key="h.text" class="chip" type="button" @click="instruction = t(h.text)">{{ t(h.label) }}</button>
+      </div>
+      <textarea
+        v-if="mode === 'adjust'"
+        v-model="instruction"
+        class="ta"
+        rows="3"
+        :placeholder="t('例如：价格改成红色大字；规格为空时不打印；按份数列打印')"
+        @keydown.enter.exact.prevent="onGenerate"
+      ></textarea>
+      <div class="composer-row">
+        <span class="muted">{{ ai.model }}</span>
+        <button class="btn btn-primary" type="submit" :disabled="loading || !ai.isConfigured() || (mode === 'generate' && !fieldsList.length)">
+          {{ loading ? t('生成中…') : (mode === 'adjust' ? t('发送') : t('生成')) }}
+        </button>
+        <button v-if="mode === 'generate' && components.length" class="btn" type="button" @click="onApply">{{ t('应用到画布') }}</button>
+      </div>
+    </form>
+  </aside>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useAIStore } from '../stores/ai'
 import { useI18n } from '../utils/i18n'
-import { buildSystemPrompt, callChat, parseAIResponse, validateAndNormalize } from '../utils/ai'
+import { buildSystemPrompt, buildAdjustPrompt, buildAdjustMessages, packAdjustContext, callChat, parseAIResponse, parseAIPlan, validateAndNormalize, normalizeAdjustPlan, adjustPlanIsEmpty, describeAdjustPlan } from '../utils/ai'
 
 const { t } = useI18n()
 const project = useProjectStore()
@@ -125,12 +81,23 @@ const emit = defineEmits(['close', 'open-settings', 'applied'])
 
 const fieldsText = ref('')
 const styleText = ref('')
+const mode = ref('adjust')
+const instruction = ref('')
+const plan = ref(null)
+const chat = ref([])
+const chatEl = ref(null)
 const stylePresetKey = ref('')
 const components = ref([])
 const warnings = ref([])
 const loading = ref(false)
 const error = ref('')
 
+const talkHints = [
+  { label: '这个放大', text: '把选中的组件放大，字也加大' },
+  { label: '空了不印', text: '内容为空的组件不打印' },
+  { label: '换成条码', text: '把选中的二维码改成条形码，绑定的内容保持不变' },
+  { label: '价格标红', text: '价格改成红色大字' }
+]
 const stylePresets = [
   { key: 'minimal',   label: '极简', text: '极简风格，黑白灰为主，无装饰边框，字号克制，大量留白' },
   { key: 'retail',    label: '零售', text: '零售商品标签风格，价格红色加粗突出，商品名称加黑体' },
@@ -149,34 +116,46 @@ watch(() => data.fields, (v) => {
 const fieldsList = computed(() =>
   fieldsText.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
 )
-
-// 画布 mm → px 比例（预览缩放）
-const SCALE = computed(() => {
-  // 标签尺寸按 mm；预览画布固定 ~360 宽
-  return Math.min(360 / Math.max(1, project.project.label.width), 8)
+const planLines = computed(() => describeAdjustPlan(plan.value))
+const canApplyPlan = computed(() => plan.value && !adjustPlanIsEmpty(plan.value))
+const adjustReads = computed(() => {
+  const p = project.project
+  const L = p.layout || {}
+  const sheet = L.mode === 'auto'
+    ? t('{c} 列 × {r} 行', { c: L.cols || 1, r: L.rows || 1 })
+    : t('单张')
+  const sel = project.selectedIds
+    .map(id => p.components.find(c => c.id === id))
+    .filter(Boolean)
+    .map(c => c.name || c.type)
+  const base = t('将读取：布局 {n} 个组件，数据 {rows} 行，打印设置，排版 {sheet}（纸张 {w}×{h} mm）。', {
+    n: p.components.length,
+    rows: data.rows.length,
+    sheet,
+    w: p.paper?.width,
+    h: p.paper?.height
+  })
+  return sel.length ? base + t('当前选中：{name}。说「这个」就会改它。', { name: sel.join('、') }) : base
 })
-const canvasStyle = computed(() => ({
-  width:  project.project.label.width  * SCALE.value + 'px',
-  height: project.project.label.height * SCALE.value + 'px'
-}))
 
-function mockStyle(c) {
-  return {
-    left:   c.left   * SCALE.value + 'px',
-    top:    c.top    * SCALE.value + 'px',
-    width:  c.width  * SCALE.value + 'px',
-    height: c.height * SCALE.value + 'px',
-    background: c.type === 'rect' ? (c.fill || '#000') : 'rgba(99,102,241,0.10)',
-    border: c.type === 'line' ? `1px solid ${c.stroke || '#000'}` : '1px dashed var(--primary)',
-    color: c.type === 'rect' ? 'transparent' : 'var(--primary)',
-    fontSize: Math.max(8, Math.min(12, c.height * SCALE.value * 0.7)) + 'px',
-    opacity: c.type === 'rect' ? 0.6 : 0.9
-  }
+function scrollChat() {
+  nextTick(() => {
+    const el = chatEl.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
 }
-function cTooltip(c) {
-  const b = c.binding ? ` → ${c.binding}` : ''
-  return `${c.name} (${c.type})${b}\n${c.left},${c.top}  ${c.width}×${c.height}mm`
+
+function planTouchesData(next) {
+  const d = next?.data
+  if (!d) return false
+  return !!(d.addColumns?.length || d.renameColumns?.length || d.removeColumns?.length || d.setColumn?.length || d.setCells?.length)
 }
+
+watch(mode, () => {
+  plan.value = null
+  warnings.value = []
+  error.value = ''
+})
 
 function applyStylePreset(p) {
   stylePresetKey.value = p.key
@@ -186,17 +165,13 @@ function importFromData() {
   fieldsText.value = data.fields.join('\n')
 }
 
-function clearPreview() {
-  components.value = []
-  warnings.value = []
-  error.value = ''
-}
-
 async function onGenerate() {
   if (!ai.isConfigured()) { error.value = t('请先在设置里配置 API Key / 模型'); return }
+  if (mode.value === 'adjust') return onAdjust()
   if (!fieldsList.value.length) { error.value = t('请至少输入一个字段'); return }
   loading.value = true
   error.value = ''
+  plan.value = null
   try {
     const sys = buildSystemPrompt({
       labelWidth:  project.project.label.width,
@@ -220,6 +195,8 @@ async function onGenerate() {
     })
     components.value = comps
     warnings.value = ws
+    chat.value.push({ role: 'ai', text: t('已生成 {n} 个组件，点「应用到画布」就能在旁边看到。', { n: comps.length }) })
+    scrollChat()
   } catch (e) {
     error.value = e?.message || String(e)
     components.value = []
@@ -229,90 +206,193 @@ async function onGenerate() {
   }
 }
 
+async function onAdjust() {
+  if (!instruction.value.trim()) { error.value = t('先写要改什么'); return }
+  loading.value = true
+  error.value = ''
+  components.value = []
+  try {
+    const packed = packAdjustContext({
+      project: project.project,
+      rows: data.rows,
+      fields: data.fields.length ? data.fields : fieldsList.value,
+      selectedIds: project.selectedIds
+    })
+    const sys = buildAdjustPrompt(packed)
+    const said = instruction.value.trim()
+    const { content } = await callChat({
+      baseUrl: ai.baseUrl, apiKey: ai.apiKey, model: ai.model,
+      temperature: Math.min(ai.temperature ?? 0.4, 0.3), maxTokens: ai.maxTokens
+    }, buildAdjustMessages(sys, chat.value, said + (styleText.value.trim() ? `\n风格偏好：${styleText.value.trim()}` : '')))
+    const raw = parseAIPlan(content)
+    const { plan: next, warnings: ws } = normalizeAdjustPlan(raw, {
+      labelWidth: project.project.label.width,
+      labelHeight: project.project.label.height,
+      fields: data.fields.length ? data.fields : fieldsList.value,
+      components: project.project.components,
+      rowCount: data.rows.length,
+      selectedIds: project.selectedIds
+    })
+    chat.value.push({ role: 'user', text: said })
+    instruction.value = ''
+    plan.value = next
+    components.value = next.componentAdds
+    warnings.value = ws
+    if (adjustPlanIsEmpty(next)) {
+      chat.value.push({ role: 'ai', text: ws.filter(Boolean).join('\n') || t('没有可应用的改动') })
+    } else {
+      chat.value.push({ role: 'ai', text: next.summary || describeAdjustPlan(next).join('；') })
+      if (!planTouchesData(next)) {
+        applyPlan({ quiet: true })
+        chat.value.push({ role: 'ai', text: t('已改到画布上，旁边就能看到。布局和打印可以用 Ctrl+Z 撤回。') })
+      }
+    }
+    scrollChat()
+  } catch (e) {
+    error.value = e?.message || String(e)
+    plan.value = null
+    warnings.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function applyDataOps(ops) {
+  const notes = []
+  for (const name of ops.addColumns || []) {
+    try { data.addColumn(name) } catch (e) { notes.push(e.message) }
+  }
+  for (const item of ops.renameColumns || []) {
+    try { data.renameColumn(item.from, item.to) } catch (e) { notes.push(e.message) }
+  }
+  for (const name of ops.removeColumns || []) {
+    try { data.removeColumn(name) } catch (e) { notes.push(e.message) }
+  }
+  for (const item of ops.setColumn || []) {
+    if (!data.headers.includes(item.column)) { notes.push(item.column); continue }
+    for (const row of data.rows) data.updateRow(row.__id, { [item.column]: item.value })
+  }
+  for (const cell of ops.setCells || []) {
+    const row = data.rows[cell.row - 1]
+    if (!row || !data.headers.includes(cell.column)) continue
+    data.updateRow(row.__id, { [cell.column]: cell.value })
+  }
+  return notes
+}
+
 function onApply() {
+  if (mode.value === 'adjust') return applyPlan()
   if (!components.value.length) return
-  const mode = project.project.components.length
+  const applyMode = project.project.components.length
     ? confirm(t('当前画布已有 {n} 个组件。\n点「确定」= 全部替换\n点「取消」= 添加到末尾').replace('{n}', project.project.components.length))
       ? 'replace' : 'append'
     : 'replace'
   const comps = components.value.slice()
   project.batchUpdate(() => {
-    if (mode === 'replace') {
+    if (applyMode === 'replace') {
       project.project.components.splice(0)
       project.clearSelection()
     }
     for (const c of comps) project.addComponent(c)
   })
   emit('applied', components.value.length)
-  emit('close')
+  chat.value.push({ role: 'ai', text: t('已改到画布上，旁边就能看到。布局和打印可以用 Ctrl+Z 撤回。') })
+  components.value = []
+  scrollChat()
+}
+
+function applyPlan(opts = {}) {
+  const next = plan.value
+  if (!next || adjustPlanIsEmpty(next)) return
+  if (planTouchesData(next) && !opts.quiet) {
+    const ask = describeAdjustPlan(next).join('\n') + '\n\n' + t('数据改动不能用 Ctrl+Z 撤回。布局和打印设置可以。')
+    if (!confirm(ask)) return
+  }
+  const notes = applyDataOps(next.data || {})
+  project.batchUpdate(() => {
+    for (const id of next.componentRemoves) project.removeComponent(id)
+    for (const item of next.componentUpdates) {
+      if (project.project.components.some(c => c.id === item.id)) project.updateComponent(item.id, item.patch)
+    }
+    for (const c of next.componentAdds) project.addComponent(c)
+    if (next.sheet?.paper) project.updatePaper(next.sheet.paper)
+    if (next.sheet?.margin) project.updateMargin(next.sheet.margin)
+    if (next.sheet?.label) project.updateLabel(next.sheet.label)
+    if (next.sheet?.layout) project.updateLayout(next.sheet.layout)
+    if (next.print) Object.assign(project.project.printConfig, next.print)
+    if (next.order?.length) {
+      const moving = new Set(next.order)
+      const stay = project.project.components.filter(c => !moving.has(c.id))
+      const raised = next.order.map(id => project.project.components.find(c => c.id === id)).filter(Boolean)
+      project.project.components.splice(0, project.project.components.length, ...stay, ...raised)
+    }
+    if (next.data?.fieldMap?.length) {
+      const map = { ...(project.project.dataSource.fieldMap || {}) }
+      for (const item of next.data.fieldMap) map[item.from] = item.to
+      project.updateFieldMap(map)
+    }
+  })
+  plan.value = null
+  if (notes.length) alert(notes.join('\n'))
+  emit('applied', next.componentAdds.length + next.componentUpdates.length)
 }
 </script>
 
 <style scoped>
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal {
-  background: var(--bg-panel); color: var(--text);
-  width: 920px; max-width: 96vw; max-height: 90vh;
-  display: flex; flex-direction: column;
-  border-radius: 8px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+.ai-dock {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  color: var(--text);
+  min-width: 0;
 }
-.modal-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--border);
-  background: linear-gradient(90deg, rgba(99,102,241,0.08), transparent);
+.dock-head {
+  flex-shrink: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
 }
-.modal-head .title { font-size: 16px; font-weight: 600; }
-.modal-head .x { background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--text); line-height: 1; }
-.modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; overflow: auto; flex: 1; }
-.modal-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--bg-soft); }
-.spacer { flex: 1; }
-.left fieldset { border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; margin: 0 0 10px; }
-.left legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
-.muted { color: var(--text-muted); font-size: 11px; font-weight: normal; }
-.small { font-size: 11px; }
-.ta { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: 13px; background: var(--bg-soft); color: var(--text); border: 1px solid var(--border); border-radius: 3px; resize: vertical; }
-.ta-sm { font-size: 12px; }
+.dock-head .title { flex: 1; font-size: 12px; font-weight: 600; }
+.icon-btn {
+  width: 22px; height: 22px;
+  border: 0; background: transparent; color: var(--text-secondary);
+  border-radius: 4px; cursor: pointer;
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--primary); }
+.mode-switch { display: flex; gap: 6px; padding: 8px 10px 0; }
+.chat { flex: 1; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+.hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+.bubble { font-size: 13px; line-height: 1.45; padding: 6px 8px; border-radius: 6px; white-space: pre-wrap; }
+.bubble.user { align-self: flex-end; max-width: 92%; background: rgba(37,99,235,0.12); }
+.bubble.ai { align-self: flex-start; max-width: 100%; background: var(--bg); border: 1px solid var(--border); }
+.generate-box { padding: 0 10px 8px; border-top: 1px solid var(--border); }
+.composer { flex-shrink: 0; padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.composer-row { display: flex; align-items: center; gap: 6px; }
+.composer-row .muted { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--text-muted); font-size: 11px; }
+.ta { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; resize: vertical; }
 .row-between { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-.row-gap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .link { background: none; border: 0; color: var(--primary); cursor: pointer; font-size: 12px; padding: 2px 4px; }
-.link:hover { text-decoration: underline; }
-.tag { background: var(--bg-soft); padding: 2px 8px; border-radius: 10px; font-size: 11px; font-family: monospace; }
-.warn { color: #b45309; font-size: 12px; margin-top: 6px; }
+.warn { color: #b45309; font-size: 12px; }
 .error { color: #dc2626; font-size: 13px; padding: 8px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; }
 .presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chip { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 11px; cursor: pointer; color: var(--text); }
-.chip:hover { background: var(--primary); color: white; }
+.chip { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 11px; cursor: pointer; color: var(--text); }
 .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-.right { display: flex; flex-direction: column; gap: 8px; }
-.canvas-mock {
-  position: relative; background: #ffffff; border: 1px solid var(--border);
-  border-radius: 4px; margin: 0 auto;
-  background-image:
-    linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px);
-  background-size: 10px 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.mock-comp { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center; padding: 1px; line-height: 1.05; overflow: hidden; }
-.mock-name { font-size: 9px; }
-.mock-name small { font-size: 7px; opacity: 0.7; }
-.empty-mock { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px; }
-.warnings { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow: auto; }
-.warning { font-size: 11px; color: #b45309; background: rgba(245,158,11,0.08); padding: 4px 6px; border-radius: 3px; border-left: 2px solid #f59e0b; }
-.hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
-
+.warnings { display: flex; flex-direction: column; gap: 4px; }
+.warning { font-size: 11px; color: #b45309; background: rgba(245,158,11,0.08); padding: 4px 6px; border-radius: 3px; }
+.plan-lines { display: flex; flex-direction: column; gap: 4px; }
+.plan-line { font-size: 12px; background: rgba(37,99,235,0.08); padding: 4px 6px; border-radius: 3px; }
 .btn {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 6px 12px; border: 1px solid var(--border);
+  padding: 5px 10px; border: 1px solid var(--border);
   background: var(--bg-panel); color: var(--text);
-  border-radius: 4px; cursor: pointer; font-size: 13px;
+  border-radius: 4px; cursor: pointer; font-size: 12px;
 }
-.btn:hover:not(:disabled) { background: var(--bg-soft); border-color: var(--primary); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
-.btn-primary:hover:not(:disabled) { background: var(--primary); filter: brightness(1.1); }
-.spin { display: inline-block; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 </style>

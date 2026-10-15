@@ -8,6 +8,7 @@
  *
  * 纯函数、无副作用，方便单测。
  */
+import { expandPrintLabels } from './printModel.js'
 
 /**
  * 单个组件引用到的所有字段名：
@@ -120,7 +121,8 @@ export function runDiagnostics({
   label = {},
   paper = {},
   perPage = 1,
-  printConfig = {}
+  printConfig = {},
+  rows
 } = {}) {
   const issues = []
 
@@ -177,8 +179,15 @@ export function runDiagnostics({
   const errors = issues.filter(i => i.level === 'error')
   const warnings = issues.filter(i => i.level === 'warn')
   const safePerPage = Math.max(1, Number(perPage) || 1)
-  const pages = rowCount ? Math.max(1, Math.ceil(rowCount / safePerPage)) : 1
   const copies = Math.max(1, Number(printConfig?.copies) || 1)
+  // 传入数据行时，页数按展开后的张数算（份数、按列份数已经乘进去），界面不再另乘一次
+  let pages = rowCount ? Math.max(1, Math.ceil(rowCount / safePerPage)) : 1
+  let copiesShown = copies
+  if (Array.isArray(rows)) {
+    const n = rows.length ? expandPrintLabels(rows, printConfig).length : 0
+    pages = n ? Math.max(1, Math.ceil(n / safePerPage)) : 1
+    copiesShown = 1
+  }
 
   return {
     issues,
@@ -191,8 +200,8 @@ export function runDiagnostics({
       rowCount,
       perPage: safePerPage,
       pages,
-      copies,
-      totalSheets: pages * copies
+      copies: copiesShown,
+      totalSheets: pages * copiesShown
     }
   }
 }

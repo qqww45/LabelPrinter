@@ -97,6 +97,8 @@
           <label>角度</label><input class="input" type="number" step="1" :value="selected.angle || 0" @input="update('angle', +$event.target.value)" />
           <span class="hint">度（-180~180）</span>
         </div>
+        <p class="hint">{{ t('在画布上拖动可移动，拖角点可放大缩小。') }}</p>
+        <label class="check-line"><input type="checkbox" :checked="!!selected.hidden" @change="update('hidden', $event.target.checked)" /> {{ t('隐藏（画布和打印都不显示）') }}</label>
       </fieldset>
 
       <!-- 通用：字段失效即时预警（所有组件类型通用） -->
@@ -294,6 +296,12 @@
           <label>格式</label>
           <input class="input" :value="selected.format || 'YYYY-MM-DD HH:mm:ss'" @input="update('format', $event.target.value)" />
         </div>
+      </fieldset>
+
+      <fieldset v-if="selected.type === 'text' || selected.type === 'qrcode' || selected.type === 'barcode' || selected.type === 'date'">
+        <legend>{{ t('空内容') }}</legend>
+        <label class="check-line"><input type="checkbox" :checked="!!selected.hideIfEmpty" @change="update('hideIfEmpty', $event.target.checked)" /> {{ t('内容为空时不打印') }}</label>
+        <div class="hint">{{ t('没填数据时画布上仍显示，方便排版。') }}</div>
       </fieldset>
 
       <!-- 表格 -->

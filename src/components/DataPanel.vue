@@ -16,7 +16,7 @@
       <button class="btn btn-sm btn-primary" @click="$emit('import')">📥 {{ t('导入 Excel/CSV') }}</button>
     </div>
 
-    <div class="data-grid" v-if="data.headers.length">
+    <div class="data-grid" v-if="data.headers.length" ref="gridEl" @scroll="onGridScroll">
       <table>
         <thead>
           <tr>
@@ -70,13 +70,14 @@
           </tr>
         </thead>
         <tbody>
+          <tr v-if="padTop" class="vpad" :style="{ height: padTop + 'px' }"><td :colspan="colSpan"></td></tr>
           <tr
-            v-for="(row, i) in data.displayRows"
-            :key="row.__id"
-            :class="{ active: data.activeRowIndex === i }"
-            @click="data.setActiveIndex(i)"
+            v-for="item in visibleRows"
+            :key="item.row.__id || item.i"
+            :class="{ active: data.activeRowIndex === item.i, vrow: useVirtual }"
+            @click="data.setActiveIndex(item.i)"
           >
-            <td>{{ i + 1 }}</td>
+            <td>{{ item.i + 1 }}</td>
             <td
               v-for="h in data.headers"
               :key="h"
@@ -84,17 +85,18 @@
             >
               <input
                 class="cell-input"
-                :value="row[h]"
-                :title="String(row[h] || '').length + '/1000'"
-                @input="data.updateRow(row.__id, {[h]: $event.target.value})"
+                :value="item.row[h]"
+                :title="String(item.row[h] || '').length + '/1000'"
+                @input="data.updateRow(item.row.__id, {[h]: $event.target.value})"
                 @click.stop
               />
             </td>
             <td></td>
             <td>
-              <button class="btn btn-sm" @click.stop="data.removeRow(row.__id)" :title="t('删除该行')">×</button>
+              <button class="btn btn-sm" @click.stop="data.removeRow(item.row.__id)" :title="t('删除该行')">×</button>
             </td>
           </tr>
+          <tr v-if="padBottom" class="vpad" :style="{ height: padBottom + 'px' }"><td :colspan="colSpan"></td></tr>
         </tbody>
       </table>
     </div>
@@ -120,12 +122,57 @@
 </template>
 
 <script setup>
-import { ref, reactive, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
 import { exportToExcel, exportToCSV } from '../utils/excel'
 const { t } = useI18n()
 const data = useDataStore()
+
+// 行数多了才虚拟滚动，少的时候整表渲染，选中行号不变
+const ROW_H = 33
+const OVERSCAN = 8
+const VIRTUAL_MIN = 80
+const gridEl = ref(null)
+const scrollTop = ref(0)
+const viewH = ref(400)
+const useVirtual = computed(() => data.displayRows.length > VIRTUAL_MIN)
+const colSpan = computed(() => data.headers.length + 3)
+const startIndex = computed(() => {
+  if (!useVirtual.value) return 0
+  const raw = Math.floor(scrollTop.value / ROW_H) - OVERSCAN
+  return Math.max(0, Math.min(raw, data.displayRows.length))
+})
+const visibleRows = computed(() => {
+  const rows = data.displayRows
+  if (!useVirtual.value) return rows.map((row, i) => ({ row, i }))
+  const start = startIndex.value
+  const count = Math.ceil(viewH.value / ROW_H) + OVERSCAN * 2
+  const end = Math.min(rows.length, start + count)
+  const out = []
+  for (let i = start; i < end; i++) out.push({ row: rows[i], i })
+  return out
+})
+const padTop = computed(() => useVirtual.value ? startIndex.value * ROW_H : 0)
+const padBottom = computed(() => {
+  if (!useVirtual.value) return 0
+  const end = visibleRows.value.length ? visibleRows.value[visibleRows.value.length - 1].i + 1 : 0
+  return Math.max(0, (data.displayRows.length - end) * ROW_H)
+})
+function onGridScroll(e) {
+  scrollTop.value = e.target.scrollTop
+  viewH.value = e.target.clientHeight || viewH.value
+}
+let gridObserver = null
+onMounted(() => {
+  const el = gridEl.value
+  if (!el) return
+  viewH.value = el.clientHeight || 400
+  if (typeof ResizeObserver !== 'undefined') {
+    gridObserver = new ResizeObserver(() => { viewH.value = el.clientHeight || 400 })
+    gridObserver.observe(el)
+  }
+})
 
 defineEmits(['import'])
 
@@ -188,7 +235,10 @@ function startResize(e, h) {
   document.addEventListener('mouseup', onUp)
   document.body.style.cursor = 'col-resize'
 }
-onBeforeUnmount(() => { document.body.style.cursor = '' })
+onBeforeUnmount(() => {
+  document.body.style.cursor = ''
+  gridObserver?.disconnect()
+})
 
 // ============ 列重命名编辑态 ============
 const editingCol = ref('')
@@ -338,6 +388,8 @@ th, td {
   text-overflow: ellipsis;
 }
 th { background: var(--bg); position: sticky; top: 0; z-index: 1; box-shadow: 0 1px 0 var(--border); }  /* box-shadow 兜底：collapse 下滚动时 th 底边框会被表格层吃掉 */
+tr.vrow { height: 33px; }
+tr.vpad td { padding: 0; border: none; }
 tr.active td { background: var(--row-active-bg, #dbeafe); color: var(--row-active-text, #1e3a8a); }
 tr.active td .cell-input { color: inherit; }
 .cell-input {

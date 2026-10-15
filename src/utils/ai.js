@@ -11,7 +11,7 @@ const FONT = 'Microsoft YaHei'
 // 组件类型 JSON schema（给 AI 看的，字段含义标注）
 export const COMPONENT_SCHEMA = `
 [
-  { "type": "text",    "name": "标题",   "left": 3, "top": 2,  "width": 54, "height": 7,  "text": "{{产品名称}}",   "fontSize": 11, "fontWeight": "bold",  "fill": "#000000", "textAlign": "left",   "binding": "产品名称" },
+  { "type": "text",    "name": "标题",   "left": 3, "top": 2,  "width": 54, "height": 7,  "text": "{{产品名称}}",   "fontSize": 11, "fontWeight": "bold",  "fill": "#000000", "textAlign": "left",   "binding": "产品名称", "hideIfEmpty": false },
   { "type": "image",   "name": "图片",   "left": 3, "top": 15, "width": 20, "height": 20, "src": "",              "binding": "" },
   { "type": "table",   "name": "信息表", "left": 3, "top": 15, "width": 54, "height": 20, "rows": 2, "cols": 2, "fontSize": 8, "colWidths": [30, 70], "cells": { "0,0": {"text":"规格","binding":""}, "0,1":{"text":"{{规格}}","binding":"规格"}, "1,0":{"text":"单价","binding":""}, "1,1":{"text":"¥{{价格}}","binding":"价格"} } },
   { "type": "qrcode",  "name": "二维码", "left": 35,"top": 15, "width": 20, "height": 20, "text": "",             "binding": "网址" },
@@ -51,6 +51,11 @@ ${COMPONENT_SCHEMA}
 - 如果组件显示的是某个数据字段，把 binding 设为该字段名（不带 {{}}）
 - 静态文字（如单位、标签）则 binding 留空，text 直接写
 - 二维码/条形码的 binding 指向要编码的字段（网址/条码号/编号等）
+- 内容为空时不打印：文本/二维码/条码/日期可加 "hideIfEmpty": true
+- 需要每张标签一个流水号时，文本写 {{序号}}。序号由打印设置生成，不要把它当成数据列
+
+# 打印相关（只在用户要求时才做，生成版式本身不要输出打印设置）
+- 整单份数、按某一列决定份数、起始序号、热敏纸间隙/黑标/连续纸，属于打印设置，不是组件
 
 # 输出要求（严格）
 - 只能输出 **一个合法 JSON 数组**，不要任何解释、注释、Markdown 围栏
@@ -235,6 +240,7 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       c.fontWeight = ['normal', 'bold'].includes(raw.fontWeight) ? raw.fontWeight : 'normal'
       c.textAlign = ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'left'
       if (raw.binding) c.binding = String(raw.binding)
+      if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
     case 'image':
       c.src = String(raw.src || '')
@@ -274,11 +280,13 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
     case 'qrcode':
       c.text = String(raw.text || '')
       if (raw.binding) c.binding = String(raw.binding)
+      if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
     case 'barcode':
       c.text = String(raw.text || '')
       if (raw.binding) c.binding = String(raw.binding)
       c.format = String(raw.format || 'CODE128')
+      if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
     case 'rect':
       c.fill = String(raw.fill || '#000000')
@@ -294,6 +302,7 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       c.fontFamily = FONT
       c.fill = String(raw.fill || '#000000')
       if (raw.binding) c.binding = String(raw.binding)
+      if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
   }
   return c
@@ -307,4 +316,692 @@ function round2(n) { return Math.round(n * 100) / 100 }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)) }
 function defaultName(type) {
   return ({ text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', line: '直线', date: '日期' })[type] || type
+}
+
+const ADJUST_ROW_CAP = 120
+
+function clipCell(value) {
+  const s = String(value ?? '')
+  return s.length > 80 ? s.slice(0, 80) : s
+}
+
+const FONTS = new Set(['Microsoft YaHei', 'SimSun', 'SimHei', 'KaiTi', 'Arial', 'sans-serif'])
+const BARCODE_FORMATS = new Set(['CODE128', 'EAN13', 'CODE39'])
+const CELL_TYPES = new Set(['text', 'qrcode', 'barcode', 'image'])
+
+function packComponent(c) {
+  const out = {
+    id: c.id,
+    type: c.type,
+    name: c.name,
+    left: c.left,
+    top: c.top,
+    width: c.width,
+    height: c.height
+  }
+  const copy = ['text', 'binding', 'fontSize', 'fontFamily', 'fontWeight', 'fill', 'textAlign', 'format', 'stroke', 'strokeWidth', 'angle', 'source', 'rx', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerBg', 'vAlign']
+  for (const key of copy) {
+    if (c[key] != null && c[key] !== '') out[key] = c[key]
+  }
+  if (c.hideIfEmpty) out.hideIfEmpty = true
+  if (c.hidden) out.hidden = true
+  if (c.headerRow) out.headerRow = true
+  if (c.type === 'image' && c.src) out.src = String(c.src).startsWith('data:') ? '(已有图片)' : String(c.src).slice(0, 120)
+  if (c.type === 'table' && c.cells && typeof c.cells === 'object') {
+    const cells = {}
+    for (const [k, v] of Object.entries(c.cells).slice(0, 40)) {
+      if (!v || typeof v !== 'object') continue
+      cells[k] = { text: v.text || '', binding: v.binding || '', type: v.type || 'text' }
+    }
+    out.cells = cells
+  }
+  if (Array.isArray(c.colWidths) && c.colWidths.length) out.colWidths = c.colWidths
+  return out
+}
+
+/**
+ * 微调前必须打包的四块：布局、已有数据、打印设置、纸张排版。
+ * 行数很多时附上每一列的空值个数和最长内容，避免模型只看表头。
+ */
+export function packAdjustContext({ project, rows, fields, selectedIds }) {
+  const p = project || {}
+  const list = Array.isArray(rows) ? rows : []
+  const cols = (fields && fields.length)
+    ? fields.filter(h => h && h !== '__id')
+    : Object.keys(list[0] || {}).filter(h => h !== '__id')
+  const packedRows = list.slice(0, ADJUST_ROW_CAP).map((row, i) => {
+    const out = { row: i + 1 }
+    for (const name of cols) out[name] = clipCell(row?.[name])
+    return out
+  })
+  const profile = cols.map(name => {
+    let empty = 0
+    let maxLen = 0
+    for (const row of list) {
+      const s = String(row?.[name] ?? '').trim()
+      if (!s) empty += 1
+      else if (s.length > maxLen) maxLen = s.length
+    }
+    return { name, empty, filled: list.length - empty, maxLen }
+  })
+  const label = p.label || {}
+  const paper = p.paper || {}
+  const margin = p.margin || {}
+  const layout = p.layout || {}
+  const printConfig = p.printConfig || {}
+  return {
+    label: {
+      width: label.width,
+      height: label.height,
+      showBorder: !!label.showBorder,
+      borderColor: label.borderColor || '#000000',
+      borderWidth: label.borderWidth ?? 0.3,
+      backgroundColor: label.backgroundColor || '#ffffff'
+    },
+    paper: { width: paper.width, height: paper.height },
+    margin: { top: margin.top, right: margin.right, bottom: margin.bottom, left: margin.left },
+    layout: {
+      mode: layout.mode || 'single',
+      sizingMode: layout.sizingMode || 'auto',
+      cols: layout.cols || 1,
+      rows: layout.rows || 1,
+      hGap: layout.hGap || 0,
+      vGap: layout.vGap || 0
+    },
+    print: {
+      copies: printConfig.copies ?? 1,
+      copiesColumn: printConfig.copiesColumn || '',
+      serialEnabled: !!printConfig.serialEnabled,
+      serialStart: printConfig.serialStart ?? 1,
+      collate: !!printConfig.collate,
+      range: printConfig.range || 'all',
+      rangeStart: printConfig.rangeStart ?? 1,
+      rangeEnd: printConfig.rangeEnd ?? 1,
+      media: printConfig.media || 'gap',
+      gapMm: printConfig.gapMm ?? 2,
+      dpi: printConfig.dpi || 203,
+      direction: printConfig.direction ?? 1
+    },
+    components: (p.components || []).map(packComponent),
+    selectedIds: (selectedIds || []).filter(id => (p.components || []).some(c => c.id === id)),
+    fieldMap: { ...(p.dataSource?.fieldMap || {}) },
+    fields: cols,
+    rowCount: list.length,
+    omittedRows: Math.max(0, list.length - packedRows.length),
+    profile,
+    rows: packedRows
+  }
+}
+
+/**
+ * 调整模式：必须带上布局、已有数据、打印设置和排版，再让模型只返回要改的部分。
+ */
+export function buildAdjustPrompt(input) {
+  const ctx = input?.rows && input?.print && input?.layout
+    ? input
+    : packAdjustContext(input)
+  const omitted = ctx.omittedRows
+    ? `\n后面还有 ${ctx.omittedRows} 行没有逐行贴出，但上面的列概况覆盖了全部 ${ctx.rowCount} 行。`
+    : ''
+  return `你是标签设计助手。用户要在【已经有数据和版式的项目】上微调，不是从头重做。
+动手前必须读完下面四段：布局、数据、打印设置、排版。微调要依据数据里的空值、内容长短和份数，不要只看列名。
+
+# 1. 布局（标签上的组件，坐标相对标签左上角，单位毫米。数组越靠后越在上层）
+标签尺寸：${ctx.label.width} mm × ${ctx.label.height} mm
+当前选中：${ctx.selectedIds?.length ? ctx.selectedIds.join('、') : '无'}
+${JSON.stringify(ctx.components)}
+
+# 2. 数据（已经导入的行，row 从 1 开始）
+列：${ctx.fields.length ? ctx.fields.join('、') : '（还没有列）'}
+每一列的空值与最长内容（按全部 ${ctx.rowCount} 行统计）：
+${JSON.stringify(ctx.profile)}
+逐行数据（最多 ${ADJUST_ROW_CAP} 行）：
+${JSON.stringify(ctx.rows)}${omitted}
+
+# 3. 打印设置
+${JSON.stringify(ctx.print)}
+- copies：整单份数。copiesColumn 有值时，以该列数字为准，小于 1 的行跳过，不再乘 copies
+- serialEnabled + serialStart：开启后模板里的 {{序号}} 每打一张加 1
+- media：gap 间隙 / mark 黑标 / continuous 连续纸。dpi 只能是 203 或 300。direction：1 正向，0 反向
+
+# 4. 排版（一张纸上怎么排这些标签）
+纸张 ${ctx.paper.width}×${ctx.paper.height} mm，边距 ${JSON.stringify(ctx.margin)}
+标签外观：${JSON.stringify({ showBorder: !!ctx.label.showBorder, borderColor: ctx.label.borderColor, borderWidth: ctx.label.borderWidth, backgroundColor: ctx.label.backgroundColor })}
+字段映射（模板字段 → 数据列）：${JSON.stringify(ctx.fieldMap || {})}
+${JSON.stringify(ctx.layout)}
+- mode=single 是一张纸一个标签；mode=auto 是按行列铺满
+- cols / rows 是每页几列几行，hGap / vGap 是标签间距（毫米）
+
+# 输出 JSON 形状（没有改动的键整个省略）
+{
+  "summary": "一句话说明改了什么",
+  "componentUpdates": [{ "id": "必须是现有组件 id", "fontSize": 16, "fontFamily": "SimHei", "fill": "#dc2626", "hideIfEmpty": true, "text": "{{价格}}", "binding": "价格", "type": "barcode", "format": "CODE128", "cells": { "0,1": { "text": "{{价格}}", "binding": "价格" } } }],
+  "componentAdds": [],
+  "componentRemoves": [],
+  "order": ["在下层的 id", "在上层的 id"],
+  "sheet": {
+    "paper": { "width": 210, "height": 297 },
+    "margin": { "left": 5, "top": 5, "right": 5, "bottom": 5 },
+    "label": { "width": 50, "height": 30, "showBorder": true, "borderColor": "#000000", "borderWidth": 0.3, "backgroundColor": "#ffffff" },
+    "layout": { "mode": "auto", "cols": 3, "rows": 8, "hGap": 2, "vGap": 2 }
+  },
+  "print": { "copies": 1, "copiesColumn": "份数", "serialEnabled": true, "serialStart": 1, "collate": false, "range": "all", "media": "gap", "gapMm": 2, "dpi": 203, "direction": 1 },
+  "data": {
+    "addColumns": ["份数"],
+    "renameColumns": [{ "from": "价格", "to": "单价" }],
+    "removeColumns": [],
+    "setColumn": [{ "column": "份数", "value": "1" }],
+    "setCells": [{ "row": 1, "column": "份数", "value": "2" }],
+    "fieldMap": { "商品名称": "产品名称" }
+  }
+}
+
+# 规则
+- 只能输出一个 JSON 对象，不要解释、不要 Markdown 围栏
+- 改布局优先 componentUpdates，用现有 id。不要为了改字号把全部组件重写一遍
+- 用户说「这个」「选中的」时，只改「当前选中」里的 id。没选中就按组件 name 对上那一个
+- 更换组件种类必须在 componentUpdates 里写 type，例如二维码改成条形码：{ "id": "现有id", "type": "barcode" }。保留原来的 binding 和文字。只在 summary 里说「已改成条形码」不会生效
+- 文字还能改 fontFamily（Microsoft YaHei、SimSun、SimHei、KaiTi、Arial）、textAlign、fontWeight。条码 format 只能是 CODE128、EAN13、CODE39。日期 source 是 now 或 field
+- 表格用 rows、cols，以及 cells 的「行,列」只写要改的格子（text、binding、type 为 text/qrcode/barcode/image）
+- 调整叠放顺序用 order，数组最后一个盖在最上面。没写到的组件保持原位
+- 字段名对不上时写 data.fieldMap，键是模板字段，值是已经存在的数据列
+- 标签边框和底色写在 sheet.label 的 showBorder、borderColor、borderWidth、backgroundColor
+- 打印范围 print.range 为 all，或 custom 并给出 rangeStart、rangeEnd（从 1 开始）
+- 内容为空的列，对应组件可以设 hideIfEmpty。用户要暂时不显示某个组件时，给它设 hidden: true；hidden 是画布和打印都不出现，hideIfEmpty 只在这一格没内容时跳过
+- 流水号写在 text 的 {{序号}} 里，并打开 print.serialEnabled
+- 数据里的份数各不相同时，用 print.copiesColumn 指向那一列，不要把整单份数设成某一个格子的值
+- 排版只在用户提到纸张、每页几张、间距时才写入 sheet
+- row 从 1 开始。setColumn 会改这一列的每一行，只在用户明确说「每一行都……」时使用
+- 不要发明数据列。新列必须先出现在 addColumns
+- 用户没提到的打印项和排版不要改`
+}
+
+/** 把上一轮对话带上，这样「再大一点」「还是不对」才接得上。 */
+export function buildAdjustMessages(system, history, instruction) {
+  const prior = (Array.isArray(history) ? history : []).slice(-8).filter(m => m && m.text).map(m => ({
+    role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
+    content: String(m.text).slice(0, 800)
+  }))
+  return [
+    { role: 'system', content: system },
+    ...prior,
+    { role: 'user', content: String(instruction || '') }
+  ]
+}
+
+/** 调整结果是对象。不能走「找第一个数组」的解析，否则会把 componentUpdates 当成整份结果。 */
+export function parseAIPlan(raw) {
+  if (!raw || typeof raw !== 'string') throw new Error('AI 返回为空')
+  let s = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+  try {
+    const direct = JSON.parse(s)
+    if (direct && typeof direct === 'object' && !Array.isArray(direct)) return direct
+  } catch (e) { /* 继续找外层对象 */ }
+  const start = s.indexOf('{')
+  if (start < 0) throw new Error('调整结果必须是 JSON 对象')
+  const end = findMatchingClose(s, start)
+  const obj = JSON.parse(s.slice(start, end + 1))
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('调整结果必须是 JSON 对象')
+  return obj
+}
+
+const PATCH_KEYS = ['type', 'name', 'text', 'binding', 'fontSize', 'fontFamily', 'fill', 'fontWeight', 'textAlign', 'hideIfEmpty', 'hidden', 'format', 'stroke', 'strokeWidth', 'src', 'left', 'top', 'width', 'height', 'angle', 'rx', 'source', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerRow', 'headerBg', 'vAlign', 'cells', 'colWidths']
+
+function cleanName(s) {
+  return String(s ?? '').trim().replace(/[{}]/g, '').slice(0, 40)
+}
+
+function projectedFields(fields, data) {
+  const set = new Set(fields || [])
+  for (const name of data.addColumns) set.add(name)
+  for (const { from, to } of data.renameColumns) {
+    set.delete(from)
+    set.add(to)
+  }
+  for (const name of data.removeColumns) set.delete(name)
+  return set
+}
+
+function normalizeDataOps(raw, fields, rowCount, warnings) {
+  const data = { addColumns: [], renameColumns: [], removeColumns: [], setColumn: [], setCells: [] }
+  const existing = new Set(fields || [])
+  const added = new Set()
+  for (const name of (raw.addColumns || []).slice(0, 8)) {
+    const n = cleanName(name)
+    if (!n || n === '__id' || existing.has(n) || added.has(n)) continue
+    added.add(n)
+    data.addColumns.push(n)
+  }
+  const renamedFrom = new Set()
+  for (const item of (raw.renameColumns || []).slice(0, 8)) {
+    const from = cleanName(item?.from)
+    const to = cleanName(item?.to)
+    if (!from || !to || from === to) continue
+    if (!existing.has(from) || renamedFrom.has(from) || existing.has(to) || added.has(to)) {
+      warnings.push(`列重命名「${from || '?'}」→「${to || '?'}」无法执行，已跳过`)
+      continue
+    }
+    renamedFrom.add(from)
+    added.add(to)
+    existing.delete(from)
+    data.renameColumns.push({ from, to })
+  }
+  const alive = projectedFields(fields, data)
+  for (const name of (raw.removeColumns || []).slice(0, 8)) {
+    const n = cleanName(name)
+    if (!n || !alive.has(n)) continue
+    if (alive.size <= 1) {
+      warnings.push('至少保留 1 个字段，已跳过删除')
+      continue
+    }
+    alive.delete(n)
+    data.removeColumns.push(n)
+  }
+  const after = projectedFields(fields, data)
+  for (const item of (raw.setColumn || []).slice(0, 8)) {
+    const column = cleanName(item?.column)
+    if (!column || !after.has(column)) {
+      warnings.push(`整列赋值「${column || '?'}」不在数据列里，已跳过`)
+      continue
+    }
+    data.setColumn.push({ column, value: String(item?.value ?? '').slice(0, 500) })
+  }
+  const maxRow = Math.max(0, Number(rowCount) || 0)
+  for (const item of (raw.setCells || []).slice(0, 80)) {
+    const column = cleanName(item?.column)
+    const row = Math.floor(Number(item?.row))
+    if (!column || !after.has(column) || !Number.isFinite(row) || row < 1 || (maxRow && row > maxRow)) {
+      warnings.push(`单元格第 ${item?.row} 行「${column || '?'}」无法写入，已跳过`)
+      continue
+    }
+    data.setCells.push({ row, column, value: String(item?.value ?? '').slice(0, 500) })
+  }
+  data.fieldMap = []
+  if (raw.fieldMap && typeof raw.fieldMap === 'object' && !Array.isArray(raw.fieldMap)) {
+    for (const [from, to] of Object.entries(raw.fieldMap).slice(0, 20)) {
+      const a = cleanName(from)
+      const b = cleanName(to)
+      if (!a || !b) continue
+      if (!after.has(b)) {
+        warnings.push(`字段映射的数据列「${b}」不存在，已跳过`)
+        continue
+      }
+      data.fieldMap.push({ from: a, to: b })
+    }
+  }
+  return data
+}
+
+function normalizePrintPatch(raw, fields, warnings) {
+  if (!raw || typeof raw !== 'object') return null
+  const out = {}
+  if (raw.copies != null) {
+    const n = Math.floor(Number(raw.copies))
+    if (Number.isFinite(n)) out.copies = Math.min(999, Math.max(1, n))
+  }
+  if (raw.copiesColumn != null) {
+    const col = cleanName(raw.copiesColumn)
+    if (!col) out.copiesColumn = ''
+    else if (fields.has(col)) out.copiesColumn = col
+    else warnings.push(`份数列「${col}」不存在，已忽略`)
+  }
+  if (typeof raw.serialEnabled === 'boolean') out.serialEnabled = raw.serialEnabled
+  if (raw.serialStart != null) {
+    const n = Math.floor(Number(raw.serialStart))
+    if (Number.isFinite(n)) out.serialStart = Math.max(0, n)
+  }
+  if (typeof raw.collate === 'boolean') out.collate = raw.collate
+  if (['gap', 'mark', 'continuous'].includes(raw.media)) out.media = raw.media
+  else if (raw.media != null) warnings.push('走纸方式只能是间隙、黑标或连续纸')
+  if (raw.gapMm != null) {
+    const n = Number(raw.gapMm)
+    if (Number.isFinite(n)) out.gapMm = Math.min(50, Math.max(0, Math.round(n * 10) / 10))
+  }
+  if (raw.dpi != null) {
+    const n = Number(raw.dpi)
+    if (n === 203 || n === 300) out.dpi = n
+    else warnings.push('分辨率只接受 203 或 300')
+  }
+  if (raw.direction != null) {
+    const n = Number(raw.direction)
+    if (n === 0 || n === 1) out.direction = n
+  }
+  if (raw.range === 'all' || raw.range === 'custom') out.range = raw.range
+  else if (raw.range != null) warnings.push('打印范围只能是全部或自定义')
+  for (const key of ['rangeStart', 'rangeEnd']) {
+    if (raw[key] == null) continue
+    const n = Math.floor(Number(raw[key]))
+    if (Number.isFinite(n)) out[key] = Math.min(9999, Math.max(1, n))
+  }
+  return Object.keys(out).length ? out : null
+}
+
+function hexColor(v) {
+  const s = String(v || '').trim()
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)) return s.toLowerCase()
+  if (s === 'transparent') return s
+  return null
+}
+
+function mm(v, min, max) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return null
+  return Math.round(clamp(n, min, max) * 10) / 10
+}
+
+function normalizeSheet(raw, warnings) {
+  if (!raw || typeof raw !== 'object') return null
+  const out = {}
+  if (raw.paper && typeof raw.paper === 'object') {
+    const paper = {}
+    const w = mm(raw.paper.width, 20, 2000)
+    const h = mm(raw.paper.height, 20, 2000)
+    if (w != null) paper.width = w
+    if (h != null) paper.height = h
+    if (Object.keys(paper).length) out.paper = paper
+  }
+  if (raw.margin && typeof raw.margin === 'object') {
+    const margin = {}
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      if (raw.margin[side] == null) continue
+      const n = mm(raw.margin[side], 0, 80)
+      if (n != null) margin[side] = n
+    }
+    if (Object.keys(margin).length) out.margin = margin
+  }
+  if (raw.label && typeof raw.label === 'object') {
+    const label = {}
+    const w = mm(raw.label.width, 5, 2000)
+    const h = mm(raw.label.height, 5, 2000)
+    if (w != null) label.width = w
+    if (h != null) label.height = h
+    if (typeof raw.label.showBorder === 'boolean') label.showBorder = raw.label.showBorder
+    const border = hexColor(raw.label.borderColor)
+    const bg = hexColor(raw.label.backgroundColor)
+    if (border) label.borderColor = border
+    if (bg) label.backgroundColor = bg
+    if (raw.label.borderWidth != null) {
+      const bw = mm(raw.label.borderWidth, 0, 5)
+      if (bw != null) label.borderWidth = bw
+    }
+    if (Object.keys(label).length) out.label = label
+  }
+  if (raw.layout && typeof raw.layout === 'object') {
+    const layout = {}
+    if (raw.layout.mode === 'single' || raw.layout.mode === 'auto') layout.mode = raw.layout.mode
+    else if (raw.layout.mode != null) warnings.push('排版模式只能是单张或自动')
+    for (const key of ['cols', 'rows']) {
+      if (raw.layout[key] == null) continue
+      const n = Math.floor(Number(raw.layout[key]))
+      if (Number.isFinite(n)) layout[key] = Math.min(40, Math.max(1, n))
+    }
+    for (const key of ['hGap', 'vGap']) {
+      if (raw.layout[key] == null) continue
+      const n = mm(raw.layout[key], 0, 40)
+      if (n != null) layout[key] = n
+    }
+    if (layout.cols != null || layout.rows != null) layout.sizingMode = 'manual'
+    if (Object.keys(layout).length) out.layout = layout
+  }
+  return Object.keys(out).length ? out : null
+}
+
+/** 二维码改条形码这类换种类：补上新种类必须有的字段，避免画布仍按旧类型画。 */
+function applyTypeChange(existing, patch) {
+  if (!patch.type || !existing || patch.type === existing.type) return patch
+  const next = { ...patch }
+  if (patch.type === 'barcode' && !next.format) next.format = existing.format || 'CODE128'
+  if (patch.type === 'barcode' && next.height == null) {
+    const h = Number(existing.height) || 0
+    const w = Number(next.width ?? existing.width) || 0
+    if (h > 14 && w && h > w * 0.45) next.height = 12
+  }
+  if (patch.type === 'text') {
+    if (next.fontSize == null) next.fontSize = existing.fontSize || 12
+    if (!next.fill) next.fill = existing.fill || '#000000'
+    if (!next.fontWeight) next.fontWeight = existing.fontWeight || 'normal'
+    if (!next.textAlign) next.textAlign = existing.textAlign || 'left'
+    if (next.text == null) next.text = existing.text || (existing.binding ? `{{${existing.binding}}}` : '')
+    next.fontFamily = existing.fontFamily || 'Microsoft YaHei'
+  }
+  const oldLabel = defaultName(existing.type)
+  if (!next.name && (!existing.name || existing.name === oldLabel || existing.name === existing.type)) {
+    next.name = defaultName(patch.type)
+  }
+  return next
+}
+
+function normalizeComponentPatch(raw, LW, LH) {
+  const patch = {}
+  for (const key of PATCH_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) continue
+    const v = raw[key]
+    if (key === 'type') {
+      const type = String(v || '').toLowerCase()
+      if (VALID_TYPES.has(type)) patch.type = type
+      continue
+    }
+    if (key === 'hideIfEmpty' || key === 'hidden') {
+      if (typeof v === 'boolean') patch[key] = v
+      continue
+    }
+    if (key === 'fontWeight') {
+      if (v === 'bold' || v === 'normal') patch.fontWeight = v
+      continue
+    }
+    if (key === 'textAlign') {
+      if (v === 'left' || v === 'center' || v === 'right') patch.textAlign = v
+      continue
+    }
+    if (key === 'fontFamily') {
+      if (FONTS.has(v)) patch.fontFamily = v
+      continue
+    }
+    if (key === 'source') {
+      if (v === 'static' || v === 'field' || v === 'now') patch.source = v
+      continue
+    }
+    if (key === 'vAlign') {
+      if (v === 'top' || v === 'middle' || v === 'bottom') patch.vAlign = v
+      continue
+    }
+    if (key === 'headerRow') {
+      if (typeof v === 'boolean') patch.headerRow = v
+      continue
+    }
+    if (key === 'cells') {
+      const cells = normalizeCells(v)
+      if (Object.keys(cells).length) patch.cells = cells
+      continue
+    }
+    if (key === 'colWidths') {
+      if (Array.isArray(v) && v.length) {
+        patch.colWidths = v.slice(0, 20).map(n => Number(n)).filter(n => Number.isFinite(n) && n > 0)
+      }
+      continue
+    }
+    if (['rows', 'cols'].includes(key)) {
+      const n = Math.floor(Number(v))
+      if (Number.isFinite(n)) patch[key] = Math.min(20, Math.max(1, n))
+      continue
+    }
+    if (['fontSize', 'strokeWidth', 'angle', 'left', 'top', 'width', 'height', 'rx', 'cellPadding', 'borderWidth'].includes(key)) {
+      const n = Number(v)
+      if (!Number.isFinite(n)) continue
+      patch[key] = n
+      continue
+    }
+    patch[key] = String(v ?? '').slice(0, 500)
+  }
+  if (patch.left != null) patch.left = round2(clamp(patch.left, 0, Math.max(0, LW - 1)))
+  if (patch.top != null) patch.top = round2(clamp(patch.top, 0, Math.max(0, LH - 1)))
+  if (patch.width != null) patch.width = round2(Math.max(1, patch.width))
+  if (patch.height != null) patch.height = round2(Math.max(0.1, patch.height))
+  if (patch.fontSize != null) patch.fontSize = Math.min(96, Math.max(6, Math.round(patch.fontSize)))
+  if (patch.angle != null) patch.angle = Math.round(clamp(patch.angle, -360, 360))
+  if (patch.rx != null) patch.rx = round2(clamp(patch.rx, 0, 20))
+  if (patch.cellPadding != null) patch.cellPadding = round2(clamp(patch.cellPadding, 0, 10))
+  if (patch.borderWidth != null) patch.borderWidth = round2(clamp(patch.borderWidth, 0, 5))
+  return patch
+}
+
+function normalizeCells(raw) {
+  const out = {}
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (const [k, v] of Object.entries(raw).slice(0, 40)) {
+    if (!/^\d+,\d+$/.test(k) || !v || typeof v !== 'object') continue
+    const cell = {}
+    if (v.text != null) cell.text = String(v.text).slice(0, 200)
+    if (v.binding != null) cell.binding = cleanName(v.binding)
+    if (CELL_TYPES.has(v.type)) cell.type = v.type
+    if (BARCODE_FORMATS.has(v.format)) cell.format = v.format
+    if (Object.keys(cell).length) out[k] = cell
+  }
+  return out
+}
+
+function resolveUpdateId(item, ctx, ids) {
+  let id = String(item?.id || '')
+  if (ids.has(id)) return id
+  const selected = Array.isArray(ctx.selectedIds) ? ctx.selectedIds : []
+  if ((!id || id === 'selected' || id === '选中') && selected.length === 1 && ids.has(selected[0])) return selected[0]
+  const named = (ctx.components || []).filter(c => c.name && (c.name === id || (item?.name && c.name === item.name)))
+  if (named.length === 1) return named[0].id
+  return id
+}
+
+/**
+ * 把模型返回的调整对象收成可直接套用的计划。未知组件、不存在的列、非法打印值会被丢掉并写入 warnings。
+ */
+export function normalizeAdjustPlan(raw, ctx = {}) {
+  const warnings = []
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('调整结果必须是 JSON 对象')
+  const fields = ctx.fields || []
+  const LW = Number(ctx.labelWidth) || 100
+  const LH = Number(ctx.labelHeight) || 50
+  const ids = new Set((ctx.components || []).map(c => c.id).filter(Boolean))
+  const data = normalizeDataOps(raw.data || {}, fields, ctx.rowCount || 0, warnings)
+  const knownFields = projectedFields(fields, data)
+  const print = normalizePrintPatch(raw.print, knownFields, warnings)
+  const sheet = normalizeSheet(raw.sheet, warnings)
+
+  const componentUpdates = []
+  for (const item of (raw.componentUpdates || []).slice(0, 40)) {
+    const id = resolveUpdateId(item, ctx, ids)
+    if (!ids.has(id)) {
+      warnings.push(`组件 ${id || '?'} 不在当前画布上，已跳过`)
+      continue
+    }
+    const nested = item?.patch && typeof item.patch === 'object' && !Array.isArray(item.patch) ? item.patch : null
+    const source = nested ? { ...nested, id } : item
+    const existing = (ctx.components || []).find(c => c.id === id)
+    const patch = applyTypeChange(existing, normalizeComponentPatch(source, LW, LH))
+    const kind = patch.type || existing?.type
+    if (patch.format && kind === 'barcode' && !BARCODE_FORMATS.has(patch.format)) {
+      warnings.push(`条码格式 ${patch.format} 不支持，已跳过`)
+      delete patch.format
+    }
+    if (patch.cells && existing?.type === 'table') {
+      patch.cells = { ...(existing.cells || {}), ...patch.cells }
+    }
+    delete patch.id
+    if (Object.keys(patch).length) componentUpdates.push({ id, patch })
+    else warnings.push(`组件 ${id} 的修改没有套用上`)
+  }
+
+  const order = []
+  if (Array.isArray(raw.order)) {
+    const seen = new Set()
+    for (const id of raw.order) {
+      const s = String(id || '')
+      if (!ids.has(s) || seen.has(s)) continue
+      seen.add(s)
+      order.push(s)
+    }
+  }
+
+  let componentAdds = []
+  if (Array.isArray(raw.componentAdds) && raw.componentAdds.length) {
+    const added = validateAndNormalize(raw.componentAdds, {
+      labelWidth: LW,
+      labelHeight: LH,
+      fields: [...knownFields]
+    })
+    componentAdds = added.components
+    warnings.push(...added.warnings.filter(w => !w.startsWith('以下字段未在生成结果中找到绑定')))
+  }
+
+  const componentRemoves = []
+  for (const id of (raw.componentRemoves || []).slice(0, 40)) {
+    const s = String(id || '')
+    if (ids.has(s)) componentRemoves.push(s)
+    else if (s) warnings.push(`要删除的组件 ${s} 不存在，已跳过`)
+  }
+
+  const plan = {
+    summary: String(raw.summary || '').trim().slice(0, 300),
+    componentUpdates,
+    componentAdds,
+    componentRemoves,
+    sheet,
+    print,
+    data,
+    order
+  }
+  if (adjustPlanIsEmpty(plan)) warnings.push('没有可应用的改动')
+  return { plan, warnings }
+}
+
+export function adjustPlanIsEmpty(plan) {
+  if (!plan) return true
+  const d = plan.data || {}
+  return !plan.componentUpdates?.length
+    && !plan.componentAdds?.length
+    && !plan.componentRemoves?.length
+    && !plan.sheet
+    && !plan.print
+    && !d.addColumns?.length
+    && !d.renameColumns?.length
+    && !d.removeColumns?.length
+    && !d.setColumn?.length
+    && !d.setCells?.length
+    && !d.fieldMap?.length
+    && !plan.order?.length
+}
+
+export function describeAdjustPlan(plan) {
+  if (!plan) return []
+  const lines = []
+  if (plan.summary) lines.push(plan.summary)
+  if (plan.componentUpdates?.length) lines.push(`调整 ${plan.componentUpdates.length} 个组件`)
+  if (plan.componentAdds?.length) lines.push(`新增 ${plan.componentAdds.length} 个组件`)
+  if (plan.componentRemoves?.length) lines.push(`删除 ${plan.componentRemoves.length} 个组件`)
+  if (plan.order?.length) lines.push('调整图层顺序')
+  if (plan.sheet) {
+    const bits = []
+    if (plan.sheet.paper) bits.push(`纸张 ${plan.sheet.paper.width || '?'}×${plan.sheet.paper.height || '?'}`)
+    if (plan.sheet.label) bits.push(`标签 ${plan.sheet.label.width || '?'}×${plan.sheet.label.height || '?'}`)
+    if (plan.sheet.layout?.mode === 'single') bits.push('单张')
+    if (plan.sheet.layout?.mode === 'auto') bits.push('自动排版')
+    if (plan.sheet.layout?.cols || plan.sheet.layout?.rows) bits.push(`${plan.sheet.layout.cols || '?'} 列 × ${plan.sheet.layout.rows || '?'} 行`)
+    if (bits.length) lines.push('排版：' + bits.join('，'))
+  }
+  if (plan.print) {
+    const p = plan.print
+    const bits = []
+    if (p.copies != null) bits.push(`份数 ${p.copies}`)
+    if (p.copiesColumn != null) bits.push(p.copiesColumn ? `按列「${p.copiesColumn}」` : '取消按列份数')
+    if (p.serialEnabled != null) bits.push(p.serialEnabled ? `序号从 ${p.serialStart ?? 1} 起` : '关闭序号')
+    if (p.media) bits.push(p.media === 'mark' ? '黑标' : p.media === 'continuous' ? '连续纸' : '间隙')
+    if (p.dpi) bits.push(`${p.dpi} dpi`)
+    if (bits.length) lines.push('打印：' + bits.join('，'))
+  }
+  const d = plan.data || {}
+  if (d.addColumns?.length) lines.push('新增列：' + d.addColumns.join('、'))
+  if (d.renameColumns?.length) lines.push('重命名列：' + d.renameColumns.map(x => `${x.from}→${x.to}`).join('、'))
+  if (d.removeColumns?.length) lines.push('删除列：' + d.removeColumns.join('、'))
+  if (d.setColumn?.length) lines.push('整列填写：' + d.setColumn.map(x => x.column).join('、'))
+  if (d.setCells?.length) lines.push(`修改 ${d.setCells.length} 个单元格`)
+  if (d.fieldMap?.length) lines.push('字段映射：' + d.fieldMap.map(x => `${x.from}→${x.to}`).join('、'))
+  return lines
 }

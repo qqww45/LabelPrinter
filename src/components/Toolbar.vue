@@ -13,7 +13,7 @@
     <!-- 配置：数据/模板/页面/排版（5 个） -->
     <div class="group group-config">
       <button class="btn" @click="$emit('template-library')" :title="t('内置模板与我的模板')"><span class="ico">📚</span><span class="txt">{{ t('模板库') }}</span></button>
-      <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 智能排版：输入字段，AI 自动生成版式')"><span class="ico">🤖</span><span class="txt">{{ t('AI 排版') }}</span></button>
+      <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 调整：对着当前标签说话，画布上马上能看到')"><span class="ico">🤖</span><span class="txt">{{ t('AI 调整') }}</span></button>
       <button class="btn" @click="$emit('field-map')" :title="t('模板字段与数据列的对应关系')"><span class="ico">🔀</span><span class="txt">{{ t('字段映射') }}</span></button>
       <button class="btn" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')"><span class="ico">⚙</span><span class="txt">{{ t('纸张设置') }}</span></button>
       <button class="btn" @click="$emit('layout-editor')" :title="t('排版与边距')"><span class="ico">📐</span><span class="txt">{{ t('排版') }}</span></button>
