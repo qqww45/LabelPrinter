@@ -42,7 +42,7 @@
           <span v-if="!panelHidden" class="right-title">{{ t('属性') }}</span>
           <span v-else class="right-title-v">{{ t('属性') }}</span>
         </div>
-        <PropertyPanel v-show="!panelHidden" class="right-body" />
+        <PropertyPanel v-show="!panelHidden" class="right-body" @field-map="fieldMapVisible = true" />
       </div>
     </div>
     <DataPanel class="bottom" @import="onImportData" />
@@ -68,6 +68,13 @@
     <AISettingsDialog
       v-if="aiSettingsVisible"
       @close="aiSettingsVisible = false"
+    />
+    <PreflightCheckDialog
+      v-if="preflightVisible && preflightReport"
+      :report="preflightReport"
+      @close="preflightVisible = false"
+      @proceed="preflightProceed"
+      @fix="preflightFix"
     />
   </div>
 </template>
@@ -95,6 +102,8 @@ import LayoutEditor from './components/LayoutEditor.vue'
 import PreviewDialog from './components/PreviewDialog.vue'
 import AIDialog from './components/AIDialog.vue'
 import AISettingsDialog from './components/AISettingsDialog.vue'
+import PreflightCheckDialog from './components/PreflightCheckDialog.vue'
+import { runDiagnostics } from './utils/diagnose'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -112,6 +121,9 @@ const printCenterVisible = ref(false)
 const previewRef = ref(null)
 const aiDialogVisible = ref(false)
 const aiSettingsVisible = ref(false)
+// 打印前体检
+const preflightVisible = ref(false)
+const preflightReport = ref(null)
 
 // ============ 属性栏宽度 / 收起（localStorage 持久化） ============
 const PANEL_W_KEY = 'labelprint_property_panel_width'
@@ -262,9 +274,59 @@ async function onImportData() {
 // 打印通过预览组件触发，这里只打开预览
 const pendingExport = ref('') // 待执行的导出动作：'' | 'pdf' | 'image'
 
-function onPrint() { pendingExport.value = ''; previewVisible.value = true }
-function onExportPDF() { pendingExport.value = 'pdf'; previewVisible.value = true }
-function onExportImage() { pendingExport.value = 'image'; previewVisible.value = true }
+// ============ 打印 / 导出：先体检，有问题才打扰 ============
+// kind: '' = 打印 | 'pdf' = 导出 PDF | 'image' = 导出图片
+let pendingKind = ''
+
+function buildPreflightReport() {
+  const p = project.project
+  return runDiagnostics({
+    components: p.components,
+    dataFields: data.fields,
+    fieldMap: p.dataSource?.fieldMap || {},
+    rowCount: data.rows.length,
+    label: p.label,
+    paper: p.paper,
+    perPage: project.labelsPerPage,
+    printConfig: p.printConfig
+  })
+}
+
+function requestExport(kind = '') {
+  const report = buildPreflightReport()
+  // 一切正常 → 不打扰，直接进预览
+  if (!report.issues.length) {
+    pendingExport.value = kind
+    previewVisible.value = true
+    return
+  }
+  pendingKind = kind
+  preflightReport.value = report
+  preflightVisible.value = true
+}
+
+// 体检后可继续（无阻塞项，或用户坚持）
+function preflightProceed() {
+  preflightVisible.value = false
+  pendingExport.value = pendingKind
+  previewVisible.value = true
+}
+
+// 从体检结果跳到对应修复入口
+function preflightFix(issue) {
+  preflightVisible.value = false
+  if (issue.fix === 'field-map') {
+    fieldMapVisible.value = true
+  } else if (issue.fix === 'import') {
+    onImportData()
+  } else if (issue.fix === 'select' && issue.ids?.length) {
+    project.selectOne(issue.ids[0])
+  }
+}
+
+function onPrint() { requestExport('') }
+function onExportPDF() { requestExport('pdf') }
+function onExportImage() { requestExport('image') }
 
 // 打印中心：执行当前项目队列（需要预览 DOM，自动打开预览）
 async function onRunQueue() {

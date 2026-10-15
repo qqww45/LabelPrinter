@@ -99,6 +99,16 @@
         </div>
       </fieldset>
 
+      <!-- 通用：字段失效即时预警（所有组件类型通用） -->
+      <div v-if="missingInSelection.length" class="field-alert">
+        <div class="field-alert-head">⚠ {{ t('这个组件引用了数据里没有的字段') }}</div>
+        <div class="field-alert-list">
+          <code v-for="f in missingInSelection" :key="f">{{ f }}</code>
+        </div>
+        <div class="field-alert-tip">{{ t('打印时会显示为空白。可把它们对应到真实列名，或改数据列名。') }}</div>
+        <button class="btn btn-sm" @click="emit('field-map')">{{ t('去字段映射') }}</button>
+      </div>
+
       <!-- 通用：组件名 -->
       <fieldset>
         <legend>组件名（图层）</legend>
@@ -463,13 +473,22 @@ import { useI18n } from '../utils/i18n'
 const { t } = useI18n()
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
+import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const project = useProjectStore()
 const data = useDataStore()
 
+const emit = defineEmits(['field-map'])
+
 const selected = computed(() => project.selectedComponent)
 const isMultiSelect = computed(() => project.isMultiSelect)
+
+// 选中组件引用了「数据里不存在」的字段 → 即时预警（避免「打出来是空白」的困惑）
+const availFieldSet = computed(() => availableFields(data.fields, project.project.dataSource.fieldMap))
+const missingInSelection = computed(() =>
+  selected.value ? componentMissingFields(selected.value, availFieldSet.value) : []
+)
 
 // 多选工具：直接代理 store
 function align(direction) { project.alignSelected(direction) }
@@ -1180,5 +1199,39 @@ legend {
   padding: 2px 4px !important;
   width: 100%;
   margin-bottom: 2px;
+}
+
+/* 字段失效预警 */
+.field-alert {
+  border: 1px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.field-alert-head {
+  font-weight: 600;
+  color: #b45309;
+  margin-bottom: 4px;
+}
+.field-alert-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.field-alert-list code {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+}
+.field-alert-tip {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 6px;
 }
 </style>

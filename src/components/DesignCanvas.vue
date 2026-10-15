@@ -23,7 +23,8 @@ import { ref, onMounted, watch, computed, onBeforeUnmount, nextTick } from 'vue'
 import * as fabric from 'fabric'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
-import { renderText, resolveRow } from '../utils/render'
+import { resolveRow, renderTextWithAlert } from '../utils/render'
+import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { generateBarcode } from '../utils/barcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -41,6 +42,10 @@ let fabricCanvas = null
 const pj = useProjectStore()
 const data = useDataStore()
 const { t } = useI18n()
+
+// 可用字段集合（数据源列名 + 已成功映射的模板字段名）
+// 用于设计态提示「字段在数据里不存在」——数据为空时集合为空，此时不提示（另有“没有数据”引导）
+const availFieldSet = computed(() => availableFields(data.fields, pj.project.dataSource.fieldMap))
 
 // 画布 = 单个标签大小
 const canvasWrapperStyle = computed(() => ({
@@ -459,14 +464,15 @@ function buildFabricObject(c, gen = renderGeneration) {
 
   switch (c.type) {
     case 'text': {
-      const txt = renderText(c.text || '', row)
-      obj = new fabric.Textbox(txt, {
+      // 字段失效 → 原地显示 ⚠字段名（仅设计态提示；打印/导出走 PreviewDialog，不受影响）
+      const r = renderTextWithAlert(c.text || '', row, availFieldSet.value)
+      obj = new fabric.Textbox(r.text, {
         ...baseOpts,
         width: (c.width || 40) * MM_TO_PX,
         fontSize: (c.fontSize || 14),
-        fill: c.fill,
+        fill: r.missing.length ? '#f97316' : c.fill,
         fontFamily: c.fontFamily,
-        fontWeight: c.fontWeight,
+        fontWeight: r.missing.length ? 'bold' : c.fontWeight,
         textAlign: c.textAlign || 'left',
         splitByGrapheme: true
       })
@@ -706,16 +712,32 @@ function buildTable(c, row, baseOpts) {
   // 先算每个单元格的最终显示文本（{{}} 模板 / 绑定字段）
   const cellDisplays = []
   const cellTypes = []
+  const cellAlerts = []   // 单元格是否引用了数据里不存在的字段（设计态橙色提示）
   for (let r = 0; r < rows; r++) {
     cellDisplays.push([])
     cellTypes.push([])
+    cellAlerts.push([])
     for (let col = 0; col < cols; col++) {
       const cell = c.cells?.[`${r},${col}`] || { text: '', binding: '' }
-      const raw = (cell.text && cell.text.includes('{{'))
-        ? renderText(cell.text, row)
-        : (cell.binding ? (row[cell.binding] ?? cell.text ?? '') : (cell.text ?? ''))
+      let raw = ''
+      let miss = []
+      if (cell.text && cell.text.includes('{{')) {
+        const rr = renderTextWithAlert(cell.text, row, availFieldSet.value)
+        raw = rr.text
+        miss = rr.missing
+      } else if (cell.binding) {
+        if (availFieldSet.value.size && !availFieldSet.value.has(cell.binding)) {
+          raw = `⚠${cell.binding}`
+          miss = [cell.binding]
+        } else {
+          raw = row?.[cell.binding] ?? cell.text ?? ''
+        }
+      } else {
+        raw = cell.text ?? ''
+      }
       cellDisplays[r].push(String(raw))
       cellTypes[r].push(cell.type || 'text')
+      cellAlerts[r].push(miss.length > 0)
     }
   }
 
@@ -828,14 +850,15 @@ function buildTable(c, row, baseOpts) {
         if (vAlign === 'top') { tbTop = y + pad; originY = 'top' }
         else if (vAlign === 'bottom') { tbTop = y + cellH - pad; originY = 'bottom' }
         else { tbTop = y + cellH / 2; originY = 'center' }
+        const alert = cellAlerts[r]?.[col]
         const t = new fabric.Textbox(display, {
           left: x + pad,
           top: tbTop,
           originX: 'left',
           originY,
           width: innerW,
-          fontSize, fontFamily, fill: '#111',
-          fontWeight: isHeader ? 'bold' : 'normal',
+          fontSize, fontFamily, fill: alert ? '#f97316' : '#111',
+          fontWeight: (isHeader || alert) ? 'bold' : 'normal',
           textAlign: isHeader ? 'center' : textAlign,
           lineHeight: 1.2,
           splitByGrapheme: true,
@@ -895,6 +918,8 @@ watch(() => pj.project.label, () => rebuildCanvas(), { deep: true })
 watch(() => data.activeRow, () => renderAll())
 // 字段映射变化 → 立即重绘（实时）
 watch(() => pj.project.dataSource.fieldMap, () => renderAll(), { deep: true })
+// 数据源字段变化 → 重绘（「字段失效」提示需要实时刷新）
+watch(() => data.fields, () => renderAll(), { deep: true })
 // 网格开关：重画（开关+尺寸都走 drawGrid）
 watch(() => pj.showGrid, () => drawGrid())
 // 缩放变化 → 同步 fabric 视口 + 让画布在视口居中（避免"右下移动"）

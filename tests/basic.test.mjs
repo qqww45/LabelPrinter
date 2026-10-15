@@ -1,5 +1,6 @@
 import { parseCSVText } from '../src/utils/excel.js'
-import { renderText } from '../src/utils/render.js'
+import { renderText, renderTextWithAlert } from '../src/utils/render.js'
+import { availableFields, componentMissingFields, missingFieldsByComponent, findOutOfBounds, runDiagnostics } from '../src/utils/diagnose.js'
 import { generateBarcode } from '../src/utils/barcode.js'
 import { generateQRCode } from '../src/utils/qrcode.js'
 import dayjs from 'dayjs'
@@ -148,6 +149,46 @@ check('快照与源对象解耦', (() => {
   s.components[0].id = 'changed'
   return c.components[0].id === 'a'
 })())
+
+console.log('== 8. 设计体检（字段失效 / 越界 / 打印前检查）==')
+const df = ['产品名称', '规格', '价格']
+check('可用字段含数据列', availableFields(df, {}).has('价格'))
+check('映射成功的目标字段也算可用', availableFields(df, { 商品名: '产品名称' }).has('商品名'))
+check('映射到不存在的列不算可用', !availableFields(df, { 商品名: '不存在列' }).has('商品名'))
+
+const compOk = { id: 'c1', type: 'text', binding: '价格', text: '{{价格}}' }
+const compBad = { id: 'c2', type: 'text', binding: '库存', text: '库存：{{库存}}' }
+check('字段存在 → 不报警', componentMissingFields(compOk, availableFields(df, {})).length === 0)
+check('字段不存在 → 报警', componentMissingFields(compBad, availableFields(df, {}))[0] === '库存')
+check('数据为空 → 不报字段错（改由「没有数据」提示）', missingFieldsByComponent([compBad], [], {}).length === 0)
+
+const tableComp = { id: 't1', type: 'table', cols: 2, rows: 1, cells: { '0,0': { text: '{{库存}}' } } }
+check('表格单元格的 {{}} 也参与校验', componentMissingFields(tableComp, availableFields(df, {})).includes('库存'))
+
+const lb = { width: 60, height: 40 }
+check('标签内不报越界', findOutOfBounds([compOk], lb).length === 0)
+check('右侧溢出被识别', findOutOfBounds([{ id: 'o1', type: 'text', left: 50, top: 1, width: 20 }], lb).length === 1)
+check('文本不判底边（高度自适应，避免误报）', findOutOfBounds([{ id: 'o2', type: 'text', left: 1, top: 38, width: 10 }], lb).length === 0)
+check('非文本元素判底边', findOutOfBounds([{ id: 'o3', type: 'image', left: 1, top: 38, width: 10, height: 10 }], lb).length === 1)
+
+const avail = availableFields(df, {})
+check('字段不存在 → ⚠ 标记', renderTextWithAlert('{{库存}}', { 价格: '9' }, avail).text === '⚠库存')
+check('保留上下文文字', renderTextWithAlert('价格：{{库存}}', { 价格: '9' }, avail).text === '价格：⚠库存')
+check('字段存在但该行为空 → 留空不误报', renderTextWithAlert('{{价格}}', { 产品名称: 'x' }, avail).text === '')
+check('无数据时与 renderText 行为一致', renderTextWithAlert('{{库存}}', {}, new Set()).text === '')
+
+const diagOk = runDiagnostics({ components: [compOk], dataFields: df, fieldMap: {}, rowCount: 5, label: lb, paper: { width: 100, height: 100 }, perPage: 1 })
+check('正常场景无 error', diagOk.errors.length === 0)
+check('5 行 / 每页 1 → 5 页', diagOk.summary.pages === 5)
+
+const diagBad = runDiagnostics({ components: [compBad], dataFields: df, fieldMap: {}, rowCount: 3, label: lb, paper: { width: 100, height: 100 }, perPage: 2 })
+check('字段失效 → error', diagBad.hasError && diagBad.issues.some(i => i.code === 'missing-fields'))
+check('3 行 / 每页 2 → 2 页', diagBad.summary.pages === 2)
+
+const diagEmpty = runDiagnostics({ components: [], dataFields: [], fieldMap: {}, rowCount: 0, label: lb, paper: {} })
+check('空画布 → error', diagEmpty.hasError && diagEmpty.issues.some(i => i.code === 'empty-canvas'))
+check('无数据 → warn 而非 error', diagEmpty.warnings.some(i => i.code === 'no-data'))
+check('映射后字段不再报错', runDiagnostics({ components: [compBad], dataFields: df, fieldMap: { 库存: '规格' }, rowCount: 1, label: lb, paper: {} }).errors.length === 0)
 
 console.log(`\n结果: ${pass} 通过, ${fail} 失败`)
 process.exit(fail > 0 ? 1 : 0)

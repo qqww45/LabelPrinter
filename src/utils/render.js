@@ -92,3 +92,32 @@ export function findUnmappedFields(templateFields = [], dataFields = [], fieldMa
     return !dataFields.includes(tf)
   })
 }
+
+/**
+ * 渲染文本 + 标记「数据里不存在的字段」（设计态提示用，不影响打印）
+ * 三种情况区分开，避免误报：
+ *   1) 字段存在且有值        → 替换为值
+ *   2) 字段存在但当前行没值   → 替换为空串（正常，不报警）
+ *   3) 字段在数据源/映射中都没有 → 替换为 ⚠字段名，并记入 missing
+ * @param {string} text 原始文本
+ * @param {object} row  数据行
+ * @param {Set<string>} availableSet 可用字段集合（不传则退化为 renderText 行为，永不报警）
+ * @returns {{ text: string, missing: string[] }}
+ */
+export function renderTextWithAlert(text, row, availableSet) {
+  if (!text) return { text: '', missing: [] }
+  if (!row) return { text, missing: [] }
+  // 无法判断字段是否存在（没导入数据）时，保持与 renderText 完全一致的行为：占位符替换为空
+  const canAlert = !!(availableSet && availableSet.size)
+  const missing = []
+  const out = String(text).replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    const k = key.trim()
+    if (row[k] !== undefined && row[k] !== null) return row[k]
+    if (canAlert && !availableSet.has(k)) {
+      if (!missing.includes(k)) missing.push(k)
+      return `⚠${k}`
+    }
+    return ''
+  })
+  return { text: out, missing }
+}
