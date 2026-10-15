@@ -89,10 +89,9 @@ jobs:
         env:
           HOST: ${{ secrets.SERVER_HOST }}
           USER: ${{ secrets.SERVER_USER }}
-          IMAGE: ${{ needs.build.outputs.image }}
           TAG: ${{ inputs.tag || needs.build.outputs.tag }}
         run: |
           ssh -o StrictHostKeyChecking=accept-new \
               -o ServerAliveInterval=30 \
               ${USER}@${HOST} \
-              "TAG='${TAG}' IMAGE='${IMAGE}' /opt/label-printer/restart.sh"
+              "TAG='${TAG}' /home/ubuntu/label-printer/restart.sh"
