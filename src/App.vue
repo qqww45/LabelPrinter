@@ -152,10 +152,11 @@ watch(() => project.currentId, (newId, oldId) => {
   }
 })
 
-// 兜底：data store 任何修改都自动嵌入到当前项目（防止「编辑数据但没切项目」时丢失）
+// 兜底：data store 任何修改都立即同步嵌入到当前项目
+// 关键：flush: 'sync' 让编辑与嵌入同步发生，避免「编辑后立即切项目」时旧数据被保存
 watch(() => [data.rows, data.sourcePath], () => {
   embedCurrentData()
-}, { deep: true })
+}, { deep: true, flush: 'sync' })
 
 // ============ 属性栏宽度 / 收起（localStorage 持久化） ============
 const PANEL_W_KEY = 'labelprint_property_panel_width'
@@ -219,13 +220,9 @@ function sanitizeName(s) {
 // 把当前 data store 状态嵌入到当前项目（任何「切走」之前都该做）
 // —— 这是「数据跟着项目走」的关键：project.value.dataSource.data 必须包含当前所有数据，
 //    否则 persistNow / 切项目后再切回时，老项目会丢数据。
+// 策略：完全内联模式（用户建议），不再依赖外置数据文件；每次都同步深拷贝（数据规模 < 千行无感）
 function embedCurrentData() {
   if (!data.rows.length) return  // 空数据不嵌入（避免破坏项目自带的 data）
-  if (project.project.dataSource.embedded
-      && project.project.dataSource.data.length === data.rows.length
-      && project.project.dataSource.path === data.sourcePath) {
-    return  // 已是最新
-  }
   project.project.dataSource.embedded = true
   project.project.dataSource.path = data.sourcePath
   project.project.dataSource.data = JSON.parse(JSON.stringify(data.rows))
@@ -286,10 +283,12 @@ async function onOpen() {
 }
 
 function onSave() {
+  // 同步嵌入（防止 data store 里有未持久化到 project.value 的最新编辑）
+  embedCurrentData()
   const data2save = project.getExportData()
-  if (data.embedded && data.rows.length) {
+  if (data.rows.length) {
     data2save.dataSource.embedded = true
-    data2save.dataSource.data = data.rows
+    data2save.dataSource.data = JSON.parse(JSON.stringify(data.rows))
   }
   const name = project.project.meta.name || '未命名'
   saveJSON(data2save, `${name}.json`)
@@ -297,10 +296,11 @@ function onSave() {
 }
 
 async function onSaveAs() {
+  embedCurrentData()
   const data2save = project.getExportData()
-  if (data.embedded && data.rows.length) {
+  if (data.rows.length) {
     data2save.dataSource.embedded = true
-    data2save.dataSource.data = data.rows
+    data2save.dataSource.data = JSON.parse(JSON.stringify(data.rows))
   }
   const name = sanitizeName(prompt('项目名称', project.project.meta.name || '未命名'))
   if (!name) return
@@ -317,13 +317,15 @@ async function onImportData() {
   try {
     const file = await pickFile('.xlsx,.xls,.csv')
     const parsed = await parseExcelFile(file)
+    // 一次性内联：导入即嵌入（按用户建议不再依赖外置数据）
     data.setData({
       headers: parsed.headers,
       rows: parsed.rows,
       sourcePath: file.name,
-      embedded: false
+      embedded: true
     })
-    project.project.dataSource.path = file.name
+    // 立即把数据深拷贝到当前项目（确保 project.value 持有完整副本）
+    embedCurrentData()
     project.markDirty()
   } catch (e) {
     if (e.message !== '未选择文件') alert('导入失败：' + e.message)
