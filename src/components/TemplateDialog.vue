@@ -220,7 +220,7 @@ function remove(t) {
 }
 .tpl-item:hover { background: var(--bg-hover); }
 .tpl-item.active {
-  background: #dbeafe;
+  background: rgba(37, 99, 235, 0.14);
   color: var(--primary);
   font-weight: 600;
 }
@@ -277,7 +277,7 @@ function remove(t) {
   overflow: hidden;
   font-size: 9px;
   line-height: 1.1;
-  color: #0f172a;
+  color: var(--text);
   background: rgba(37, 99, 235, 0.08);
   border: 1px solid rgba(37, 99, 235, 0.35);
   border-radius: 2px;

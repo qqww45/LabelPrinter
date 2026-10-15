@@ -114,8 +114,8 @@ function fixLabel(it) {
   background: rgba(148, 163, 184, 0.06);
   font-size: 12px;
 }
-.issue.error { border-left-color: #ef4444; background: rgba(239, 68, 68, 0.07); }
-.issue.warn { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.07); }
+.issue.error { border-left-color: var(--danger); background: rgba(239, 68, 68, 0.10); }
+.issue.warn  { border-left-color: var(--warning); background: rgba(245, 158, 11, 0.10); }
 .issue-head {
   display: flex;
   align-items: center;
@@ -123,8 +123,8 @@ function fixLabel(it) {
   font-weight: 600;
   margin-bottom: 4px;
 }
-.issue.error .issue-head { color: #dc2626; }
-.issue.warn .issue-head { color: #b45309; }
+.issue.error .issue-head { color: var(--danger); }
+.issue.warn .issue-head { color: var(--warning); }
 .issue-detail {
   color: var(--text-secondary);
   line-height: 1.65;
@@ -140,7 +140,7 @@ function fixLabel(it) {
 .all-good div:last-child { margin-top: 8px; }
 .spacer { flex: 1; }
 .btn-risky {
-  background: #ef4444 !important;
-  border-color: #ef4444 !important;
+  background: var(--danger) !important;
+  border-color: var(--danger) !important;
 }
 </style>

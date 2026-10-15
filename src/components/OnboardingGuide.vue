@@ -62,6 +62,22 @@
               <option v-for="o in PAPER_H_PRESETS" :key="o" :value="o">{{ o }} mm</option>
             </select>
           </div>
+          <!-- 一键选常见尺寸：A4/A5/Letter + 常见标签纸（一般人不记得具体 mm） -->
+          <div class="row">
+            <label>{{ t('常用尺寸') }}</label>
+            <div class="chips">
+              <button
+                v-for="p in PAPER_QUICK_PRESETS" :key="p.name"
+                type="button"
+                :class="['chip', isPaperPicked(p) && 'on']"
+                :title="p.name + ' · ' + p.w + '×' + p.h + ' mm'"
+                @click="applyPaperPreset(p)"
+              >
+                <span>{{ p.name }}</span>
+                <span class="chip-size">{{ p.w }}×{{ p.h }}</span>
+              </button>
+            </div>
+          </div>
           <div class="row">
             <label>{{ t('纸张边距') }}</label>
             <input
@@ -127,6 +143,27 @@ const PAPER_W_PRESETS = uniq([...PAPER_PRESETS.map(p => p.width), ...LABEL_PRESE
 const PAPER_H_PRESETS = uniq([...PAPER_PRESETS.map(p => p.height), ...LABEL_PRESETS.map(p => p.height)])
 
 const step = ref(1)
+
+// 纸张一键预设（不重复 -- 下拉里有的就不列了；这里放 A 系列 + Letter + 常用标签纸）
+const PAPER_QUICK_PRESETS = [
+  { name: 'A4',     w: 210,   h: 297 },
+  { name: 'A5',     w: 148,   h: 210 },
+  { name: 'A6',     w: 105,   h: 148 },
+  { name: 'Letter', w: 215.9, h: 279.4 },
+  { name: '100×100', w: 100,  h: 100 },
+  { name: '80×50',  w: 80,    h: 50 },
+  { name: '60×40',  w: 60,    h: 40 },
+  { name: '50×30',  w: 50,    h: 30 }
+]
+
+function applyPaperPreset(p) {
+  paperW.value = p.w
+  paperH.value = p.h
+}
+
+function isPaperPicked(p) {
+  return paperW.value === p.w && paperH.value === p.h
+}
 const templates = BUILTIN_TEMPLATES
 const pickedId = ref('')
 const pickedTpl = ref(null)
@@ -241,8 +278,8 @@ function dismiss() {
   backdrop-filter: blur(2px);
 }
 .onboarding-card {
-  background: var(--bg, #fff);
-  color: var(--text-primary, #0f172a);
+  background: var(--bg-panel);
+  color: var(--text);
   width: min(820px, 92%);
   max-height: 86vh;
   border-radius: 12px;
@@ -256,7 +293,7 @@ function dismiss() {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px 8px;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  border-bottom: 1px solid var(--border);
 }
 .head h2 { font-size: 18px; margin: 0; }
 .close {
@@ -265,10 +302,10 @@ function dismiss() {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  color: var(--text-muted, #64748b);
+  color: var(--text-muted);
   padding: 0 6px;
 }
-.close:hover { color: var(--text-primary, #0f172a); }
+.close:hover { color: var(--text); }
 
 .step-bar {
   display: flex;
@@ -277,8 +314,8 @@ function dismiss() {
   padding: 10px 20px;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-muted, #64748b);
-  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-muted);
+  background: var(--bg-hover);
 }
 .step-bar li {
   display: flex;
@@ -287,33 +324,33 @@ function dismiss() {
   padding: 4px 10px;
   border-radius: 16px;
   background: transparent;
-  border: 1px solid var(--border, #e2e8f0);
+  border: 1px solid var(--border);
 }
-.step-bar li.on { color: var(--text-primary, #0f172a); border-color: #cbd5e1; }
+.step-bar li.on { color: var(--text); border-color: var(--border); }
 .step-bar li.cur {
-  background: #3b82f6;
+  background: var(--primary);
   color: #fff;
-  border-color: #3b82f6;
+  border-color: var(--primary);
 }
 
 .body { padding: 16px 20px 20px; overflow-y: auto; }
-.tip { font-size: 13px; color: var(--text-secondary, #475569); margin: 0 0 12px; line-height: 1.6; }
-.tip b { color: var(--text-primary, #0f172a); }
-.unit { color: var(--text-muted, #64748b); font-size: 12px; }
+.tip { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.6; }
+.tip b { color: var(--text); }
+.unit { color: var(--text-muted); font-size: 12px; }
 
-/* 放不下警告 */
+/* 放不下警告（红/橙跟随 --danger / --warning，暗色下自动调亮） */
 .warn {
-  border: 1px solid #ef4444;
-  background: rgba(239, 68, 68, 0.08);
-  color: #b91c1c;
+  border: 1px solid var(--danger);
+  background: rgba(239, 68, 68, 0.10);
+  color: var(--danger);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.7;
   margin-bottom: 12px;
 }
-.warn b { color: #dc2626; }
-.hint.bad { color: #dc2626; font-weight: 600; }
+.warn b { color: var(--danger); }
+.hint.bad { color: var(--danger); font-weight: 600; }
 
 /* Step 1 模板网格 */
 .grid {
@@ -323,8 +360,8 @@ function dismiss() {
 }
 .tpl {
   text-align: left;
-  background: var(--bg, #fff);
-  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
   cursor: pointer;
@@ -335,54 +372,88 @@ function dismiss() {
   color: inherit;
   font: inherit;
 }
-.tpl:hover { border-color: #93c5fd; }
+.tpl:hover { border-color: var(--primary); }
 .tpl:active { transform: scale(0.99); }
-.tpl.active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18); }
+.tpl.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25); }
 .tpl-name { font-weight: 600; font-size: 14px; }
 .tpl-group {
   display: inline-block;
   width: fit-content;
   font-size: 11px;
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.12);
   border-radius: 3px;
   padding: 1px 6px;
 }
-.tpl-desc { font-size: 12px; color: var(--text-secondary, #475569); line-height: 1.5; }
-.tpl-fields { font-size: 11px; color: var(--text-muted, #64748b); margin-top: 2px; }
-.tpl-fields span { color: var(--text-secondary, #475569); }
+.tpl-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.tpl-fields { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.tpl-fields span { color: var(--text-secondary); }
 .tpl.blank { border-style: dashed; }
-.tpl.blank .tpl-name { color: var(--text-muted, #64748b); }
+.tpl.blank .tpl-name { color: var(--text-muted); }
 
 /* Step 2 尺寸表单 */
 .form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
-.row { display: flex; align-items: center; gap: 8px; }
-.row label { width: 80px; color: var(--text-secondary, #475569); font-size: 13px; }
-.row .input { width: 110px; }
-.row .x { color: var(--text-muted, #64748b); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row label { width: 80px; color: var(--text-secondary); font-size: 13px; }
+.row .input { width: 110px; background: var(--bg-panel); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; }
+.row .x { color: var(--text-muted); }
 
+/* 纸张尺寸一键预设：补全 A4/A5/A6/Letter 等常识 */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.3;
+  min-width: 60px;
+}
+.chip:hover { border-color: var(--primary); background: var(--bg-hover); }
+.chip.on {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--primary);
+  font-weight: 600;
+}
+.chip .chip-size { font-size: 10px; color: var(--text-muted); font-weight: normal; }
+.chip.on .chip-size { color: var(--primary); opacity: 0.7; }
+
+/* 预览图：纸张始终白底（这是打印纸），卡片自身跟随主题 */
 .preview {
   display: flex;
   align-items: center;
   gap: 18px;
   padding: 14px;
-  border: 1px solid var(--border, #e2e8f0);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--bg-secondary, #f8fafc);
+  background: var(--bg-hover);
 }
 .preview-svg {
   width: 200px;
   height: 160px;
-  background: white;
+  background: #ffffff;
   border-radius: 4px;
   flex-shrink: 0;
+  box-shadow: 0 0 0 1px var(--border);
 }
-.preview-info { flex: 1; font-size: 13px; color: var(--text-secondary, #475569); }
-.preview-info .muted { color: var(--text-muted, #64748b); margin-bottom: 4px; }
-.preview-info .big { font-size: 20px; font-weight: 500; color: var(--text-primary, #0f172a); margin-bottom: 6px; }
-.preview-info .big b { color: #3b82f6; font-weight: 700; font-size: 26px; }
-.preview-info .big small { font-size: 12px; color: var(--text-muted, #64748b); margin-left: 4px; }
-.preview-info .hint { font-size: 12px; color: var(--text-muted, #64748b); }
+.preview-info { flex: 1; font-size: 13px; color: var(--text-secondary); }
+.preview-info .muted { color: var(--text-muted); margin-bottom: 4px; }
+.preview-info .big { font-size: 20px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+.preview-info .big b { color: var(--primary); font-weight: 700; font-size: 26px; }
+.preview-info .big small { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+.preview-info .hint { font-size: 12px; color: var(--text-muted); }
 
 .actions {
   display: flex;
@@ -392,18 +463,18 @@ function dismiss() {
 }
 .btn {
   padding: 6px 14px;
-  border: 1px solid var(--border, #e2e8f0);
-  background: var(--bg, #fff);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-primary, #0f172a);
+  color: var(--text);
 }
-.btn:hover { background: var(--bg-secondary, #f8fafc); }
+.btn:hover { background: var(--bg-hover); }
 .btn.primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
-.btn.primary:hover { background: #2563eb; }
+.btn.primary:hover { background: var(--primary-hover); }
 </style>
