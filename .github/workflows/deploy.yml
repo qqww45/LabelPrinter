@@ -49,8 +49,9 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          # 优先用 secret，私有仓库必须；公开仓库可省略 GHCR_TOKEN 让其走 GITHUB_TOKEN
-          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          # 推送镜像固定用仓库内置 GITHUB_TOKEN（jobs 级 packages:write 已授权）
+          # 服务器拉取用的是 read-only PAT（GHCR_TOKEN），已存在服务器 /home/ubuntu/label-printer/.ghcr_token
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 设置 buildx
         uses: docker/setup-buildx-action@v3
