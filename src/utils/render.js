@@ -1,14 +1,48 @@
 /**
- * 模板渲染：把 {{字段}} 占位符替换为实际数据
+ * 没有可替换的数据行：null、或只有内部键的空对象。
+ * 有列名的空行（值为空字符串）不算空，那种情况按「该格没填」处理。
+ */
+export function rowIsEmpty(row) {
+  if (!row || typeof row !== 'object') return true
+  return !Object.keys(row).some(k => k !== '__id')
+}
+
+/**
+ * 模板渲染：把 {{字段}} 占位符替换为实际数据。
+ * 还没有数据行时保留原文，让版式上能看见字段名。
  */
 export function renderText(text, row) {
   if (!text) return ''
-  if (!row) return text
+  if (rowIsEmpty(row)) return text
   return text.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
     const k = key.trim()
     if (row[k] !== undefined && row[k] !== null) return row[k]
     return ''
   })
+}
+
+/**
+ * 条码 / 二维码要编码的内容。
+ * 绑定字段且当前行有值 → 用该值。
+ * 否则用组件上写明的静态文本。
+ * 绑了字段但没有值、也没有静态文本 → 返回空，由界面画占位，不要编造 123456。
+ */
+export function codePayload(component, row) {
+  if (!component) return ''
+  if (component.binding && !rowIsEmpty(row)) {
+    const v = row[component.binding]
+    if (v !== undefined && v !== null && String(v) !== '') return String(v)
+  }
+  const staticText = component.text != null ? String(component.text) : ''
+  if (staticText && !staticText.includes('{{')) return staticText
+  return ''
+}
+
+/** 占位符和警告标记不能拿去生成条码 / 二维码 */
+export function isEncodableCode(value) {
+  const s = value == null ? '' : String(value).trim()
+  if (!s || s.includes('{{')) return false
+  return true
 }
 
 /**
@@ -106,8 +140,8 @@ export function findUnmappedFields(templateFields = [], dataFields = [], fieldMa
  */
 export function renderTextWithAlert(text, row, availableSet) {
   if (!text) return { text: '', missing: [] }
-  if (!row) return { text, missing: [] }
-  // 无法判断字段是否存在（没导入数据）时，保持与 renderText 完全一致的行为：占位符替换为空
+  // 没导入数据时保留 {{字段}}，与 renderText 一致，避免版式变成空白
+  if (rowIsEmpty(row)) return { text, missing: [] }
   const canAlert = !!(availableSet && availableSet.size)
   const missing = []
   const out = String(text).replace(/\{\{([^}]+)\}\}/g, (_, key) => {
@@ -120,4 +154,102 @@ export function renderTextWithAlert(text, row, availableSet) {
     return ''
   })
   return { text: out, missing }
+}
+
+function escapeReg(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** 文本里出现过的 {{字段}}，按出现顺序、去重 */
+export function placeholderNames(text) {
+  if (!text) return []
+  const out = []
+  const re = /\{\{\s*([^}]+)\s*\}\}/g
+  let m
+  while ((m = re.exec(text))) {
+    const k = m[1].trim()
+    if (k && !out.includes(k)) out.push(k)
+  }
+  return out
+}
+
+function replacePlaceholder(text, name, replacement) {
+  if (!name) return text
+  return String(text).replace(
+    new RegExp(`\\{\\{\\s*${escapeReg(name)}\\s*\\}\\}`, 'g'),
+    replacement
+  )
+}
+
+/**
+ * 换绑时改写文本里的占位符，保留前后缀。
+ * {{名称}}111 + 名称 → ID号  =>  {{ID号}}111
+ * 只有一个占位符、且对不上旧绑定时，也改成新字段。
+ * 多个占位符且旧绑定不在其中：不动，避免改错别的字段。
+ */
+export function rewriteBindingText(text, oldBinding, newBinding) {
+  const src = text || ''
+  const names = placeholderNames(src)
+  const oldName = oldBinding || ''
+  const next = newBinding || ''
+  if (next) {
+    if (oldName && names.includes(oldName)) return replacePlaceholder(src, oldName, `{{${next}}}`)
+    if (names.length === 1) return replacePlaceholder(src, names[0], `{{${next}}}`)
+    if (!names.length) return `{{${next}}}`
+    return src
+  }
+  if (oldName && names.includes(oldName)) {
+    return replacePlaceholder(src, oldName, '').replace(/[ \t]{2,}/g, ' ')
+  }
+  if (names.length === 1) {
+    return replacePlaceholder(src, names[0], '').replace(/[ \t]{2,}/g, ' ')
+  }
+  return src
+}
+
+function fieldAvailable(name, dataFields, fieldMap) {
+  if (!name) return false
+  if ((dataFields || []).includes(name)) return true
+  const src = fieldMap && fieldMap[name]
+  return !!(src && (dataFields || []).includes(src))
+}
+
+/**
+ * 绑定已经是数据里的列，但文本还留着一个数据里没有的 {{旧字段}}。
+ * 只改这一种，映射成功或用户写了多个字段时不动。
+ */
+export function reconcileBoundText(text, binding, dataFields = [], fieldMap = {}) {
+  const src = text || ''
+  if (!binding) return src
+  const names = placeholderNames(src)
+  if (names.length !== 1 || names[0] === binding) return src
+  if (fieldAvailable(names[0], dataFields, fieldMap)) return src
+  if (!fieldAvailable(binding, dataFields, fieldMap)) return src
+  return rewriteBindingText(src, names[0], binding)
+}
+
+/** 文本组件、表格单元格：绑定已指向现有列，但占位符还是旧列名 */
+export function collectBindingTextFixes(components, dataFields, fieldMap) {
+  const fixes = []
+  for (const c of components || []) {
+    if (!c) continue
+    if (c.type === 'text' && c.binding) {
+      const next = reconcileBoundText(c.text || '', c.binding, dataFields, fieldMap)
+      if (next !== (c.text || '')) fixes.push({ id: c.id, text: next })
+    }
+    if (c.type === 'table' && c.cells) {
+      let changed = false
+      const cells = JSON.parse(JSON.stringify(c.cells))
+      for (const cell of Object.values(cells)) {
+        if (!cell || (cell.type && cell.type !== 'text') || !cell.binding) continue
+        const next = reconcileBoundText(cell.text || '', cell.binding, dataFields, fieldMap)
+        if (next !== (cell.text || '')) {
+          cell.text = next
+          changed = true
+        }
+      }
+      if (changed) fixes.push({ id: c.id, cells })
+    }
+  }
+  return fixes
 }

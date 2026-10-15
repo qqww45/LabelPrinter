@@ -74,7 +74,7 @@
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineComponent } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
-import { renderText, resolveRow } from '../utils/render'
+import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { generateQRCode } from '../utils/qrcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { generateBarcode } from '../utils/barcode'
@@ -236,14 +236,14 @@ const CompRenderer = defineComponent({
           inner = h('img', { src, style: imgStyle(c), crossorigin: 'anonymous' })
           break
         }
-        case 'qrcode': {
-          const url = qrUrl(c, row)
-          if (!url) return null
-          inner = h('img', { src: url, style: imgStyle(c) })
-          break
-        }
+        case 'qrcode':
         case 'barcode': {
-          const url = barcodeUrl(c, row)
+          const txt = codePayload(c, row)
+          if (!txt) {
+            inner = h('div', { style: codePlaceholderStyle() }, c.binding || (c.type === 'barcode' ? t('条码') : t('二维码')))
+            break
+          }
+          const url = c.type === 'barcode' ? barcodeUrl(c, row) : qrUrl(c, row)
           if (!url) return null
           inner = h('img', { src: url, style: imgStyle(c) })
           break
@@ -442,7 +442,7 @@ function tableCellNode(c, r, col, row) {
   const value = tableCellText(c, r, col, row)
 
   if (type === 'qrcode' || type === 'barcode') {
-    if (!value) return ''
+    if (!isEncodableCode(value)) return value || ''
     const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}`
     if (!cellImgCache.value[key]) {
       const cv = type === 'qrcode'
@@ -484,8 +484,26 @@ function imageSrc(c, row) {
 }
 
 const qrCache = ref({})
+function codePlaceholderStyle() {
+  return {
+    width: '100%',
+    height: '100%',
+    boxSizing: 'border-box',
+    border: '1px dashed #94a3b8',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#64748b',
+    fontSize: '11px',
+    background: 'rgba(148,163,184,0.12)',
+    textAlign: 'center',
+    padding: '2px'
+  }
+}
+
 function qrUrl(c, row) {
-  const txt = c.binding ? (row[c.binding] || c.text || ' ') : (c.text || ' ')
+  const txt = codePayload(c, row)
+  if (!txt) return ''
   const key = c.id + '|' + txt
   if (!qrCache.value[key]) {
     generateQRCode(String(txt), { width: 300 }).then(url => {
@@ -497,7 +515,8 @@ function qrUrl(c, row) {
 
 const barCache = ref({})
 function barcodeUrl(c, row) {
-  const txt = c.binding ? (row[c.binding] || c.text || '123456') : (c.text || '123456')
+  const txt = codePayload(c, row)
+  if (!txt) return ''
   const key = c.id + '|' + txt + '|' + (c.format || 'CODE128')
   if (!barCache.value[key]) {
     barCache.value[key] = generateBarcode(String(txt), { format: c.format })

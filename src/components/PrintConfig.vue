@@ -9,12 +9,7 @@
         <fieldset>
           <legend>{{ t('输出') }}</legend>
           <div class="form-row">
-            <label>{{ t('打印机') }}</label>
-            <select class="input" v-model="form.printer">
-              <option value="">{{ t('默认打印机') }}</option>
-              <option value="Microsoft Print to PDF">Microsoft Print to PDF</option>
-              <option value="OneNote">OneNote</option>
-            </select>
+            <span class="hint">{{ t('打印机在点「打印」后的系统对话框里选。这里选不了具体设备。') }}</span>
           </div>
           <div class="form-row">
             <label>{{ t('份数') }}</label>

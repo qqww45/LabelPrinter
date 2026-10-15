@@ -9,7 +9,9 @@
           class="component-item"
           :draggable="true"
           @dragstart="onDragStart($event, item.type)"
-          :title="t('拖拽到画布添加') + ' ' + item.name"
+          @dragend="onDragEnd"
+          @click="onItemClick(item.type)"
+          :title="t('点击添加到画布，或拖到指定位置') + ' ' + item.name"
         >
           <div class="icon" v-html="item.svg"></div>
           <div class="name">{{ item.name }}</div>
@@ -237,9 +239,19 @@ function onLayerDelete(c, e) {
   }
 }
 
+let dragged = false
 function onDragStart(e, type) {
+  dragged = true
   e.dataTransfer.setData('component-type', type)
   e.dataTransfer.effectAllowed = 'copy'
+}
+function onDragEnd() {
+  // click 紧跟在 dragend 后面，延后清标记，避免拖完又在中心加一个
+  setTimeout(() => { dragged = false }, 0)
+}
+function onItemClick(type) {
+  if (dragged) return
+  project.requestAddComponent(type)
 }
 
 // ============ 图层拖动排序（数组越靠后 = 层叠越靠上；列表倒序显示，视觉越靠上 = 数组越靠后） ============

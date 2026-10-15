@@ -123,10 +123,10 @@
           <label>绑定字段</label>
           <select class="input" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
             <option value="">（不绑定）</option>
-            <option v-for="f in data.fields" :key="f" :value="f">{{ f }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
-        <div v-if="selected.binding" class="hint">未绑定时显示原文本；绑定后该字段值替换 {{ bindingPreview }}</div>
+        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
         <div class="form-row">
           <label>字号</label><input class="input" type="number" :value="selected.fontSize" @input="update('fontSize', +$event.target.value)" />
         </div>
@@ -200,7 +200,7 @@
             <label>字段</label>
             <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
               <option value="">选择字段</option>
-              <option v-for="f in data.fields" :key="f" :value="f">{{ f }}</option>
+              <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
             </select>
           </div>
           <div class="hint">按行加载：每行将该字段值作为图片 URL 渲染</div>
@@ -214,10 +214,11 @@
           <label>绑定</label>
           <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
             <option value="">选择字段</option>
-            <option v-for="f in data.fields" :key="f" :value="f">{{ f }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
-        <div class="hint">未绑定时显示: {{ selected.text || '静态文本' }}</div>
+        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
+        <div v-else class="hint">{{ t('未绑定，使用下方静态文本') }}</div>
         <div class="form-row">
           <label>静态文本</label>
           <input class="input" :value="selected.text" @input="update('text', $event.target.value)" placeholder="无绑定时的内容" />
@@ -231,10 +232,11 @@
           <label>绑定</label>
           <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
             <option value="">选择字段</option>
-            <option v-for="f in data.fields" :key="f" :value="f">{{ f }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
-        <div class="hint">未绑定时显示: {{ selected.text || '123456' }}</div>
+        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
+        <div v-else class="hint">{{ t('未绑定，使用下方静态文本') }}</div>
         <div class="form-row">
           <label>静态文本</label>
           <input class="input" :value="selected.text" @input="update('text', $event.target.value)" />
@@ -285,7 +287,7 @@
           <label>字段</label>
           <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
             <option value="">选择字段</option>
-            <option v-for="f in data.fields" :key="f" :value="f">{{ f }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
         <div class="form-row">
@@ -406,8 +408,8 @@
                       :value="getCell(r - 1, col - 1, 'binding')"
                       @change="setCell(r - 1, col - 1, 'binding', $event.target.value)"
                     >
-                      <option value="">{{ getCell(r - 1, col - 1, 'binding') ? '🔗 ' + getCell(r - 1, col - 1, 'binding') : '＋ 绑定字段' }}</option>
-                      <option v-for="f in data.fields" :key="f" :value="f">🔗 {{ f }}</option>
+                      <option value="">＋ {{ t('绑定字段') }}</option>
+                      <option v-for="f in fieldsWith(getCell(r - 1, col - 1, 'binding'))" :key="f" :value="f">🔗 {{ fieldOptionLabel(f) }}</option>
                     </select>
                     <button
                       v-if="getCell(r - 1, col - 1, 'binding')"
@@ -473,7 +475,8 @@ import { useI18n } from '../utils/i18n'
 const { t } = useI18n()
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
-import { availableFields, componentMissingFields } from '../utils/diagnose'
+import { availableFields, componentFields, componentMissingFields } from '../utils/diagnose'
+import { placeholderNames, rewriteBindingText } from '../utils/render'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const project = useProjectStore()
@@ -508,10 +511,16 @@ const typeTabs = [
   { v: 'image',   icon: '🖼', label: '图片' }
 ]
 
-const bindingPreview = computed(() => {
-  if (!selected.value?.binding) return ''
-  return `{{${selected.value.binding}}}`
-})
+// 下拉里始终带上当前绑定，即使数据列里还没有这个名字
+function fieldsWith(current) {
+  const list = data.fields.slice()
+  if (current && !list.includes(current)) list.unshift(current)
+  return list
+}
+function fieldOptionLabel(name) {
+  if (!name || data.fields.includes(name)) return name
+  return t('{name}（数据里还没有）', { name })
+}
 
 function update(key, value) {
   if (selected.value) {
@@ -610,18 +619,32 @@ function onGlobalStyleKey(e) {
 onMounted(() => window.addEventListener('keydown', onGlobalStyleKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalStyleKey))
 
-function onBindingChange(field) {
-  if (!selected.value) return
-  // 选择字段后，自动把文本设为 {{字段}}（若当前文本无占位符）
-  const cur = selected.value
-  const patch = { binding: field }
-  if (field && !cur.text?.includes('{{')) {
-    patch.text = `{{${field}}}`
-  } else if (!field && cur.text?.match(/^\{\{.+\}\}$/)) {
-    // 解绑时如果文本就是纯占位符，恢复为空
-    patch.text = ''
+function dropUnusedFieldMapKeys(removedNames) {
+  if (!removedNames.length) return
+  const still = new Set()
+  for (const c of project.project.components) {
+    for (const n of componentFields(c)) still.add(n)
   }
-  project.updateComponent(cur.id, patch)
+  const fm = { ...(project.project.dataSource.fieldMap || {}) }
+  let changed = false
+  for (const name of removedNames) {
+    if (name && !still.has(name) && name in fm) {
+      delete fm[name]
+      changed = true
+    }
+  }
+  if (changed) project.updateFieldMap(fm)
+}
+
+function onBindingChange(field) {
+  const cur = selected.value
+  if (!cur) return
+  const old = cur.binding || ''
+  const text = rewriteBindingText(cur.text || '', old, field || '')
+  project.updateComponent(cur.id, { binding: field, text })
+  const removed = placeholderNames(cur.text || '').filter(n => !placeholderNames(text).includes(n))
+  if (old && old !== field) removed.push(old)
+  dropUnusedFieldMapKeys(removed)
 }
 
 // 表格调整行/列数
@@ -756,21 +779,12 @@ function setCell(r, c, key, value) {
   const cells = JSON.parse(JSON.stringify(selected.value.cells || {}))
   const k = `${r},${c}`
   if (!cells[k]) cells[k] = { text: '', binding: '' }
+  const oldBinding = cells[k].binding || ''
   cells[k][key] = value
   const ctype = cells[k].type || 'text'
-  // 文本类型 + binding 变更：智能同步占位符
+  // 换绑时改写占位符，前后缀保留：{{名称}}111 → {{ID号}}111
   if (ctype === 'text' && key === 'binding') {
-    const cur = cells[k].text || ''
-    if (value) {
-      // 已绑：若当前文本是纯 {{}} 占位或完全不含 {{}}，覆盖为新的 {{字段}}
-      // （含 {{}} + 前后缀的，认为用户已自定义模板，不动）
-      if (/^\{\{.*\}\}$/.test(cur) || !cur.includes('{{')) {
-        cells[k].text = `{{${value}}}`
-      }
-    } else {
-      // 取消绑定：去除文本里的 {{}} 占位，保留前后缀
-      cells[k].text = cur.replace(/\{\{[^}]+\}\}/g, '').replace(/\s{2,}/g, ' ').trim()
-    }
+    cells[k].text = rewriteBindingText(cells[k].text || '', oldBinding, value || '')
   }
   // 切换为二维码/条码时，若内容是纯文本占位符则清空，避免把 {{字段}} 编成码
   // 用户已写 "前缀{{字段}}后缀" 时不动

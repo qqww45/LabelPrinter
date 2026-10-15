@@ -1,5 +1,5 @@
 import { parseCSVText } from '../src/utils/excel.js'
-import { renderText, renderTextWithAlert } from '../src/utils/render.js'
+import { renderText, renderTextWithAlert, codePayload, rewriteBindingText, reconcileBoundText } from '../src/utils/render.js'
 import { availableFields, componentMissingFields, missingFieldsByComponent, findOutOfBounds, runDiagnostics } from '../src/utils/diagnose.js'
 import { generateBarcode } from '../src/utils/barcode.js'
 import { generateQRCode } from '../src/utils/qrcode.js'
@@ -26,6 +26,9 @@ console.log('== 2. 占位符渲染 ==')
 check('基础替换', renderText('名称: {{产品名称}}', rows[0]) === '名称: 矿泉水')
 check('多占位符', renderText('{{产品名称}}-{{规格}}', rows[1]) === '可乐-330ml')
 check('无数据保留', renderText('{{产品名称}}', null) === '{{产品名称}}')
+check('空对象保留占位符', renderText('¥{{价格}}', {}) === '¥{{价格}}')
+check('绑定条码无数据不造假码', codePayload({ binding: '条码', text: '' }, {}) === '')
+check('静态条码保留原文', codePayload({ binding: '', text: 'ABC' }, {}) === 'ABC')
 check('未知字段为空', renderText('X{{不存在}}Y', rows[0]) === 'XY')
 
 console.log('== 3. 日期格式化 ==')
@@ -175,7 +178,20 @@ const avail = availableFields(df, {})
 check('字段不存在 → ⚠ 标记', renderTextWithAlert('{{库存}}', { 价格: '9' }, avail).text === '⚠库存')
 check('保留上下文文字', renderTextWithAlert('价格：{{库存}}', { 价格: '9' }, avail).text === '价格：⚠库存')
 check('字段存在但该行为空 → 留空不误报', renderTextWithAlert('{{价格}}', { 产品名称: 'x' }, avail).text === '')
-check('无数据时与 renderText 行为一致', renderTextWithAlert('{{库存}}', {}, new Set()).text === '')
+check('无数据时保留占位符', renderTextWithAlert('{{库存}}', {}, new Set()).text === '{{库存}}')
+
+console.log('== 换绑后占位符跟着走 ==')
+check('换绑保留后缀', rewriteBindingText('{{名称}}111', '名称', 'ID号') === '{{ID号}}111')
+check('没旧绑定时替换唯一占位符', rewriteBindingText('{{名称}}111', '', 'ID号') === '{{ID号}}111')
+check('只替换旧绑定那一个', rewriteBindingText('{{公司名称}}-{{名称}}', '名称', 'ID号') === '{{公司名称}}-{{ID号}}')
+check('多个占位且没有旧绑定则不动', rewriteBindingText('{{公司名称}}-{{名称}}', '', 'ID号') === '{{公司名称}}-{{名称}}')
+check('没有占位符则写成绑定', rewriteBindingText('固定文字', '', 'ID号') === '{{ID号}}')
+check('解绑去掉占位符留后缀', rewriteBindingText('{{名称}}111', '名称', '') === '111')
+const healed = reconcileBoundText('{{名称}}111', 'ID号', ['ID号', '公司名称'], {})
+check('绑定已是现有列、占位符是旧列 → 改写', healed === '{{ID号}}111')
+check('改写后不再报缺失字段', componentMissingFields({ type: 'text', binding: 'ID号', text: healed }, availableFields(['ID号', '公司名称'], {})).length === 0)
+check('映射成功的旧字段保留', reconcileBoundText('{{名称}}111', 'ID号', ['ID号'], { 名称: 'ID号' }) === '{{名称}}111')
+check('映射成功后画布能取到值', renderText(reconcileBoundText('{{名称}}111', 'ID号', ['ID号'], { 名称: 'ID号' }), { 名称: 'XM001', ID号: 'XM001' }) === 'XM001111')
 
 const diagOk = runDiagnostics({ components: [compOk], dataFields: df, fieldMap: {}, rowCount: 5, label: lb, paper: { width: 100, height: 100 }, perPage: 1 })
 check('正常场景无 error', diagOk.errors.length === 0)

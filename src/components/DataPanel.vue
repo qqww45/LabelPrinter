@@ -11,9 +11,9 @@
 
       <span class="spacer"></span>
 
-      <button class="btn btn-sm" :disabled="!data.headers.length" @click="addEmpty" :title="t('在末尾添加一行')">+ {{ t('添加行') }}</button>
-      <button class="btn btn-sm" :disabled="!data.rows.length" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">📤 {{ t('导出') }}</button>
-      <button class="btn btn-sm" @click="clearAll" :disabled="!data.headers.length && !data.rows.length">{{ t('清空') }}</button>
+      <button v-if="data.headers.length" class="btn btn-sm" @click="addEmpty" :title="t('在末尾添加一行')">+ {{ t('添加行') }}</button>
+      <button v-if="data.rows.length" class="btn btn-sm" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">📤 {{ t('导出') }}</button>
+      <button v-if="data.headers.length || data.rows.length" class="btn btn-sm" @click="clearAll">{{ t('清空') }}</button>
       <button class="btn btn-sm btn-primary" @click="$emit('import')">📥 {{ t('导入 Excel/CSV') }}</button>
     </div>
 
@@ -41,7 +41,7 @@
                 @keydown.esc="cancelRename"
                 @click.stop
               />
-              <span v-else class="col-name" @click="startRename(h)" :title="t('点击重命名，双击排序')">
+              <span v-else class="col-name" @click="onColClick(h)" @dblclick.stop="onColDblClick(h)" :title="t('单击排序，双击重命名')">
                 <span class="col-name-text">{{ h }}</span>
                 <span
                   class="sort-arrow"
@@ -104,7 +104,7 @@
     <div v-else class="empty">
       <div class="empty-icon">📋</div>
       <div class="empty-title">{{ t('还没有数据') }}</div>
-      <div class="empty-sub">{{ t('从下方任选一种方式开始：') }}</div>
+      <div class="empty-sub">{{ t('从这里开始：') }}</div>
       <div class="empty-actions">
         <button class="btn" @click="addCol('名称')">+ {{ t('手动建表（添加字段）') }}</button>
         <button class="btn btn-primary" @click="$emit('import')">📥 {{ t('导入 Excel/CSV') }}</button>
@@ -195,6 +195,16 @@ onBeforeUnmount(() => { document.body.style.cursor = '' })
 const editingCol = ref('')
 const editDraft = ref('')
 const colInput = ref(null)
+
+let colClickTimer = null
+function onColClick(name) {
+  clearTimeout(colClickTimer)
+  colClickTimer = setTimeout(() => data.setSort(name), 220)
+}
+function onColDblClick(name) {
+  clearTimeout(colClickTimer)
+  startRename(name)
+}
 
 function startRename(name) {
   editingCol.value = name
@@ -432,15 +442,17 @@ tr.active td .cell-input { color: inherit; }
 /* 空状态 */
 .empty {
   flex: 1;
+  min-height: 0;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 8px 16px;
   text-align: center;
-  gap: 8px;
+  gap: 6px;
 }
-.empty-icon { font-size: 48px; opacity: 0.4; }
+.empty-icon { font-size: 28px; opacity: 0.4; line-height: 1; }
 .empty-title { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
 .empty-sub { font-size: 12px; color: var(--text-muted); }
 .empty-actions { display: flex; gap: 8px; margin-top: 12px; }

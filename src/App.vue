@@ -78,6 +78,24 @@
       @fix="preflightFix"
     />
     <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" />
+
+    <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
+      <div class="modal import-choice">
+        <div class="modal-header">
+          {{ t('导入新数据') }}
+          <button class="btn btn-icon" @click="importPrompt = null">×</button>
+        </div>
+        <div class="modal-body">
+          <p>{{ t('当前 {cur} 条，新文件 {next} 条。', { cur: importPrompt.current, next: importPrompt.next }) }}</p>
+          <p class="import-note">{{ t('追加按列名合并。替换会清空当前数据，且不能撤销。') }}</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="importPrompt = null">{{ t('取消') }}</button>
+          <button class="btn import-replace" @click="confirmImport('replace')">{{ t('替换') }}</button>
+          <button class="btn btn-primary" @click="confirmImport('append')">{{ t('追加') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -90,6 +108,7 @@ import { useDataStore } from './stores/data'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { parseExcelFile } from './utils/excel'
 import { mergeDataAppend } from './utils/dataMerge'
+import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
 import ProjectSidebar from './components/ProjectSidebar.vue'
 import ComponentPanel from './components/ComponentPanel.vue'
@@ -128,6 +147,7 @@ const aiSettingsVisible = ref(false)
 // 打印前体检
 const preflightVisible = ref(false)
 const preflightReport = ref(null)
+const importPrompt = ref(null)
 
 // 首屏引导卡：只在「空画布 + 用户没主动关闭过」时显示
 const onboardingDismissed = ref(localStorage.getItem('labelprint_onboarding_dismissed') === '1')
@@ -314,60 +334,77 @@ function onAIApplied(n) {
   // 给一个轻提示：项目被修改但还没保存
   console.log(`[AI] 已应用 ${n} 个组件`)
 }
-// 导入时询问追加/替换：避免「重新导入 Excel」把已编辑数据清空
-// UX 流程：当前有数据 → 第一次 confirm「确定=追加, 取消=进入替换确认」
-//                  替换前再 confirm 一次（防误触）；任一取消 = 整体取消
+function headersDiffer(a, b) {
+  const aa = a || []
+  const bb = b || []
+  if (aa.length !== bb.length) return true
+  const set = new Set(bb)
+  return aa.some(h => !set.has(h))
+}
+
+function healBoundText() {
+  const fixes = collectBindingTextFixes(
+    project.project.components,
+    data.fields,
+    project.project.dataSource.fieldMap
+  )
+  for (const fix of fixes) {
+    project.updateComponent(fix.id, fix.cells ? { cells: fix.cells } : { text: fix.text })
+  }
+}
+
+function applyImported(mode, payload) {
+  const { headers, rows, fileName } = payload
+  const prevHeaders = data.headers.slice()
+  if (mode === 'replace') {
+    data.setData({
+      headers,
+      rows,
+      sourcePath: fileName,
+      embedded: true
+    })
+    // 列变了，旧映射还指着上一份表的列，清空后按新列重新绑
+    if (headersDiffer(prevHeaders, headers)) project.updateFieldMap({})
+  } else {
+    const merged = mergeDataAppend(data.headers, data.rows, headers, rows || [])
+    data.setData({
+      headers: merged.headers,
+      rows: merged.rows,
+      sourcePath: fileName,
+      embedded: true
+    })
+  }
+  healBoundText()
+  embedCurrentData()
+  project.markDirty()
+}
+
+function confirmImport(mode) {
+  const payload = importPrompt.value
+  importPrompt.value = null
+  if (!payload) return
+  applyImported(mode, payload)
+}
+
+// 已有数据时用页面里的三个按钮：追加 / 替换 / 取消
 async function onImportData() {
   try {
     const file = await pickFile('.xlsx,.xls,.csv')
     const parsed = await parseExcelFile(file)
-    const newHeaders = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
-    const newRowCount = (parsed.rows || []).length
-
-    // 决定模式：追加 / 替换
-    let mode = 'replace'
-    if (data.rows.length > 0) {
-      const wantAppend = confirm(
-        `导入新数据？\n\n` +
-        `当前：${data.rows.length} 条\n` +
-        `新文件：${newRowCount} 条\n\n` +
-        `「确定」= 追加到当前数据之后（按列名合并）\n` +
-        `「取消」= 替换当前数据（清空）`
-      )
-      if (wantAppend) {
-        mode = 'append'
-      } else {
-        // 二次确认：替换会清空当前数据
-        if (!confirm(`确认替换？\n当前 ${data.rows.length} 条数据将被清空，且无法撤销。`)) return
-        mode = 'replace'
-      }
-    } else if (newRowCount === 0) {
-      alert('新文件没有数据。')
+    const headers = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
+    const rows = parsed.rows || []
+    if (!rows.length && !data.rows.length) {
+      alert(t('新文件没有数据。'))
       return
     }
-
-    if (mode === 'replace') {
-      data.setData({
-        headers: newHeaders,
-        rows: parsed.rows,
-        sourcePath: file.name,
-        embedded: true
-      })
-    } else {
-      // 追加：按列名合并（纯函数逻辑见 utils/dataMerge.js + 单测覆盖 7 类边界）
-      const merged = mergeDataAppend(data.headers, data.rows, newHeaders, parsed.rows || [])
-      data.setData({
-        headers: merged.headers,
-        rows: merged.rows,
-        sourcePath: file.name,
-        embedded: true
-      })
+    const payload = { headers, rows, fileName: file.name, current: data.rows.length, next: rows.length }
+    if (data.rows.length > 0) {
+      importPrompt.value = payload
+      return
     }
-    // 一次性内联：立即把数据深拷贝到当前项目（保证 project.value 持有完整副本）
-    embedCurrentData()
-    project.markDirty()
+    applyImported('replace', payload)
   } catch (e) {
-    if (e.message !== '未选择文件') alert('导入失败：' + e.message)
+    if (e.message !== '未选择文件') alert(t('导入失败：{msg}', { msg: e.message }))
   }
 }
 
@@ -588,5 +625,11 @@ window.addEventListener('keydown', onGlobalKey)
   border-top: 1px solid var(--border);
   background: var(--bg-panel);
   flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
 }
+.import-choice { width: min(440px, 92vw); }
+.import-choice p { margin: 0 0 8px; line-height: 1.5; }
+.import-note { color: var(--text-secondary); font-size: 13px; }
+.import-replace { color: var(--danger); border-color: var(--danger); }
 </style>

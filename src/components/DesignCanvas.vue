@@ -8,10 +8,11 @@
            :style="labelBorderOverlayStyle"></div>
     </div>
 
-    <!-- 浮动信息条：左下角 + pointer-events:none 不抢点击 + 3 秒无操作后淡出 -->
-    <div class="info-bar" :class="{ 'info-bar-fade': infoFaded }" @mouseenter="infoFaded = false" @mouseleave="scheduleInfoFade">
-      <span>🏷 {{ pj.project.label.width }}×{{ pj.project.label.height }}mm</span>
-      <span v-if="layoutSummary">🖨 {{ layoutSummary }}</span>
+    <!-- 尺寸说明常驻：这是画布上唯一写明「标签 / 纸张 / 每页几个」的地方 -->
+    <div class="info-bar">
+      <span>🏷 {{ t('标签') }} {{ pj.project.label.width }}×{{ pj.project.label.height }} mm</span>
+      <span>📄 {{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
+      <span>🖨 {{ layoutSummary }}</span>
       <span>🔍 {{ Math.round(pj.zoom * 100) }}%</span>
       <span v-if="data.rows.length">📊 {{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
     </div>
@@ -23,7 +24,7 @@ import { ref, onMounted, watch, computed, onBeforeUnmount, nextTick } from 'vue'
 import * as fabric from 'fabric'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
-import { resolveRow, renderTextWithAlert } from '../utils/render'
+import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { generateBarcode } from '../utils/barcode'
@@ -69,21 +70,11 @@ const labelBorderOverlayStyle = computed(() => {
 
 // 排版摘要（提示该标签会被怎么排到纸上）
 const layoutSummary = computed(() => {
+  const n = pj.labelsPerPage
+  if (n <= 1) return t('每页 1 张')
   const L = pj.project.layout
-  if (L.mode !== 'auto') return '单张（每页 1 个）'
-  return `${L.cols} × ${L.rows} = ${L.cols * L.rows} 个/页`
+  return t('每页 {n} 张（{c}×{r}）', { n, c: L.cols, r: L.rows })
 })
-
-// 信息条淡出：操作画布时立刻显示，无操作 3 秒后自动淡出，避免遮挡
-const infoFaded = ref(false)
-let infoFadeTimer = null
-function scheduleInfoFade() {
-  if (infoFadeTimer) clearTimeout(infoFadeTimer)
-  infoFadeTimer = setTimeout(() => { infoFaded.value = true }, 3000)
-}
-function wakeInfo() { infoFaded.value = false; scheduleInfoFade() }
-onMounted(() => { scheduleInfoFade() })
-onBeforeUnmount(() => { if (infoFadeTimer) clearTimeout(infoFadeTimer) })
 
 onMounted(() => {
   initCanvas()
@@ -92,6 +83,7 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   // 初始自动"适合窗口"：新打开/换标签尺寸时画布大小刚好填满可视区
   nextTick(() => {
+    healBoundText()
     const z = fitZoomToWindow(wrapRef.value, pj.project.label.width, pj.project.label.height)
     if (z != null) {
       pj.zoom = z
@@ -108,6 +100,18 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   if (fabricCanvas) fabricCanvas.dispose()
 })
+
+// 绑定已指向现有列，但文本还留着数据里没有的 {{旧字段}} 时，改写成新字段
+function healBoundText() {
+  const fixes = collectBindingTextFixes(
+    pj.project.components,
+    data.fields,
+    pj.project.dataSource.fieldMap
+  )
+  for (const fix of fixes) {
+    pj.updateComponent(fix.id, fix.cells ? { cells: fix.cells } : { text: fix.text })
+  }
+}
 
 // 窗口尺寸变化：autoFit 模式下自动重新"适合窗口"
 function onWindowResize() {
@@ -297,8 +301,8 @@ function setupDnd() {
     } else if (field) {
       const sel = pj.selectedComponent
       if (sel) {
-        pj.updateComponent(sel.id, { binding: field })
-        if (!sel.text) pj.updateComponent(sel.id, { text: `{{${field}}}` })
+        const text = rewriteBindingText(sel.text || '', sel.binding || '', field)
+        pj.updateComponent(sel.id, { binding: field, text })
       } else {
         addComponent('text', xMm, yMm, { binding: field, text: `{{${field}}}` })
       }
@@ -365,7 +369,7 @@ function addComponent(type, xMm, yMm, extra = {}) {
       comp = { ...def, text: 'QR', binding: '' }
       break
     case 'barcode':
-      comp = { ...def, text: '123456', binding: '', format: 'CODE128' }
+      comp = { ...def, text: '', binding: '', format: 'CODE128' }
       break
     case 'rect':
       comp = { ...def, fill: 'transparent', stroke: '#000', strokeWidth: 1, rx: 0 }
@@ -449,6 +453,31 @@ function safeAddAsync(img, gen) {
   fabricCanvas.renderAll()
 }
 
+// 没有可编码内容时画虚线占位，标出字段名，避免看起来像一张真条码
+function codePlaceholder(c, baseOpts, label) {
+  const w = Math.max(8, (c.width || 10) * MM_TO_PX)
+  const h = Math.max(8, (c.height || 10) * MM_TO_PX)
+  const caption = String(c.binding || label)
+  const bg = new fabric.Rect({
+    left: 0, top: 0, width: w, height: h,
+    fill: 'rgba(148, 163, 184, 0.10)',
+    stroke: '#94a3b8', strokeWidth: 1,
+    strokeDashArray: [5, 4],
+    rx: 2, ry: 2
+  })
+  const fontSize = Math.max(9, Math.min(14, Math.min(w, h) * 0.32))
+  const text = new fabric.Text(caption, {
+    left: w / 2,
+    top: h / 2,
+    originX: 'center',
+    originY: 'center',
+    fontSize,
+    fill: '#64748b',
+    fontFamily: 'Microsoft YaHei, sans-serif'
+  })
+  return new fabric.Group([bg, text], { ...baseOpts })
+}
+
 // ============ 构建 fabric 对象（坐标即相对标签 mm） ============
 function buildFabricObject(c, gen = renderGeneration) {
   // 字段映射后的行：模板字段名 → 数据源字段值
@@ -525,9 +554,18 @@ function buildFabricObject(c, gen = renderGeneration) {
       })
       break
     }
-    case 'qrcode': {
-      const txt = c.binding ? (row[c.binding] || c.text || '') : (c.text || '')
-      generateQRCode(String(txt), { width: 200 }).then(dataUrl => {
+    case 'qrcode':
+    case 'barcode': {
+      const txt = codePayload(c, row)
+      if (!txt) {
+        obj = codePlaceholder(c, baseOpts, c.type === 'barcode' ? t('条码') : t('二维码'))
+        break
+      }
+      const ready = c.type === 'barcode'
+        ? Promise.resolve(generateBarcode(txt, { format: c.format }))
+        : generateQRCode(txt, { width: 200 })
+      ready.then(dataUrl => {
+        if (!dataUrl) return
         fabric.Image.fromURL(dataUrl).then(img => {
           if (!img) return
           img.set({ ...baseOpts,
@@ -538,22 +576,6 @@ function buildFabricObject(c, gen = renderGeneration) {
           safeAddAsync(img, gen)
         })
       })
-      return null
-    }
-    case 'barcode': {
-      const txt = c.binding ? (row[c.binding] || c.text || '123456') : (c.text || '123456')
-      const dataUrl = generateBarcode(String(txt), { format: c.format })
-      if (dataUrl) {
-        fabric.Image.fromURL(dataUrl).then(img => {
-          if (!img) return
-          img.set({ ...baseOpts,
-            scaleX: (c.width * MM_TO_PX) / img.width,
-            scaleY: (c.height * MM_TO_PX) / img.height
-          })
-          img.__id = c.id
-          safeAddAsync(img, gen)
-        })
-      }
       return null
     }
     case 'rect': {
@@ -726,7 +748,9 @@ function buildTable(c, row, baseOpts) {
         raw = rr.text
         miss = rr.missing
       } else if (cell.binding) {
-        if (availFieldSet.value.size && !availFieldSet.value.has(cell.binding)) {
+        if (rowIsEmpty(row)) {
+          raw = cell.binding
+        } else if (availFieldSet.value.size && !availFieldSet.value.has(cell.binding)) {
           raw = `⚠${cell.binding}`
           miss = [cell.binding]
         } else {
@@ -807,8 +831,8 @@ function buildTable(c, row, baseOpts) {
       const innerH = cellH - pad * 2
       const isHeader = r === 0 && headerRow
 
-      if (cellType === 'qrcode' || cellType === 'barcode') {
-        const url = display ? makeCellDataUrl(cellType, display, cell, c) : ''
+      if ((cellType === 'qrcode' || cellType === 'barcode') && isEncodableCode(display)) {
+        const url = makeCellDataUrl(cellType, display, cell, c)
         const imgEl = url ? getDecodedImageSync(url) : null
         if (imgEl) {
           const ratio = imgEl.width / imgEl.height
@@ -916,6 +940,13 @@ function onKey(e) {
 watch(() => pj.project.components, () => renderAll(), { deep: true })
 watch(() => pj.project.label, () => rebuildCanvas(), { deep: true })
 watch(() => data.activeRow, () => renderAll())
+
+// 左侧组件单击：加到标签中心并选中（拖拽仍走画布 drop）
+watch(() => pj.addRequest, () => {
+  const type = pj.addRequestType
+  if (!type) return
+  addComponent(type, pj.project.label.width / 2, pj.project.label.height / 2)
+})
 // 字段映射变化 → 立即重绘（实时）
 watch(() => pj.project.dataSource.fieldMap, () => renderAll(), { deep: true })
 // 数据源字段变化 → 重绘（「字段失效」提示需要实时刷新）
@@ -998,9 +1029,4 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   transition: opacity 0.3s ease, transform 0.3s ease;
   opacity: 1;
 }
-.info-bar-fade {
-  opacity: 0.15;         /* 淡出后保留微弱可见性，便于用户感知位置 */
-  transform: translateY(2px);
-}
-.info-bar-fade:hover { opacity: 0.9; }  /* hover 立即恢复 */
 </style>

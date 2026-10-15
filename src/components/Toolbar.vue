@@ -12,7 +12,6 @@
 
     <!-- 配置：数据/模板/页面/排版（5 个） -->
     <div class="group group-config">
-      <button class="btn" @click="$emit('import-data')" :title="t('导入 Excel/CSV 数据')"><span class="ico">📊</span><span class="txt">{{ t('导入数据') }}</span></button>
       <button class="btn" @click="$emit('template-library')" :title="t('内置模板与我的模板')"><span class="ico">📚</span><span class="txt">{{ t('模板库') }}</span></button>
       <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 智能排版：输入字段，AI 自动生成版式')"><span class="ico">🤖</span><span class="txt">{{ t('AI 排版') }}</span></button>
       <button class="btn" @click="$emit('field-map')" :title="t('模板字段与数据列的对应关系')"><span class="ico">🔀</span><span class="txt">{{ t('字段映射') }}</span></button>
@@ -24,7 +23,7 @@
 
     <!-- 打印：设置/队列/预览（3 个） -->
     <div class="group group-ops">
-      <button class="btn" @click="$emit('print-config')" :title="t('打印设置')"><span class="ico">🖨️</span><span class="txt">{{ t('打印设置') }}</span></button>
+      <button class="btn keep-label" @click="$emit('print-config')" :title="t('打印设置')"><span class="ico">🖨️</span><span class="txt">{{ t('打印设置') }}</span></button>
       <button class="btn" @click="$emit('print-center')" :title="t('打印队列与历史记录')"><span class="ico">🗂</span><span class="txt">{{ t('打印中心') }}</span></button>
       <button class="btn" @click="$emit('preview')" :title="t('预览')"><span class="ico">👁️</span><span class="txt">{{ t('预览') }}</span></button>
     </div>
@@ -33,7 +32,7 @@
 
     <!-- 输出：执行（3 个） -->
     <div class="group group-output">
-      <button class="btn btn-primary" @click="$emit('print')" :title="t('打印')"><span class="ico">🖨️</span><span class="txt">{{ t('打印') }}</span></button>
+      <button class="btn btn-primary keep-label" @click="$emit('print')" :title="t('打印')"><span class="ico">🖨️</span><span class="txt">{{ t('打印') }}</span></button>
       <button class="btn" @click="$emit('export-pdf')" :title="t('导出 PDF')"><span class="ico">📄</span><span class="txt">PDF</span></button>
       <button class="btn" @click="$emit('export-image')" :title="t('导出图片')"><span class="ico">🖼️</span><span class="txt">{{ t('图片') }}</span></button>
     </div>
@@ -58,7 +57,7 @@
       <button class="btn btn-icon" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" aria-label="缩小">➖</button>
       <div class="zoom-select" :title="t('缩放比例（点击选常用档位）')">
         <select :value="zoomPercent" @change="onZoomPreset($event.target.value)">
-          <option v-for="p in zoomPresets" :key="p" :value="p">{{ p }}%</option>
+          <option v-for="p in zoomOptions" :key="p" :value="p">{{ p }}%</option>
         </select>
       </div>
       <button class="btn btn-icon" @click="zoomIn" :title="t('放大 (Ctrl++)')" aria-label="放大">➕</button>
@@ -97,6 +96,11 @@ function onResize() { isCompact.value = window.innerWidth < COMPACT_THRESHOLD }
 // 常用缩放档位（设计工具标配：50/75/100/150/200/400）
 const zoomPresets = [25, 50, 75, 100, 125, 150, 200, 300, 400]
 const zoomPercent = computed(() => Math.round(project.zoom * 100))
+const zoomOptions = computed(() => {
+  const current = zoomPercent.value
+  if (zoomPresets.includes(current)) return zoomPresets
+  return [...zoomPresets, current].sort((a, b) => a - b)
+})
 
 // 步长：100% 附近用 5%，远区用 10%
 function step() {
@@ -263,6 +267,7 @@ onBeforeUnmount(() => {
 .toolbar.compact .logo-text,
 .toolbar.compact .filename-text { display: none; }
 .toolbar.compact .btn .txt { display: none; }
+.toolbar.compact .btn.keep-label .txt { display: inline; }
 .toolbar.compact .divider-hide-narrow { display: none; }
 .toolbar.compact .group { background: transparent; padding: 0; }
 .toolbar.compact .btn { padding: 4px 6px; }

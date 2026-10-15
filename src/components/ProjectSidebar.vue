@@ -20,8 +20,8 @@
       <div class="actions">
         <button class="act" @click="$emit('new')" :title="t('新建项目')">📄 {{ t('新建') }}</button>
         <button class="act" @click="$emit('open')" :title="t('从文件打开项目')">📂 {{ t('打开') }}</button>
-        <button class="act" @click="$emit('save')" :title="t('保存为文件')">💾 {{ t('保存') }}</button>
-        <button class="act" @click="$emit('save-as')" :title="t('另存为新文件')">📤 {{ t('另存') }}</button>
+        <button class="act" @click="$emit('save')" :title="t('下载项目文件。设计会自动留在这台浏览器里')">💾 {{ t('下载') }}</button>
+        <button class="act" @click="$emit('save-as')" :title="t('换个文件名下载')">📤 {{ t('下载为') }}</button>
       </div>
 
       <div class="list-label">{{ t('本地项目（自动保存）') }}</div>
@@ -60,8 +60,7 @@
         </div>
       </div>
 
-      <button class="new-btn" @click="$emit('new')">＋ {{ t('新建项目') }}</button>
-      <div class="panel-foot">{{ t('自动保存在浏览器本地') }}</div>
+      <div class="panel-foot">{{ t('自动保存在这台浏览器，下载才是文件') }}</div>
     </div>
   </div>
 </template>

@@ -482,7 +482,32 @@ const EN = {
   '正在测试…': 'Testing…',
   '测试连接': 'Test connection',
   '连接成功（返回: {n} 字符）': 'Connected (response: {n} chars)',
-  '设置已自动保存': 'Settings auto-saved'
+  '设置已自动保存': 'Settings auto-saved',
+  '纸张': 'Paper',
+  '每页 1 张': '1 per page',
+  '每页 {n} 张（{c}×{r}）': '{n} per page ({c}×{r})',
+  '点击添加到画布，或拖到指定位置': 'Click to add, or drag onto the canvas',
+  '当前绑定：{name}': 'Bound to: {name}',
+  '（数据里还没有此列）': ' (not in the data yet)',
+  '{name}（数据里还没有）': '{name} (not in the data yet)',
+  '未绑定，使用下方静态文本': 'Not bound. The static text below is used.',
+  '绑定字段': 'Bind field',
+  '从这里开始：': 'Start here:',
+  '单击排序，双击重命名': 'Click to sort, double-click to rename',
+  '下载': 'Download',
+  '下载为': 'Download as',
+  '下载项目文件。设计会自动留在这台浏览器里': 'Download a project file. The design is already kept in this browser.',
+  '换个文件名下载': 'Download under another name',
+  '自动保存在这台浏览器，下载才是文件': 'Kept in this browser. Download makes a file.',
+  '打印机在点「打印」后的系统对话框里选。这里选不了具体设备。': 'Choose the printer in the system dialog after you click Print. This screen cannot pick a device.',
+  '导入新数据': 'Import new data',
+  '当前 {cur} 条，新文件 {next} 条。': 'Current: {cur} rows. New file: {next} rows.',
+  '追加按列名合并。替换会清空当前数据，且不能撤销。': 'Append merges by column name. Replace clears the current rows and cannot be undone.',
+  '取消': 'Cancel',
+  '替换': 'Replace',
+  '追加': 'Append',
+  '新文件没有数据。': 'The new file has no rows.',
+  '导入失败：{msg}': 'Import failed: {msg}'
 }
 
 export function useI18n() {

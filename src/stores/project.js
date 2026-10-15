@@ -83,6 +83,9 @@ export const useProjectStore = defineStore('project', () => {
   const showGrid = ref(true)
   // 视图自动适配：开启后窗口 resize 自动重新"适合窗口"；用户手动缩放会关闭
   const autoFit = ref(false)
+  // 左侧组件单击添加：DesignCanvas 监听后放到标签中心
+  const addRequest = ref(0)
+  const addRequestType = ref('')
 
   const selectedComponent = computed(() =>
     project.value.components.find(c => c.id === selectedId.value)
@@ -234,6 +237,12 @@ export const useProjectStore = defineStore('project', () => {
   function markDirty() {
     dirty.value = true
     project.value.meta.updatedAt = new Date().toISOString()
+  }
+
+  function requestAddComponent(type) {
+    if (!type) return
+    addRequestType.value = type
+    addRequest.value += 1
   }
 
   function addComponent(comp) {
@@ -767,6 +776,7 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     project, filePath, dirty, selectedId, selectedIds, zoom, showGrid, autoFit,
+    addRequest, addRequestType, requestAddComponent,
     selectedComponent, isMultiSelect,
     labelAreaOrigin, labelAreaSize, labelsPerPage,
     projects, currentId,
