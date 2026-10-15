@@ -6,4 +6,5 @@ dist
 .idea
 .codebuddy
 .AGENTS.md
+.CODEBUDDY.md
 .playwright-cli
