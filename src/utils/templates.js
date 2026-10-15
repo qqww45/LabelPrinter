@@ -29,7 +29,8 @@ const table = (id, name, { left, top, width, height, rows, cols, fontSize = 8, c
 })
 
 const singleLayout = { mode: 'single', sizingMode: 'manual', cols: 1, rows: 1, hGap: 2, vGap: 2 }
-const sheetMargin = { top: 3, right: 3, bottom: 3, left: 3 }
+// 单张标签纸：标签 = 纸张，不能留边距（否则打印整体右下偏移、右/下边被裁）
+const zeroMargin = { top: 0, right: 0, bottom: 0, left: 0 }
 const labelPaper = (w, h) => ({ width: w, height: h, backgroundColor: '#ffffff' })
 
 export const BUILTIN_TEMPLATES = [
@@ -41,7 +42,7 @@ export const BUILTIN_TEMPLATES = [
     fields: ['产品名称', '规格', '价格', '条码'],
     paper: labelPaper(60, 40),
     label: { width: 60, height: 40, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.3 },
-    margin: sheetMargin,
+    margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
       text('tpl_price_tag-c1', '商品名', { left: 3, top: 2, width: 54, height: 7, text: '{{产品名称}}', fontSize: 11, fontWeight: 'bold' }),
@@ -58,7 +59,7 @@ export const BUILTIN_TEMPLATES = [
     fields: ['产品名称', '规格', '产地', '价格'],
     paper: labelPaper(80, 50),
     label: { width: 80, height: 50, backgroundColor: '#ffffff', showBorder: true, borderColor: '#94a3b8', borderWidth: 0.3 },
-    margin: sheetMargin,
+    margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
       text('tpl_goods_sheet-c1', '标题', { left: 3, top: 2, width: 74, height: 8, text: '{{产品名称}}', fontSize: 14, fontWeight: 'bold' }),
@@ -84,7 +85,7 @@ export const BUILTIN_TEMPLATES = [
     fields: ['产品名称', '条码'],
     paper: labelPaper(50, 30),
     label: { width: 50, height: 30, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.3 },
-    margin: sheetMargin,
+    margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
       text('tpl_barcode_tag-c1', '名称', { left: 2, top: 2, width: 46, height: 6, text: '{{产品名称}}', fontSize: 10 }),
@@ -100,7 +101,7 @@ export const BUILTIN_TEMPLATES = [
     fields: ['条码', '产品名称', '价格'],
     paper: labelPaper(40, 30),
     label: { width: 40, height: 30, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.3 },
-    margin: sheetMargin,
+    margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
       qrcode('tpl_qr_tag-c1', '二维码', { left: 2, top: 3, width: 20, height: 20, binding: '条码' }),
@@ -132,7 +133,7 @@ export const BUILTIN_TEMPLATES = [
     fields: ['收件人', '电话', '地址', '品名', '数量', '单号'],
     paper: labelPaper(100, 150),
     label: { width: 100, height: 150, backgroundColor: '#ffffff', showBorder: true, borderColor: '#000000', borderWidth: 0.4 },
-    margin: sheetMargin,
+    margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
       text('tpl_express-c1', '收件人', { left: 4, top: 4, width: 92, height: 8, text: '收件人：{{收件人}}', fontSize: 13, fontWeight: 'bold' }),

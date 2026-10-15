@@ -201,6 +201,9 @@ function onNew() {
   const name = prompt('新项目名称：', `项目 ${project.projects.length + 1}`)
   if (name === null) return
   project.createProject(sanitizeName(name) || `项目 ${project.projects.length + 1}`)
+  // 新项目 → 重新弹出引导卡（纸张/标签配置说不清是打印翻车的主因）
+  onboardingDismissed.value = false
+  localStorage.removeItem('labelprint_onboarding_dismissed')
 }
 
 async function onOpen() {

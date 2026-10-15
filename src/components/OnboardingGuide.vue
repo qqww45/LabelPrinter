@@ -62,6 +62,19 @@
               <option v-for="o in PAPER_H_PRESETS" :key="o" :value="o">{{ o }} mm</option>
             </select>
           </div>
+          <div class="row">
+            <label>{{ t('纸张边距') }}</label>
+            <input
+              class="input" type="number" min="0" max="20" step="0.5"
+              v-model.number="marginMm"
+            />
+            <span class="unit">mm（{{ t('标签距纸边的留白') }}）</span>
+          </div>
+        </div>
+
+        <div v-if="tooBig" class="warn">
+          ⚠ {{ t('放不下：') }}{{ labelW }}×{{ labelH }} {{ t('的标签加上左右各') }} {{ marginMm }}mm {{ t('边距，超出了') }} {{ paperW }}×{{ paperH }} {{ t('的纸。') }}<br>
+          {{ t('纸张至少要') }} <b>{{ minPaper.w }}×{{ minPaper.h }}mm</b>{{ t(' —— 请换更大的纸、缩小标签，或把边距调为 0，否则打印会被裁掉。') }}
         </div>
 
         <div class="preview">
@@ -70,7 +83,7 @@
             <g v-for="cell in layoutCells" :key="cell.k">
               <rect
                 :x="cell.x" :y="cell.y" :width="labelW" :height="labelH"
-                fill="white" stroke="#3b82f6"
+                fill="white" :stroke="tooBig ? '#ef4444' : '#3b82f6'"
                 :stroke-width="Math.max(paperW, paperH) / 600"
               />
             </g>
@@ -78,7 +91,8 @@
           <div class="preview-info">
             <div class="muted">{{ t('一张纸上可放') }}</div>
             <div class="big">{{ cols }} × {{ rows }} = <b>{{ cols * rows }}</b> <small>{{ t('张/页') }}</small></div>
-            <div class="hint">{{ t('点「应用」即可在画布看到该模板') }}</div>
+            <div v-if="tooBig" class="hint bad">{{ t('当前组合打印会裁掉边缘，请调整') }}</div>
+            <div v-else class="hint">{{ t('点「应用」即可在画布看到该模板') }}</div>
           </div>
         </div>
 
@@ -122,11 +136,22 @@ const labelH = ref(40)
 const paperW = ref(100)
 const paperH = ref(100)
 
-const MARGIN = 3  // mm（沿用项目默认 sheetMargin）
 const GAP = 2
 
-const cols = computed(() => Math.max(1, Math.floor((paperW.value - MARGIN * 2 + GAP) / (labelW.value + GAP))))
-const rows = computed(() => Math.max(1, Math.floor((paperH.value - MARGIN * 2 + GAP) / (labelH.value + GAP))))
+// 纸张边距（mm）——预填模板值，可调；四边对称，简化理解
+const marginMm = ref(3)
+
+// 放不放得下：标签 + 左右边距 ≤ 纸张（容差 0.01 避免浮点误判）
+const fitsW = computed(() => labelW.value + marginMm.value * 2 <= paperW.value + 0.01)
+const fitsH = computed(() => labelH.value + marginMm.value * 2 <= paperH.value + 0.01)
+const tooBig = computed(() => !fitsW.value || !fitsH.value)
+const minPaper = computed(() => ({
+  w: Math.ceil((labelW.value + marginMm.value * 2) * 10) / 10,
+  h: Math.ceil((labelH.value + marginMm.value * 2) * 10) / 10
+}))
+
+const cols = computed(() => Math.max(1, Math.floor((paperW.value - marginMm.value * 2 + GAP) / (labelW.value + GAP))))
+const rows = computed(() => Math.max(1, Math.floor((paperH.value - marginMm.value * 2 + GAP) / (labelH.value + GAP))))
 
 const layoutCells = computed(() => {
   const cells = []
@@ -134,8 +159,8 @@ const layoutCells = computed(() => {
     for (let c = 0; c < cols.value; c++) {
       cells.push({
         k: `${r}-${c}`,
-        x: MARGIN + c * (labelW.value + GAP),
-        y: MARGIN + r * (labelH.value + GAP)
+        x: marginMm.value + c * (labelW.value + GAP),
+        y: marginMm.value + r * (labelH.value + GAP)
       })
     }
   }
@@ -145,11 +170,12 @@ const layoutCells = computed(() => {
 function pick(tpl) {
   pickedId.value = tpl.id
   pickedTpl.value = tpl
-  // 预填模板自带尺寸
+  // 预填模板自带尺寸与边距
   labelW.value = tpl.label.width
   labelH.value = tpl.label.height
   paperW.value = tpl.paper.width
   paperH.value = tpl.paper.height
+  marginMm.value = Math.max(0, Number(tpl.margin?.left ?? 3))
   step.value = 2
 }
 
@@ -167,14 +193,17 @@ function apply() {
   if (pickedTpl.value) {
     project.applyTemplate(pickedTpl.value)
   }
-  // 2) 覆盖尺寸（如果用户改过）
+  // 2) 覆盖尺寸 / 边距（如果用户改过）
   const tpl = pickedTpl.value
+  const tplMargin = tpl ? Math.max(0, Number(tpl.margin?.left ?? 3)) : 3
   const dimsChanged = !tpl
     || labelW.value !== tpl.label.width || labelH.value !== tpl.label.height
     || paperW.value !== tpl.paper.width || paperH.value !== tpl.paper.height
+    || marginMm.value !== tplMargin
   if (dimsChanged) {
     project.updateLabel({ width: labelW.value, height: labelH.value })
     project.updatePaper({ width: paperW.value, height: paperH.value })
+    project.updateMargin({ top: marginMm.value, right: marginMm.value, bottom: marginMm.value, left: marginMm.value })
     const perPage = cols.value * rows.value
     project.updateLayout({
       mode: perPage > 1 ? 'auto' : 'single',
@@ -270,6 +299,21 @@ function dismiss() {
 .body { padding: 16px 20px 20px; overflow-y: auto; }
 .tip { font-size: 13px; color: var(--text-secondary, #475569); margin: 0 0 12px; line-height: 1.6; }
 .tip b { color: var(--text-primary, #0f172a); }
+.unit { color: var(--text-muted, #64748b); font-size: 12px; }
+
+/* 放不下警告 */
+.warn {
+  border: 1px solid #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+.warn b { color: #dc2626; }
+.hint.bad { color: #dc2626; font-weight: 600; }
 
 /* Step 1 模板网格 */
 .grid {
