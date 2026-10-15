@@ -89,6 +89,7 @@ import { useProjectStore } from './stores/project'
 import { useDataStore } from './stores/data'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { parseExcelFile } from './utils/excel'
+import { mergeDataAppend } from './utils/dataMerge'
 import Toolbar from './components/Toolbar.vue'
 import ProjectSidebar from './components/ProjectSidebar.vue'
 import ComponentPanel from './components/ComponentPanel.vue'
@@ -313,18 +314,56 @@ function onAIApplied(n) {
   // 给一个轻提示：项目被修改但还没保存
   console.log(`[AI] 已应用 ${n} 个组件`)
 }
+// 导入时询问追加/替换：避免「重新导入 Excel」把已编辑数据清空
+// UX 流程：当前有数据 → 第一次 confirm「确定=追加, 取消=进入替换确认」
+//                  替换前再 confirm 一次（防误触）；任一取消 = 整体取消
 async function onImportData() {
   try {
     const file = await pickFile('.xlsx,.xls,.csv')
     const parsed = await parseExcelFile(file)
-    // 一次性内联：导入即嵌入（按用户建议不再依赖外置数据）
-    data.setData({
-      headers: parsed.headers,
-      rows: parsed.rows,
-      sourcePath: file.name,
-      embedded: true
-    })
-    // 立即把数据深拷贝到当前项目（确保 project.value 持有完整副本）
+    const newHeaders = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
+    const newRowCount = (parsed.rows || []).length
+
+    // 决定模式：追加 / 替换
+    let mode = 'replace'
+    if (data.rows.length > 0) {
+      const wantAppend = confirm(
+        `导入新数据？\n\n` +
+        `当前：${data.rows.length} 条\n` +
+        `新文件：${newRowCount} 条\n\n` +
+        `「确定」= 追加到当前数据之后（按列名合并）\n` +
+        `「取消」= 替换当前数据（清空）`
+      )
+      if (wantAppend) {
+        mode = 'append'
+      } else {
+        // 二次确认：替换会清空当前数据
+        if (!confirm(`确认替换？\n当前 ${data.rows.length} 条数据将被清空，且无法撤销。`)) return
+        mode = 'replace'
+      }
+    } else if (newRowCount === 0) {
+      alert('新文件没有数据。')
+      return
+    }
+
+    if (mode === 'replace') {
+      data.setData({
+        headers: newHeaders,
+        rows: parsed.rows,
+        sourcePath: file.name,
+        embedded: true
+      })
+    } else {
+      // 追加：按列名合并（纯函数逻辑见 utils/dataMerge.js + 单测覆盖 7 类边界）
+      const merged = mergeDataAppend(data.headers, data.rows, newHeaders, parsed.rows || [])
+      data.setData({
+        headers: merged.headers,
+        rows: merged.rows,
+        sourcePath: file.name,
+        embedded: true
+      })
+    }
+    // 一次性内联：立即把数据深拷贝到当前项目（保证 project.value 持有完整副本）
     embedCurrentData()
     project.markDirty()
   } catch (e) {
