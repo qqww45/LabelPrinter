@@ -132,17 +132,24 @@ export function parseAIResponse(raw) {
 }
 
 function findMatchingClose(s, start) {
-  let depth = 0
+  const pairs = { '{': '}', '[': ']' }
+  const open = s[start]
+  if (!pairs[open]) throw new Error('JSON 括号不匹配')
+  const stack = [pairs[open]]
   let inStr = false
   let escape = false
-  for (let i = start; i < s.length; i++) {
+  for (let i = start + 1; i < s.length; i++) {
     const ch = s[i]
     if (escape) { escape = false; continue }
     if (ch === '\\') { escape = true; continue }
     if (ch === '"') { inStr = !inStr; continue }
     if (inStr) continue
-    if (ch === '[') depth++
-    else if (ch === ']') { depth--; if (depth === 0) return i }
+    if (ch === '{' || ch === '[') stack.push(pairs[ch])
+    else if (ch === '}' || ch === ']') {
+      if (ch !== stack[stack.length - 1]) throw new Error('JSON 括号不匹配')
+      stack.pop()
+      if (stack.length === 0) return i
+    }
   }
   throw new Error('JSON 括号不匹配')
 }

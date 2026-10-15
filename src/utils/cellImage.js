@@ -33,7 +33,8 @@ export function qrToCanvas(text, px = 200, opts = {}) {
  * 同步生成条形码 canvas（JsBarcode 为同步绘制）
  */
 export function barcodeToCanvas(text, opts = {}) {
-  const value = String(text == null || text === '' ? ' ' : text)
+  const value = text == null ? '' : String(text).trim()
+  if (!value) return null
   const cv = document.createElement('canvas')
   const base = {
     format: opts.format || 'CODE128',
@@ -45,15 +46,12 @@ export function barcodeToCanvas(text, opts = {}) {
     background: '#ffffff',
     lineColor: '#000000'
   }
-  const tryFormats = [base.format]
-  if (base.format !== 'CODE128') tryFormats.push('CODE128')
-  for (const format of tryFormats) {
-    try {
-      JsBarcode(cv, value, { ...base, format })
-      return cv
-    } catch (e) { /* 尝试下一个格式 */ }
+  try {
+    JsBarcode(cv, value, base)
+    return cv
+  } catch (e) {
+    return null
   }
-  return null
 }
 
 /**

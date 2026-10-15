@@ -77,12 +77,13 @@ export async function exportElementToImage(el, filename = 'label.png', scale = 3
     useCORS: true,
     logging: false
   })
-  canvas.toBlob(blob => {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('导出图片失败')), 'image/png')
   })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }

@@ -14,7 +14,7 @@
           :title="t('点击添加到画布，或拖到指定位置') + ' ' + item.name"
         >
           <div class="icon" v-html="item.svg"></div>
-          <div class="name">{{ item.name }}</div>
+          <div class="name">{{ t(item.name) }}</div>
         </div>
       </div>
     </div>
@@ -97,7 +97,7 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
 const { t } = useI18n()
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -202,7 +202,7 @@ const icons = { text: 'A', image: '🖼', table: '⊞', qrcode: '▣', barcode: 
 function iconOf(t) { return icons[t] || '·' }
 function labelOf(c) {
   if (c.type === 'text' && c.text) return c.text.slice(0, 8)
-  return typeNames[c.type] || c.type
+  return t(typeNames[c.type] || c.type)
 }
 
 // 图层多选交互：

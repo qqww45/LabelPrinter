@@ -23,15 +23,15 @@ export function renderText(text, row) {
 
 /**
  * 条码 / 二维码要编码的内容。
- * 绑定字段且当前行有值 → 用该值。
- * 否则用组件上写明的静态文本。
- * 绑了字段但没有值、也没有静态文本 → 返回空，由界面画占位，不要编造 123456。
+ * 绑定了字段：只用该格的值。空格子返回空，不要退回静态文字（新建二维码默认写着 QR）。
+ * 没绑定：用组件上的静态文本。静态文本里还有 {{ }} 时也不拿去编码。
  */
 export function codePayload(component, row) {
   if (!component) return ''
   if (component.binding && !rowIsEmpty(row)) {
     const v = row[component.binding]
     if (v !== undefined && v !== null && String(v) !== '') return String(v)
+    return ''
   }
   const staticText = component.text != null ? String(component.text) : ''
   if (staticText && !staticText.includes('{{')) return staticText

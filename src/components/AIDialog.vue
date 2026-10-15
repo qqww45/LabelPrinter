@@ -44,7 +44,7 @@
                 class="chip"
                 :class="{ active: stylePresetKey === p.key }"
                 @click="applyStylePreset(p)"
-              >{{ p.label }}</button>
+              >{{ t(p.label) }}</button>
             </div>
           </fieldset>
 
@@ -132,11 +132,11 @@ const loading = ref(false)
 const error = ref('')
 
 const stylePresets = [
-  { key: 'minimal',   label: '极简',    text: '极简风格，黑白灰为主，无装饰边框，字号克制，大量留白' },
-  { key: 'retail',    label: '零售',    text: '零售商品标签风格，价格红色加粗突出，商品名称加黑体' },
-  { key: 'warehouse', label: '仓库',    text: '仓库管理风格，简洁实用，突出条码/编号/库位，灰蓝配色' },
-  { key: 'fresh',     label: '生鲜',    text: '生鲜食品风格，绿色主调，产地+保质期醒目，规格清晰' },
-  { key: 'luxury',    label: '高端',    text: '高端商品风格，深色字体+细线条分隔，衬线感强，大量留白' }
+  { key: 'minimal',   label: '极简', text: '极简风格，黑白灰为主，无装饰边框，字号克制，大量留白' },
+  { key: 'retail',    label: '零售', text: '零售商品标签风格，价格红色加粗突出，商品名称加黑体' },
+  { key: 'warehouse', label: '仓库', text: '仓库管理风格，简洁实用，突出条码/编号/库位，灰蓝配色' },
+  { key: 'fresh',     label: '生鲜', text: '生鲜食品风格，绿色主调，产地+保质期醒目，规格清晰' },
+  { key: 'luxury',    label: '高端', text: '高端商品风格，深色字体+细线条分隔，衬线感强，大量留白' }
 ]
 
 // 初始：若数据源已有字段，自动填入
@@ -180,7 +180,7 @@ function cTooltip(c) {
 
 function applyStylePreset(p) {
   stylePresetKey.value = p.key
-  styleText.value = p.text
+  styleText.value = t(p.text)
 }
 function importFromData() {
   fieldsText.value = data.fields.join('\n')
@@ -235,15 +235,14 @@ function onApply() {
     ? confirm(t('当前画布已有 {n} 个组件。\n点「确定」= 全部替换\n点「取消」= 添加到末尾').replace('{n}', project.project.components.length))
       ? 'replace' : 'append'
     : 'replace'
-  if (mode === 'replace') {
-    // 清空画布（splice 保持同一数组引用，确保响应式 watch 触发）
-    project.project.components.splice(0)
-    project.clearSelection()
-  }
-  // 批量添加
-  for (const c of components.value) {
-    project.addComponent(c)
-  }
+  const comps = components.value.slice()
+  project.batchUpdate(() => {
+    if (mode === 'replace') {
+      project.project.components.splice(0)
+      project.clearSelection()
+    }
+    for (const c of comps) project.addComponent(c)
+  })
   emit('applied', components.value.length)
   emit('close')
 }

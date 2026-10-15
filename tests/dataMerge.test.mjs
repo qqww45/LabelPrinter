@@ -101,4 +101,18 @@ function eq(name, a, b) {
   ])
 }
 
+// 8) 对象行（parseExcelFile 的实际返回）不能被当成空行
+{
+  const r = mergeDataAppend(
+    ['产品', '价格'],
+    [{ 产品: 'A', 价格: '1' }],
+    ['产品', '价格'],
+    [{ 产品: 'B', 价格: '2' }]
+  )
+  eq('对象行追加', r.rows, [
+    { 产品: 'A', 价格: '1' },
+    { 产品: 'B', 价格: '2' }
+  ])
+}
+
 console.log('\nAll data merge tests passed.')

@@ -10,12 +10,12 @@
         <div class="tpl-list">
           <div class="group-title">{{ t('内置模板') }}</div>
           <div
-            v-for="t in builtin"
-            :key="t.id"
+            v-for="item in builtin"
+            :key="item.id"
             class="tpl-item"
-            :class="{ active: current && current.id === t.id }"
-            @click="current = t"
-          >{{ t.name }}</div>
+            :class="{ active: current && current.id === item.id }"
+            @click="current = item"
+          >{{ item.name }}</div>
 
           <div class="group-title">
             {{ t('我的模板') }}
@@ -23,14 +23,14 @@
           </div>
           <div v-if="!tplStore.userTemplates.length" class="empty-hint">{{ t('还没有保存过模板') }}</div>
           <div
-            v-for="t in tplStore.userTemplates"
-            :key="t.id"
+            v-for="item in tplStore.userTemplates"
+            :key="item.id"
             class="tpl-item"
-            :class="{ active: current && current.id === t.id }"
-            @click="current = t"
+            :class="{ active: current && current.id === item.id }"
+            @click="current = item"
           >
-            <span class="ellipsis">{{ t.name }}</span>
-            <button class="del" :title="t('删除模板')" @click.stop="remove(t)">×</button>
+            <span class="ellipsis">{{ item.name }}</span>
+            <button class="del" :title="t('删除模板')" @click.stop="remove(item)">×</button>
           </div>
         </div>
 
@@ -140,15 +140,15 @@ function glyph(c) {
   return GLYPH[c.type] || c.type
 }
 
-function layoutText(t) {
-  if (t.layout.mode !== 'auto') return '单张（每页 1 个）'
-  if (t.layout.sizingMode === 'manual') return `手动 ${t.layout.cols} × ${t.layout.rows}`
-  return '按标签尺寸自动排满'
+function layoutText(tpl) {
+  if (!tpl?.layout || tpl.layout.mode !== 'auto') return t('单张（每页 1 个）')
+  if (tpl.layout.sizingMode === 'manual') return t('手动 {c} × {r}', { c: tpl.layout.cols, r: tpl.layout.rows })
+  return t('按标签尺寸自动排满')
 }
 
 // ============ 动作 ============
-function apply(t) {
-  project.applyTemplate(t)
+function apply(tpl) {
+  project.applyTemplate(tpl)
   // 模板字段与数据列同名时自动建立映射
   if (data.fields.length) {
     const used = tplFields.value
@@ -165,13 +165,11 @@ function saveCurrent() {
   current.value = tpl
 }
 
-function remove(t) {
-  if (!confirm(`${t('确定删除模板「{n}」吗？', { n: t.name })}`)) return
-  tplStore.removeTemplate(t.id)
-  // 兜底：删的不是当前选中则不动；删了最后一个内置导致 builtin[0] 不存在时
-  // 退到第一个剩余项，列表为空时留空（上层会处理空状态）
-  if (current.value && current.value.id === t.id) {
-    current.value = builtin[0] || builtin[1] || userTemplates.value[0] || null
+function remove(item) {
+  if (!confirm(`${t('确定删除模板「{n}」吗？', { n: item.name })}`)) return
+  tplStore.removeTemplate(item.id)
+  if (current.value && current.value.id === item.id) {
+    current.value = builtin[0] || tplStore.userTemplates[0] || null
   }
 }
 </script>

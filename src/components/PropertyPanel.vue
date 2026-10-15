@@ -57,7 +57,7 @@
 
     <div v-else class="content">
       <div class="title">
-        <span>{{ typeNames[selected.type] }} 属性</span>
+        <span>{{ t(typeNames[selected.type] || selected.type) }} {{ t('属性') }}</span>
         <span class="title-actions">
           <button
             class="btn btn-sm"

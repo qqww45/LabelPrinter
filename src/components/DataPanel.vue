@@ -6,7 +6,6 @@
         @input="data.setFilter($event.target.value)" />
       <span v-if="data.sourcePath" class="src">📎 {{ data.sourcePath }}</span>
       <span v-if="data.embedded" class="badge embedded">{{ t('内嵌快照') }}</span>
-      <span v-if="!data.embedded && data.sourcePath" class="badge external">{{ t('外置引用') }}</span>
       <span class="count">{{ data.filteredRows.length }} / {{ data.rows.length }} {{ t('行') }} · {{ data.headers.length }} {{ t('列') }}</span>
 
       <span class="spacer"></span>

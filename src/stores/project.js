@@ -211,7 +211,7 @@ export const useProjectStore = defineStore('project', () => {
     if (ver === undefined || ver === '0.1.0') {
       // 旧的"标签纸"尺寸 → 转成 label（仅当 label 仍是默认值未自定义时）
       if (p.paper && p.paper.width < 200 && (!p.label || p.label.width === 60)) {
-        merged.label = { width: p.paper.width, height: p.paper.height }
+        merged.label = { ...def.label, width: p.paper.width, height: p.paper.height }
         merged.paper = { ...def.paper } // 默认 A4 规格的纸
       }
     }
@@ -455,6 +455,7 @@ export const useProjectStore = defineStore('project', () => {
       const cols = Math.max(1, L.cols)
       const rows = Math.max(1, L.rows)
       project.value.label = {
+        ...project.value.label,
         width: Math.max(1, (aw - (cols - 1) * (L.hGap || 0)) / cols),
         height: Math.max(1, (ah - (rows - 1) * (L.vGap || 0)) / rows)
       }
@@ -549,8 +550,9 @@ export const useProjectStore = defineStore('project', () => {
   const STORAGE_KEY = 'labelprint_projects_v1'
   const projects = ref([])        // [{ id, name, updatedAt, data }]
   const currentId = ref(null)
+  const persistError = ref('')   // 配额满等保存失败，给界面一条提示
   let saveTimer = null
-  let restoring = false           // 恢复/切换过程中暂停自动保存
+  let restoring = false           // 恢复/切换/批量操作过程中暂停自动保存和历史
 
   function genProjId() { return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
 
@@ -571,8 +573,10 @@ export const useProjectStore = defineStore('project', () => {
         currentId: currentId.value,
         list: toRaw(projects.value)
       }))
+      persistError.value = ''
     } catch (e) {
       console.warn('自动保存失败（可能超出存储配额）:', e)
+      persistError.value = '自动保存失败：浏览器存储已满。请先下载项目文件备份，或删除不用的项目。'
     }
   }
 
@@ -606,53 +610,109 @@ export const useProjectStore = defineStore('project', () => {
     return false
   }
 
-  // 任何项目数据变化 → 防抖自动保存 + 历史快照
-  // 监听 project 改变 + 选中集合改变（多选状态也要入历史栈，否则撤销会丢失选中）
-  // flush: 'sync' 让 watch 同步触发，确保操作前/后状态都被准确快照（选 [a,b,c] 后立即入栈，再 alignSelected 时能 undo 回选中状态）
+  // 版式/选中变化入历史。数据行不进快照：单元格编辑不再整表序列化，撤销也不改数据表。
   watch([project, selectedIds], () => { schedulePersist(); pushHistory() }, { deep: true, flush: 'sync' })
 
   // ============ 撤销 / 重做 ============
   const HISTORY_LIMIT = 60
-  const undoStack = ref([])   // [{ project, selectedId }]
+  const undoStack = ref([])
   const redoStack = ref([])
   let lastSnapshot = null
-  let historyTimer = null
+  let lastFingerprint = ''
 
-  function snapNow() {
-    return { project: getExportData(), selectedId: selectedId.value, selectedIds: [...selectedIds.value] }
+  function historyProject() {
+    const raw = toRaw(project.value)
+    const ds = raw.dataSource || {}
+    const { data: _rows, headers: _headers, ...dsRest } = ds
+    return JSON.parse(JSON.stringify({
+      ...raw,
+      dataSource: { ...dsRest, data: [] }
+    }))
   }
 
-  function scheduleHistory() {
-    clearTimeout(historyTimer)
-    historyTimer = setTimeout(pushHistory, 350)
+  function fingerprint() {
+    const p = project.value
+    const ds = p.dataSource || {}
+    return JSON.stringify({
+      meta: p.meta,
+      paper: p.paper,
+      label: p.label,
+      margin: p.margin,
+      layout: p.layout,
+      components: p.components,
+      fieldMap: ds.fieldMap,
+      printConfig: p.printConfig,
+      selectedId: selectedId.value,
+      selectedIds: selectedIds.value
+    })
+  }
+
+  function snapNow() {
+    return {
+      project: historyProject(),
+      selectedId: selectedId.value,
+      selectedIds: [...selectedIds.value]
+    }
   }
 
   function pushHistory() {
     if (restoring) return
+    const fp = fingerprint()
+    if (fp === lastFingerprint) return
     const snap = snapNow()
-    const cur = JSON.stringify(snap.project)
-    // 内容没变且选中集合没变 → 不推栈（避免选择无操作时空推）
-    if (lastSnapshot
-        && JSON.stringify(lastSnapshot.project) === cur
-        && JSON.stringify(lastSnapshot.selectedIds) === JSON.stringify(snap.selectedIds)) return
     if (lastSnapshot) {
       undoStack.value.push(lastSnapshot)
       if (undoStack.value.length > HISTORY_LIMIT) undoStack.value.shift()
       redoStack.value = []
     }
     lastSnapshot = snap
+    lastFingerprint = fp
+  }
+
+  // 数据列重命名会改组件文字，但不进撤销栈（数据行本身也不进栈）
+  function absorbHistory(fn) {
+    restoring = true
+    try {
+      fn()
+    } finally {
+      restoring = false
+    }
+    lastSnapshot = snapNow()
+    lastFingerprint = fingerprint()
+    schedulePersist()
+  }
+
+  // 一次撤销覆盖整批改动（AI 套用版式等）
+  function batchUpdate(fn) {
+    restoring = true
+    try {
+      fn()
+    } finally {
+      restoring = false
+    }
+    markDirty()
+    pushHistory()
+    schedulePersist()
   }
 
   function restoreSnapshot(snap) {
+    const liveRows = Array.isArray(project.value.dataSource?.data)
+      ? JSON.parse(JSON.stringify(project.value.dataSource.data))
+      : []
+    const liveHeaders = Array.isArray(project.value.dataSource?.headers)
+      ? project.value.dataSource.headers.slice()
+      : null
     restoring = true
-    clearTimeout(historyTimer)
-    project.value = snap.project
+    const restored = JSON.parse(JSON.stringify(snap.project))
+    if (!restored.dataSource) restored.dataSource = {}
+    restored.dataSource.data = liveRows
+    if (liveHeaders) restored.dataSource.headers = liveHeaders
+    project.value = restored
     if (project.value.layout.sizingMode === 'auto') {
       const lr = calcGrid()
       project.value.layout.cols = lr.cols
       project.value.layout.rows = lr.rows
     }
-    // 尽量恢复当时的选中（组件可能已被删除）
     const validIds = Array.isArray(snap.selectedIds) ? snap.selectedIds.filter(id => project.value.components.some(c => c.id === id)) : []
     if (validIds.length > 1) {
       selectedIds.value = validIds
@@ -667,6 +727,7 @@ export const useProjectStore = defineStore('project', () => {
       selectedIds.value = selectedId.value ? [selectedId.value] : []
     }
     lastSnapshot = snapNow()
+    lastFingerprint = fingerprint()
     dirty.value = true
     restoring = false
     persistNow()
@@ -695,8 +756,8 @@ export const useProjectStore = defineStore('project', () => {
   function initHistory() {
     undoStack.value = []
     redoStack.value = []
-    clearTimeout(historyTimer)
     lastSnapshot = snapNow()
+    lastFingerprint = fingerprint()
   }
   const clearHistory = initHistory
 
@@ -779,9 +840,10 @@ export const useProjectStore = defineStore('project', () => {
     addRequest, addRequestType, requestAddComponent,
     selectedComponent, isMultiSelect,
     labelAreaOrigin, labelAreaSize, labelsPerPage,
-    projects, currentId,
+    projects, currentId, persistError,
     newProject, setProject, setFilePath, markDirty,
     addComponent, updateComponent, removeComponent, moveComponent,
+    batchUpdate, absorbHistory,
     reorderComponent, bringForward, sendBackward,
     selectOne, selectToggle, selectRange, selectAll, clearSelection, removeSelected,
     duplicateSelected, bringToFront, sendToBack,

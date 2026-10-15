@@ -16,18 +16,13 @@ export function generateBarcode(text, options = {}) {
     lineColor: '#000000',
     ...options
   }
-  const tryFormats = [opts.format]
-  // 指定格式失败时降级到 CODE128
-  if (opts.format !== 'CODE128') tryFormats.push('CODE128')
-
-  for (const format of tryFormats) {
-    try {
-      JsBarcode(canvas, text || ' ', { ...opts, format })
-      return canvas.toDataURL('image/png')
-    } catch (e) {
-      // 尝试下一个格式
-    }
+  const value = text == null ? '' : String(text).trim()
+  if (!value) return ''
+  try {
+    JsBarcode(canvas, value, opts)
+    return canvas.toDataURL('image/png')
+  } catch (e) {
+    console.error('条形码生成失败:', value, opts.format)
+    return ''
   }
-  console.error('条形码生成失败:', text)
-  return ''
 }

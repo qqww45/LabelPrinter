@@ -2,7 +2,7 @@
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
-        👁️ {{ t('打印预览') }} ({{ data.filteredRows.length || 0 }} {{ t('条') }} / {{ totalPages }} {{ t('页') }})
+        👁️ {{ t('打印预览') }} ({{ data.displayRows.length || 0 }} {{ t('条') }} / {{ totalPages }} {{ t('页') }})
         <div class="header-tools">
           <input class="input" style="width:80px" type="number" :value="currentPage"
             min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
@@ -136,7 +136,7 @@ const labelsPerPage = computed(() => {
 
 const pages = computed(() => {
   const l = layoutCfg.value
-  const rows = data.filteredRows.length ? data.filteredRows : []
+  const rows = data.displayRows.length ? data.displayRows : []
   const per = labelsPerPage.value
   const out = []
   if (per === 1) {
@@ -338,7 +338,7 @@ function compStyle(c) {
     width: (c.width * S()) + 'px',
     height: (c.height * S()) + 'px',
     transform: c.angle ? `rotate(${c.angle}deg)` : 'none',
-    transformOrigin: 'center',
+    transformOrigin: 'top left',
     overflow: 'hidden'
   }
 }
@@ -375,7 +375,7 @@ function rectStyle(c) {
 function lineStyle(c) {
   return {
     width: '100%',
-    height: (c.strokeWidth || 1) + 'px',
+    height: ((c.strokeWidth || 1) * scale.value) + 'px',
     background: c.stroke,
     marginTop: '50%'
   }
@@ -484,6 +484,7 @@ function imageSrc(c, row) {
 }
 
 const qrCache = ref({})
+const qrPending = new Set()
 function codePlaceholderStyle() {
   return {
     width: '100%',
@@ -505,12 +506,21 @@ function qrUrl(c, row) {
   const txt = codePayload(c, row)
   if (!txt) return ''
   const key = c.id + '|' + txt
-  if (!qrCache.value[key]) {
+  if (Object.prototype.hasOwnProperty.call(qrCache.value, key)) {
+    const hit = qrCache.value[key]
+    return hit && hit !== 'data:,' ? hit : ''
+  }
+  if (!qrPending.has(key)) {
+    qrPending.add(key)
     generateQRCode(String(txt), { width: 300 }).then(url => {
-      qrCache.value[key] = url
+      qrCache.value[key] = url || 'data:,'
+    }).catch(() => {
+      qrCache.value[key] = 'data:,'
+    }).finally(() => {
+      qrPending.delete(key)
     })
   }
-  return qrCache.value[key]
+  return ''
 }
 
 const barCache = ref({})
@@ -518,9 +528,8 @@ function barcodeUrl(c, row) {
   const txt = codePayload(c, row)
   if (!txt) return ''
   const key = c.id + '|' + txt + '|' + (c.format || 'CODE128')
-  if (!barCache.value[key]) {
-    barCache.value[key] = generateBarcode(String(txt), { format: c.format })
-  }
+  if (Object.prototype.hasOwnProperty.call(barCache.value, key)) return barCache.value[key]
+  barCache.value[key] = generateBarcode(String(txt), { format: c.format }) || ''
   return barCache.value[key]
 }
 
@@ -562,9 +571,20 @@ onBeforeUnmount(() => {
 })
 
 // ============ 打印/导出 ============
-async function getPrintableEls() {
+// 等二维码请求结束，再等 img 解码。先让本轮渲染把请求发出去。
+async function settleImages(timeout = 4000) {
+  const start = Date.now()
+  while (Date.now() - start < timeout) {
+    await nextTick()
+    if (qrPending.size === 0) {
+      const els = pageRefs.value.filter(Boolean)
+      await waitForImages(els, 1500)
+      await nextTick()
+      if (qrPending.size === 0) return els
+    }
+    await new Promise(r => setTimeout(r, 40))
+  }
   await nextTick()
-  await new Promise(r => setTimeout(r, 600)) // 等二维码/条形码生成
   return pageRefs.value.filter(Boolean)
 }
 
@@ -594,7 +614,7 @@ function rangeLabel(o = {}) {
  * 核心打印：按 opts（range/rangeStart/rangeEnd/copies）构建打印 HTML 并调起系统打印
  */
 async function printPages(opts = {}) {
-  await nextTick()
+  await settleImages()
   const els = pagesForTask(opts)
   if (!els.length) { alert(t('没有可打印的内容')); return false }
   // 等二维码/条形码 data:URL 生成完（生成是异步的，且 await 链可达）
@@ -756,28 +776,40 @@ function convertPxToMm(root, factor) {
 }
 
 async function onExportPDF() {
-  const els = await getPrintableEls()
-  if (!els.length) return alert(t('没有可导出的内容'))
-  const fname = (project.project.meta.name || 'label') + '.pdf'
-  await exportElementsToPDF(els, {
-    width: project.project.paper.width,
-    height: project.project.paper.height
-  }, fname)
-  printStore.addHistory({
-    type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
-    pages: els.length, copies: 1, detail: '全部'
-  })
+  const prev = scale.value
+  scale.value = 1
+  try {
+    const els = await settleImages()
+    if (!els.length) return alert(t('没有可导出的内容'))
+    const fname = (project.project.meta.name || 'label') + '.pdf'
+    await exportElementsToPDF(els, {
+      width: project.project.paper.width,
+      height: project.project.paper.height
+    }, fname)
+    printStore.addHistory({
+      type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
+      pages: els.length, copies: 1, detail: '全部'
+    })
+  } finally {
+    scale.value = prev
+  }
 }
 
 async function onExportImage() {
-  const els = await getPrintableEls()
-  if (!els.length) return alert(t('没有可导出的内容'))
-  const fname = (project.project.meta.name || 'label') + '.png'
-  await exportElementToImage(els[0], fname)
-  printStore.addHistory({
-    type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
-    pages: 1, copies: 1, detail: '第 1 页'
-  })
+  const prev = scale.value
+  scale.value = 1
+  try {
+    const els = await settleImages()
+    if (!els.length) return alert(t('没有可导出的内容'))
+    const fname = (project.project.meta.name || 'label') + '.png'
+    await exportElementToImage(els[0], fname)
+    printStore.addHistory({
+      type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
+      pages: 1, copies: 1, detail: '第 1 页'
+    })
+  } finally {
+    scale.value = prev
+  }
 }
 </script>
 

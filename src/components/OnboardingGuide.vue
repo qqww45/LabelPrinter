@@ -9,6 +9,7 @@
       <ol class="step-bar">
         <li :class="{ on: step >= 1, cur: step === 1 }"><b>①</b> {{ t('选个类型') }}</li>
         <li :class="{ on: step >= 2, cur: step === 2 }"><b>②</b> {{ t('确认尺寸') }}</li>
+        <li :class="{ on: step >= 3, cur: step === 3 }"><b>③</b> {{ t('导入数据') }}</li>
       </ol>
 
       <!-- Step 1: 选类型 -->
@@ -37,7 +38,7 @@
       </section>
 
       <!-- Step 2: 确认尺寸 -->
-      <section v-else class="body">
+      <section v-else-if="step === 2" class="body">
         <p class="tip">
           {{ t('两套尺寸是不同概念：') }}<b>{{ t('标签') }}</b>{{ t('=每条数据一个，') }}<b>{{ t('纸张') }}</b>{{ t('=实际打印的纸。') }}
         </p>
@@ -108,13 +109,23 @@
             <div class="muted">{{ t('一张纸上可放') }}</div>
             <div class="big">{{ cols }} × {{ rows }} = <b>{{ cols * rows }}</b> <small>{{ t('张/页') }}</small></div>
             <div v-if="tooBig" class="hint bad">{{ t('当前组合打印会裁掉边缘，请调整') }}</div>
-            <div v-else class="hint">{{ t('点「应用」即可在画布看到该模板') }}</div>
+            <div v-else class="hint">{{ t('点「下一步」把这个尺寸放到画布上') }}</div>
           </div>
         </div>
 
         <div class="actions">
           <button class="btn" @click="step = 1">← {{ t('上一步') }}</button>
-          <button class="btn primary" @click="apply">{{ t('应用并开始') }} →</button>
+          <button class="btn primary" :disabled="tooBig" @click="goImportStep">{{ t('下一步') }} →</button>
+        </div>
+      </section>
+
+      <!-- Step 3: 导入数据 -->
+      <section v-else class="body">
+        <p class="tip">{{ t('有数据才能批量打。Excel 或 CSV 的第一行是列名，和模板里的字段同名会自动对上。') }}</p>
+        <div class="actions">
+          <button class="btn" @click="step = 2">← {{ t('上一步') }}</button>
+          <button class="btn" @click="dismiss">{{ t('先跳过，稍后在底部导入') }}</button>
+          <button class="btn primary" @click="emit('import')">{{ t('现在导入') }}</button>
         </div>
       </section>
     </div>
@@ -132,7 +143,7 @@ import { useI18n } from '../utils/i18n'
 const { t } = useI18n()
 const project = useProjectStore()
 const data = useDataStore()
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'import'])
 
 // 去重并排序，作为尺寸下拉的可选值
 const uniq = (arr) => [...new Set(arr)].sort((a, b) => a - b)
@@ -218,14 +229,22 @@ function pick(tpl) {
 
 function pickBlank() {
   pickedTpl.value = null
+  pickedId.value = ''
   labelW.value = 60
   labelH.value = 40
   paperW.value = 100
   paperH.value = 100
-  apply()
+  marginMm.value = 3
+  step.value = 2
 }
 
-function apply() {
+function goImportStep() {
+  if (tooBig.value) return
+  commitLayout()
+  step.value = 3
+}
+
+function commitLayout() {
   // 1) 应用模板（含 paper/label/margin/layout/components）
   if (pickedTpl.value) {
     project.applyTemplate(pickedTpl.value)
@@ -258,7 +277,6 @@ function apply() {
       : extractTemplateFields(pickedTpl.value.components)
     project.updateFieldMap(autoMatchFieldMap(tplFields, data.fields, project.project.dataSource.fieldMap || {}))
   }
-  dismiss()
 }
 
 function dismiss() {
@@ -458,6 +476,7 @@ function dismiss() {
 .actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
 }

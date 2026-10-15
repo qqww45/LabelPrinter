@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { dedupFieldNames } from '../utils/excel'
+import { replaceFieldToken, rewriteFieldMap } from '../utils/fieldCascade'
 import { useProjectStore } from './project'
 
-const DATA_KEY = 'labelprint_data_v1'
-let dataSaveTimer = null
+// 数据只存在当前项目的 dataSource.data 里（App.vue 同步嵌入）。
+// 不再另写 labelprint_data_v1，避免和项目各存一份、切换时互相覆盖。
 // 每行唯一 id（用于 v-for :key + 精确按 id 定位行；避免 indexOf 在重复值行时错位）
 let _rowSeq = 0
 function makeRowId() {
@@ -21,41 +22,6 @@ export const useDataStore = defineStore('data', () => {
   // 排序：列名 + 方向（'asc' | 'desc' | ''）。UI 用，不影响源 rows
   const sortKey = ref('')
   const sortDir = ref('')        // '' | 'asc' | 'desc'
-
-  // 启动时恢复上次的数据（刷新不丢）
-  try {
-    const raw = localStorage.getItem(DATA_KEY)
-    if (raw) {
-      const saved = JSON.parse(raw)
-      headers.value = saved.headers || []
-      // 兼容旧数据：补 __id
-      rows.value = (saved.rows || []).map(r => r.__id ? r : { __id: makeRowId(), ...r })
-      sourcePath.value = saved.sourcePath || ''
-      embedded.value = !!saved.embedded
-      // 排序：单独 key，存于 DATA_KEY 内（不与数据共寿命，但放一起方便）
-      sortKey.value = saved.sortKey || ''
-      sortDir.value = saved.sortDir || ''
-    }
-  } catch (e) { /* 损坏则忽略 */ }
-
-  // 数据变化 → 防抖持久化
-  watch([headers, rows, sourcePath, embedded, sortKey, sortDir], () => {
-    clearTimeout(dataSaveTimer)
-    dataSaveTimer = setTimeout(() => {
-      try {
-        localStorage.setItem(DATA_KEY, JSON.stringify({
-          headers: headers.value,
-          rows: rows.value,
-          sourcePath: sourcePath.value,
-          embedded: embedded.value,
-          sortKey: sortKey.value,
-          sortDir: sortDir.value
-        }))
-      } catch (e) {
-        console.warn('数据自动保存失败:', e)
-      }
-    }, 500)
-  }, { deep: true })
 
   const fields = computed(() => headers.value)
 
@@ -248,21 +214,18 @@ export const useDataStore = defineStore('data', () => {
   function _cascadeProjectField(oldName, newName, remove) {
     try {
       const project = useProjectStore()
+      project.absorbHistory(() => {
       const comps = project.project?.components
       if (!Array.isArray(comps)) return
-      const escRe = oldName.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')
-      const re = new RegExp(`\\{\\{\\s*${escRe}\\s*\\}\\}`, 'g')
 
       comps.forEach(c => {
         if (!c || typeof c !== 'object') return
         const patch = {}
-        // 1. 顶层 binding
         if (c.binding === oldName) patch.binding = remove ? '' : newName
-        // 2. 文本里的 {{字段}} 占位
-        if (typeof c.text === 'string' && re.test(c.text)) {
-          patch.text = c.text.replace(re, remove ? '' : `{{${newName}}}`)
+        if (typeof c.text === 'string') {
+          const nextText = replaceFieldToken(c.text, oldName, newName, remove)
+          if (nextText !== c.text) patch.text = nextText
         }
-        // 3. 表格 cells：按 cell 维度更新（cells 整体小，直接替换）
         if (c.cells && typeof c.cells === 'object') {
           let cellChanged = false
           const newCells = {}
@@ -271,9 +234,9 @@ export const useDataStore = defineStore('data', () => {
             if (!cell || typeof cell !== 'object') { newCells[k] = cell; continue }
             const nc = { ...cell }
             if (nc.binding === oldName) { nc.binding = remove ? '' : newName; cellChanged = true }
-            if (typeof nc.text === 'string' && re.test(nc.text)) {
-              nc.text = nc.text.replace(re, remove ? '' : `{{${newName}}`)
-              cellChanged = true
+            if (typeof nc.text === 'string') {
+              const nextText = replaceFieldToken(nc.text, oldName, newName, remove)
+              if (nextText !== nc.text) { nc.text = nextText; cellChanged = true }
             }
             newCells[k] = nc
           }
@@ -284,20 +247,10 @@ export const useDataStore = defineStore('data', () => {
         }
       })
 
-      // 4. fieldMap（独立于 components）
-      const fm = project.project.dataSource?.fieldMap
-      if (fm && oldName in fm) {
-        const nextFm = { ...fm }
-        if (remove) {
-          delete nextFm[oldName]
-        } else {
-          nextFm[newName] = nextFm[oldName]
-          delete nextFm[oldName]
-        }
-        project.updateFieldMap(nextFm)
-      }
+      const nextFm = rewriteFieldMap(project.project.dataSource?.fieldMap, oldName, newName, remove)
+      if (nextFm) project.updateFieldMap(nextFm)
+      })
     } catch (e) {
-      // project store 未初始化等情况下静默忽略（极端场景）
       console.warn('cascade field rename/remove failed:', e)
     }
   }

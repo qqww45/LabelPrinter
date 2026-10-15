@@ -29,6 +29,8 @@ check('无数据保留', renderText('{{产品名称}}', null) === '{{产品名�
 check('空对象保留占位符', renderText('¥{{价格}}', {}) === '¥{{价格}}')
 check('绑定条码无数据不造假码', codePayload({ binding: '条码', text: '' }, {}) === '')
 check('静态条码保留原文', codePayload({ binding: '', text: 'ABC' }, {}) === 'ABC')
+check('绑定字段为空不用静态 QR', codePayload({ binding: '条码', text: 'QR' }, { 条码: '' }) === '')
+check('绑定字段有值用该值', codePayload({ binding: '条码', text: 'QR' }, { 条码: '690' }) === '690')
 check('未知字段为空', renderText('X{{不存在}}Y', rows[0]) === 'XY')
 
 console.log('== 3. 日期格式化 ==')

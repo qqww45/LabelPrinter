@@ -200,8 +200,8 @@
             </div>
             <div class="hint">
               <b>{{ cols }} × {{ rows }} = {{ perPage }} {{ t('个/页') }}</b>
-              <span v-if="form.layout.sizingMode === 'auto'">（{{ t('按标签尺寸自动算）') }}</span>
-              <span v-else>（{{ t('按行列）') }}</span>
+              <span v-if="form.layout.sizingMode === 'auto'">{{ t('（按标签尺寸自动算）') }}</span>
+              <span v-else>{{ t('（按行列）') }}</span>
             </div>
           </fieldset>
         </div>

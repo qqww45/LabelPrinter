@@ -1,5 +1,6 @@
 <template>
   <div class="app">
+    <div v-if="project.persistError" class="persist-banner" role="alert">{{ t(project.persistError) }}</div>
     <Toolbar
       v-if="project.project.meta"
       @import-data="onImportData"
@@ -77,7 +78,7 @@
       @proceed="preflightProceed"
       @fix="preflightFix"
     />
-    <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" />
+    <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" @import="onOnboardingImport" />
 
     <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
       <div class="modal import-choice">
@@ -107,7 +108,7 @@ import { useProjectStore } from './stores/project'
 import { useDataStore } from './stores/data'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { parseExcelFile } from './utils/excel'
-import { mergeDataAppend } from './utils/dataMerge'
+import { mergeDataAppend, headersFromRows } from './utils/dataMerge'
 import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
 import ProjectSidebar from './components/ProjectSidebar.vue'
@@ -134,6 +135,64 @@ const data = useDataStore()
 // 启动时从 localStorage 恢复项目列表（自动保存），没有则用默认项目
 project.loadFromStorage()
 
+// 数据的唯一来源是当前项目。先灌进数据表，再注册同步，避免空表把项目数据盖掉。
+let hydratingData = false
+
+function headersForProject(ds, rows) {
+  const stored = Array.isArray(ds?.headers) ? ds.headers.filter(h => h && h !== '__id') : []
+  const fromRows = headersFromRows(rows)
+  if (!stored.length) return fromRows
+  const seen = new Set(stored)
+  return [...stored, ...fromRows.filter(h => !seen.has(h))]
+}
+
+function applyProjectData(p) {
+  hydratingData = true
+  try {
+    const ds = p?.dataSource
+    const rows = Array.isArray(ds?.data) ? ds.data : []
+    const headers = headersForProject(ds, rows)
+    if (rows.length || headers.length) {
+      data.setData({
+        headers,
+        rows,
+        sourcePath: ds?.path || '',
+        embedded: true
+      })
+    } else {
+      data.clear()
+    }
+  } finally {
+    hydratingData = false
+  }
+}
+
+function migrateLegacyData() {
+  const LEGACY = 'labelprint_data_v1'
+  let raw = null
+  try { raw = localStorage.getItem(LEGACY) } catch (e) { return }
+  try { localStorage.removeItem(LEGACY) } catch (e) {}
+  if (!raw || data.rows.length) return
+  try {
+    const saved = JSON.parse(raw)
+    const rows = Array.isArray(saved.rows) ? saved.rows : []
+    const headers = Array.isArray(saved.headers) && saved.headers.length
+      ? saved.headers.filter(h => h && h !== '__id')
+      : headersFromRows(rows)
+    if (!rows.length && !headers.length) return
+    data.setData({
+      headers,
+      rows,
+      sourcePath: saved.sourcePath || '',
+      embedded: true
+    })
+    embedCurrentData()
+  } catch (e) { /* 旧缓存损坏则丢弃 */ }
+}
+
+applyProjectData(project.project)
+migrateLegacyData()
+
 const paperConfigVisible = ref(false)
 const printConfigVisible = ref(false)
 const layoutEditorVisible = ref(false)
@@ -149,28 +208,31 @@ const preflightVisible = ref(false)
 const preflightReport = ref(null)
 const importPrompt = ref(null)
 
-// 首屏引导卡：只在「空画布 + 用户没主动关闭过」时显示
+// 首屏引导卡：空画布时出现。点「下一步」套用模板后画布不再空，引导仍留到用户关掉或导入。
 const onboardingDismissed = ref(localStorage.getItem('labelprint_onboarding_dismissed') === '1')
+const onboardingLatched = ref(false)
+const canvasEmpty = computed(() => !!project.project?.meta && project.project.components.length === 0)
+watch(canvasEmpty, (empty) => {
+  if (empty && !onboardingDismissed.value) onboardingLatched.value = true
+}, { immediate: true })
 const showOnboarding = computed(() =>
-  !onboardingDismissed.value && project.project?.meta && project.project.components.length === 0
+  onboardingLatched.value && !onboardingDismissed.value && !!project.project?.meta
 )
 function dismissOnboarding() {
   onboardingDismissed.value = true
+  onboardingLatched.value = false
   localStorage.setItem('labelprint_onboarding_dismissed', '1')
 }
 
-// 切项目时同步 data store：让「数据」跟着当前项目走，而不是全局共享
-// embedded=true → 加载项目自带的数据副本；外置 path 或无数据 → 清空（用户按需重新导入）
+function onOnboardingImport() {
+  dismissOnboarding()
+  onImportData()
+}
+
+// 切项目时从目标项目自己的行取列名。不能沿用上一份表的 headers，否则列对不上会被写成空字符串再存回去。
 watch(() => project.currentId, (newId, oldId) => {
   if (!newId || newId === oldId) return
-  const p = project.project
-  if (p.dataSource?.embedded && Array.isArray(p.dataSource.data) && p.dataSource.data.length) {
-    const rows = JSON.parse(JSON.stringify(p.dataSource.data))
-    const headers = data.headers.length ? data.headers : Object.keys(rows[0] || {}).filter(k => k !== '__id')
-    data.setData({ headers, rows, sourcePath: p.dataSource.path || '', embedded: true })
-  } else {
-    data.clear()
-  }
+  applyProjectData(project.project)
 })
 
 // 兜底：data store 任何修改都立即同步嵌入到当前项目
@@ -243,10 +305,13 @@ function sanitizeName(s) {
 //    否则 persistNow / 切项目后再切回时，老项目会丢数据。
 // 策略：完全内联模式（用户建议），不再依赖外置数据文件；每次都同步深拷贝（数据规模 < 千行无感）
 function embedCurrentData() {
-  if (!data.rows.length) return  // 空数据不嵌入（避免破坏项目自带的 data）
-  project.project.dataSource.embedded = true
-  project.project.dataSource.path = data.sourcePath
-  project.project.dataSource.data = JSON.parse(JSON.stringify(data.rows))
+  if (hydratingData) return
+  const ds = project.project?.dataSource
+  if (!ds) return
+  ds.embedded = true
+  ds.path = data.sourcePath || ''
+  ds.headers = data.headers.slice()
+  ds.data = JSON.parse(JSON.stringify(data.rows))
 }
 
 function onNew() {
@@ -257,6 +322,7 @@ function onNew() {
   project.createProject(sanitizeName(name) || `项目 ${project.projects.length + 1}`)
   // 新项目 → 重新弹出引导卡（纸张/标签配置说不清是打印翻车的主因）
   onboardingDismissed.value = false
+  onboardingLatched.value = true
   localStorage.removeItem('labelprint_onboarding_dismissed')
   // data store 在下方 watch(currentId) 中自动清空（保持「数据跟着当前项目走」的一致语义）
 }
@@ -277,7 +343,7 @@ async function onOpen() {
     // 加载数据源（外置或内嵌）
     if (json.dataSource?.embedded && json.dataSource?.data) {
       data.setData({
-        headers: Object.keys(json.dataSource.data[0] || {}),
+        headers: headersFromRows(json.dataSource.data),
         rows: json.dataSource.data,
         sourcePath: '',
         embedded: true
@@ -509,6 +575,8 @@ function onGlobalKey(e) {
   }
 
   const k = e.key.toLowerCase()
+  // 输入框里的撤销/重做/复制交给浏览器，不要改画布
+  if (inEditable && (k === 'z' || k === 'y' || k === 'd')) return
   if (k === 'z' && !e.shiftKey) {
     e.preventDefault()
     project.undo()
@@ -535,6 +603,14 @@ window.addEventListener('keydown', onGlobalKey)
   display: flex;
   flex-direction: column;
   height: 100vh;
+}
+.persist-banner {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border-bottom: 2px solid var(--warning);
 }
 .main {
   flex: 1;
