@@ -3,19 +3,34 @@ name: Deploy
 on:
   push:
     branches: [main]
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '回滚到的镜像 tag（留空 = latest）'
+        required: false
+        default: ''
 
 concurrency:
   group: deploy-${{ github.ref }}
-  cancel-in-progress: false # 串行部署，避免并发覆盖
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build:
+    name: Build & Push Image
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: 设置 Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -23,79 +38,61 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
-      - name: 构建
+      - name: 构建产物
         run: npm run build
 
       - name: 单元测试
         run: node tests/basic.test.mjs
 
-      - name: 上传构建产物
-        uses: actions/upload-artifact@v4
+      - name: 登录 ghcr.io
+        uses: docker/login-action@v3
         with:
-          name: dist
-          path: dist
-          retention-days: 10
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # 优先用 secret，私有仓库必须；公开仓库可省略 GHCR_TOKEN 让其走 GITHUB_TOKEN
+          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: 设置 buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 计算镜像元数据
+        id: meta
+        run: |
+          echo "image=ghcr.io/${{ github.repository_owner }}/label-printer" >> $GITHUB_OUTPUT
+          echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: 构建并推送
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
   deploy:
+    name: Deploy to Server
     needs: build
     runs-on: ubuntu-latest
-    environment: production # 可加审批环
+    environment: production
     steps:
       - name: 加载 SSH 私钥
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      - name: 下载构建产物
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-
-      - name: 同步到服务器（原子替换，零停机）
+      - name: 部署到服务器
         env:
           HOST: ${{ secrets.SERVER_HOST }}
           USER: ${{ secrets.SERVER_USER }}
+          IMAGE: ${{ needs.build.outputs.image }}
+          TAG: ${{ inputs.tag || needs.build.outputs.tag }}
         run: |
-          set -euo pipefail
-          STAGE="/var/www/label-printer.new"
-          TARGET="/var/www/label-printer"
-          SHA="${GITHUB_SHA::7}"
-          STAMP="$(date -u +%Y%m%d-%H%M%S)-${SHA}"
-
-          # 1) 上传到临时目录
-          ssh -o StrictHostKeyChecking=accept-new "${USER}@${HOST}" "rm -rf ${STAGE} && mkdir -p ${STAGE}"
-          rsync -az --delete \
-            -e "ssh -o StrictHostKeyChecking=accept-new" \
-            ./dist/ "${USER}@${HOST}:${STAGE}/"
-
-          # 2) 服务器端原子切换：旧目录归档为版本，新目录上线
-          ssh -o StrictHostKeyChecking=accept-new "${USER}@${HOST}" "
-            set -e
-            cd /var/www
-            if [ -d ${TARGET} ]; then
-              # 归档历史版本（保留 5 份）
-              mkdir -p versions
-              mv ${TARGET} versions/label-printer-${STAMP}
-              (cd versions && ls -1dt label-printer-* | tail -n +6 | xargs -r rm -rf)
-            fi
-            mv ${STAGE} ${TARGET}
-            # 写入当前版本号
-            echo ${STAMP} > ${TARGET}/.version
-          "
-
-      - name: 健康检查
-        env:
-          HOST: ${{ secrets.SERVER_HOST }}
-        run: |
-          # 等待 Caddy 读取新文件（file_server 直接读，理论上无需 reload）
-          for i in 1 2 3 4 5; do
-            CODE=$(curl -sk -o /dev/null -w "%{http_code}" "https://${HOST}/" || true)
-            if [ "$CODE" = "200" ]; then
-              echo "健康检查通过 (HTTP $CODE)"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "健康检查失败，最后状态码：$CODE"
-          exit 1
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ServerAliveInterval=30 \
+              ${USER}@${HOST} \
+              "TAG='${TAG}' IMAGE='${IMAGE}' /opt/label-printer/restart.sh"
