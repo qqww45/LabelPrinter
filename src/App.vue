@@ -76,6 +76,7 @@
       @proceed="preflightProceed"
       @fix="preflightFix"
     />
+    <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" />
   </div>
 </template>
 
@@ -103,6 +104,7 @@ import PreviewDialog from './components/PreviewDialog.vue'
 import AIDialog from './components/AIDialog.vue'
 import AISettingsDialog from './components/AISettingsDialog.vue'
 import PreflightCheckDialog from './components/PreflightCheckDialog.vue'
+import OnboardingGuide from './components/OnboardingGuide.vue'
 import { runDiagnostics } from './utils/diagnose'
 
 const project = useProjectStore()
@@ -124,6 +126,16 @@ const aiSettingsVisible = ref(false)
 // 打印前体检
 const preflightVisible = ref(false)
 const preflightReport = ref(null)
+
+// 首屏引导卡：只在「空画布 + 用户没主动关闭过」时显示
+const onboardingDismissed = ref(localStorage.getItem('labelprint_onboarding_dismissed') === '1')
+const showOnboarding = computed(() =>
+  !onboardingDismissed.value && project.project?.meta && project.project.components.length === 0
+)
+function dismissOnboarding() {
+  onboardingDismissed.value = true
+  localStorage.setItem('labelprint_onboarding_dismissed', '1')
+}
 
 // ============ 属性栏宽度 / 收起（localStorage 持久化） ============
 const PANEL_W_KEY = 'labelprint_property_panel_width'
