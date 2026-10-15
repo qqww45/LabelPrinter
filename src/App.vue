@@ -47,7 +47,9 @@
           </template>
           <span v-else class="right-title-v">{{ aiDialogVisible ? t('AI') : t('属性') }}</span>
         </div>
-        <PropertyPanel v-show="!panelHidden && !aiDialogVisible" class="right-body" @field-map="fieldMapVisible = true" />
+        <div v-show="!panelHidden && !aiDialogVisible" class="right-body">
+          <PropertyPanel @field-map="fieldMapVisible = true" />
+        </div>
         <AIDialog
           v-show="!panelHidden && aiDialogVisible"
           class="right-body"

@@ -7,6 +7,7 @@ import JsBarcode from 'jsbarcode'
 import { renderText } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
+import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
 
 const PX_TO_MM = 25.4 / 96
 
@@ -28,8 +29,9 @@ function rgb(hex) {
   return [0, 0, 0]
 }
 
-function hasCjk(s) {
-  return /[\u3400-\u9fff\uf900-\ufaff\u3040-\u30ff\uac00-\ud7af]/.test(String(s || ''))
+/** 含中文、¥ 等 Helvetica 写不了的字符时，整段改用描边小图，避免符号被编成乱码。 */
+export function textNeedsOutlineFont(text) {
+  return [...String(text || '')].some(ch => ch.codePointAt(0) > 127)
 }
 
 function setFill(pdf, hex) {
@@ -126,7 +128,7 @@ function wrapByWidth(pdf, text, maxW, fontMm) {
   return lines
 }
 
-function drawLatinText(pdf, text, x, y, w, h, fontPx, align, weight, color) {
+function drawLatinText(pdf, text, x, y, w, h, fontPx, align, weight, color, vAlign) {
   const fontMm = pxMm(fontPx || 14)
   const pt = (fontPx || 14) * 72 / 96
   pdf.setFont('helvetica', weight === 'bold' ? 'bold' : 'normal')
@@ -134,7 +136,10 @@ function drawLatinText(pdf, text, x, y, w, h, fontPx, align, weight, color) {
   setFill(pdf, color || '#000000')
   const lines = wrapByWidth(pdf, text, Math.max(1, w), fontMm)
   const step = fontMm * 1.25
-  let ty = y + fontMm * 0.85
+  const block = Math.max(step, lines.length * step)
+  let ty = y + fontMm * 0.8
+  if (vAlign === 'middle') ty = y + Math.max(fontMm * 0.8, (h - block) / 2 + fontMm * 0.8)
+  else if (vAlign === 'bottom') ty = y + Math.max(fontMm * 0.8, h - block + fontMm * 0.8)
   const limit = y + h
   for (const line of lines) {
     if (ty > limit + 0.2) break
@@ -148,22 +153,7 @@ function drawLatinText(pdf, text, x, y, w, h, fontPx, align, weight, color) {
   }
 }
 
-function drawCjkText(pdf, text, x, y, w, h, fontPx, align, weight, color) {
-  if (typeof document === 'undefined' || w <= 0 || h <= 0) return
-  const dpi = 300
-  const pxPerMm = dpi / 25.4
-  const cw = Math.max(1, Math.round(w * pxPerMm))
-  const ch = Math.max(1, Math.round(h * pxPerMm))
-  const canvas = document.createElement('canvas')
-  canvas.width = cw
-  canvas.height = ch
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  const size = Math.max(8, (fontPx || 14) * dpi / 96)
-  ctx.font = `${weight === 'bold' ? 'bold' : 'normal'} ${size}px "Microsoft YaHei", "PingFang SC", sans-serif`
-  ctx.fillStyle = color || '#000000'
-  ctx.textBaseline = 'top'
-  const maxW = cw
+function wrapCanvasLines(ctx, text, maxW) {
   const lines = []
   for (const para of String(text).split('\n')) {
     if (!para) { lines.push(''); continue }
@@ -177,16 +167,62 @@ function drawCjkText(pdf, text, x, y, w, h, fontPx, align, weight, color) {
     }
     lines.push(line)
   }
-  const step = size * 1.25
+  return lines
+}
+
+function lineBox(ctx, lines, size) {
+  let ascent = size * 0.92
+  let descent = size * 0.24
+  for (const line of lines) {
+    const m = ctx.measureText(line || '国')
+    if (m.actualBoundingBoxAscent) ascent = Math.max(ascent, m.actualBoundingBoxAscent)
+    if (m.actualBoundingBoxDescent) descent = Math.max(descent, m.actualBoundingBoxDescent)
+  }
+  const pad = Math.max(2, size * 0.08)
+  const step = ascent + descent + pad
+  return { ascent, descent, pad, step, block: Math.max(step, step * lines.length) }
+}
+
+function drawCjkText(pdf, text, x, y, w, h, fontPx, align, weight, color, vAlign) {
+  if (typeof document === 'undefined' || w <= 0 || h <= 0) return
+  const dpi = 300
+  const pxPerMm = dpi / 25.4
+  const cw = Math.max(1, Math.round(w * pxPerMm))
+  const ch = Math.max(1, Math.round(h * pxPerMm))
+  const canvas = document.createElement('canvas')
+  canvas.width = cw
+  canvas.height = ch
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const face = weight === 'bold' ? 'bold' : 'normal'
+  ctx.textBaseline = 'alphabetic'
+  let size = Math.max(8, (fontPx || 14) * dpi / 96)
+  const applyFont = () => { ctx.font = `${face} ${size}px "Microsoft YaHei", "PingFang SC", sans-serif` }
+  applyFont()
+  let lines = wrapCanvasLines(ctx, text, cw)
+  let box = lineBox(ctx, lines, size)
+  for (let i = 0; i < 6 && box.block > ch && size > 8; i++) {
+    size = Math.max(8, size * ch / box.block * 0.96)
+    applyFont()
+    lines = wrapCanvasLines(ctx, text, cw)
+    box = lineBox(ctx, lines, size)
+  }
+  ctx.fillStyle = color || '#000000'
+  ctx.textBaseline = 'alphabetic'
+  const ink = box.ascent + box.descent
+  const block = lines.length * ink + Math.max(0, lines.length - 1) * box.pad
+  let top = box.pad
+  if (vAlign === 'middle') top = Math.max(0, (ch - block) / 2)
+  else if (vAlign === 'bottom') top = Math.max(0, ch - block)
   lines.forEach((line, i) => {
-    const top = i * step
-    if (top > ch) return
+    const baseline = top + box.ascent + i * (ink + box.pad)
+    if (baseline - box.ascent > ch) return
     let left = 0
     if (align === 'center' || align === 'right') {
       const lw = ctx.measureText(line).width
       left = align === 'center' ? Math.max(0, (cw - lw) / 2) : Math.max(0, cw - lw)
     }
-    ctx.fillText(line, left, top)
+    ctx.fillText(line, left, baseline)
   })
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, w, h)
 }
@@ -198,8 +234,35 @@ function drawText(pdf, text, x, y, w, h, c) {
   const align = c.textAlign || 'left'
   const weight = c.fontWeight
   const color = c.fill || '#000000'
-  if (hasCjk(value)) drawCjkText(pdf, value, x, y, w, h, fontPx, align, weight, color)
-  else drawLatinText(pdf, value, x, y, w, h, fontPx, align, weight, color)
+  const vAlign = c.vAlign || 'top'
+  if (textNeedsOutlineFont(value)) drawCjkText(pdf, value, x, y, w, h, fontPx, align, weight, color, vAlign)
+  else drawLatinText(pdf, value, x, y, w, h, fontPx, align, weight, color, vAlign)
+}
+
+/** 列宽按 colWidths 比例分，数量对不上时等分。 */
+export function tableColumnWidths(c, totalW) {
+  const cols = Math.max(1, c?.cols || 1)
+  const weights = (Array.isArray(c?.colWidths) && c.colWidths.length === cols)
+    ? c.colWidths.map(w => Math.max(0.05, Number(w) || 0))
+    : Array(cols).fill(1)
+  const sum = weights.reduce((a, b) => a + b, 0) || 1
+  return weights.map(w => totalW * w / sum)
+}
+
+/** 行高按表格高度均分。二维码和条码缩在格子里，不把某一行撑高。 */
+export function tableRowHeights(c, totalH) {
+  const rows = Math.max(1, c?.rows || 1)
+  const each = totalH / rows
+  return Array(rows).fill(each)
+}
+
+function drawContainedImage(pdf, src, nw, nh, x, y, w, h) {
+  if (!src || nw <= 0 || nh <= 0 || w <= 0 || h <= 0) return
+  const ratio = nw / nh
+  let dw = w
+  let dh = dw / ratio
+  if (dh > h) { dh = h; dw = dh * ratio }
+  try { pdf.addImage(src, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh) } catch (e) { /* 坏图跳过 */ }
 }
 
 function drawRect(pdf, c, x, y, w, h) {
@@ -227,36 +290,87 @@ function drawImage(pdf, c, row, x, y, w, h) {
   try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 跨域或坏图就跳过 */ }
 }
 
+function prefixes(sizes) {
+  const out = []
+  let acc = 0
+  for (const n of sizes) { out.push(acc); acc += n }
+  return out
+}
+
+function drawCellVisual(pdf, cell, text, x, y, w, h) {
+  const type = cell?.type || 'text'
+  if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
+    const cv = type === 'qrcode'
+      ? qrToCanvas(String(text), 240)
+      : barcodeToCanvas(String(text), { format: cell.format || 'CODE128' })
+    if (cv) drawContainedImage(pdf, canvasToDataURL(cv), cv.width, cv.height, x, y, w, h)
+    return
+  }
+  if (type === 'image') {
+    const src = text || cell?.src || ''
+    if (src) {
+      try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 坏图跳过 */ }
+    }
+    return
+  }
+  if (!String(text || '').trim()) return
+  drawText(pdf, text, x, y, w, h, {
+    fontSize: cell?._fontSize,
+    textAlign: cell?._align,
+    fontWeight: cell?._weight,
+    fill: '#111111',
+    vAlign: cell?._vAlign || 'middle'
+  })
+}
+
 function drawTable(pdf, c, row, x, y, w, h) {
   const rows = Math.max(1, c.rows || 1)
   const cols = Math.max(1, c.cols || 1)
-  const rh = h / rows
-  const cw = w / cols
+  const colW = tableColumnWidths(c, w)
+  const rowH = tableRowHeights(c, h)
+  const colX = prefixes(colW)
+  const rowY = prefixes(rowH)
   const sw = Math.max(0.05, Number(c.borderWidth) || 0.2)
-  setStroke(pdf, c.borderColor || '#333333')
-  pdf.setLineWidth(sw)
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
-      const cell = c.cells?.[`${r},${col}`]
-      const cx = x + col * cw
-      const cy = y + r * rh
       const header = r === 0 && c.headerRow
       const fill = header ? (c.headerBg || '#f1f5f9') : (c.fill || '#ffffff')
       if (fill && fill !== 'transparent') {
         setFill(pdf, fill)
-        pdf.rect(cx, cy, cw, rh, 'F')
+        pdf.rect(x + colX[col], y + rowY[r], colW[col], rowH[r], 'F')
       }
-      pdf.rect(cx, cy, cw, rh, 'S')
-      if (cell && cell.type && cell.type !== 'text') continue
+    }
+  }
+  // 每条线只画一次。按格子各描一遍时，中间的线会叠成两倍粗。
+  setStroke(pdf, c.borderColor || '#333333')
+  pdf.setLineWidth(sw)
+  const inset = sw / 2
+  pdf.rect(x + inset, y + inset, Math.max(0.2, w - sw), Math.max(0.2, h - sw), 'S')
+  for (let col = 0; col < cols - 1; col++) {
+    const lx = x + colX[col] + colW[col]
+    pdf.line(lx, y + inset, lx, y + h - inset)
+  }
+  for (let r = 0; r < rows - 1; r++) {
+    const ly = y + rowY[r] + rowH[r]
+    pdf.line(x + inset, ly, x + w - inset, ly)
+  }
+  const pad = Number(c.cellPadding) || 1
+  for (let r = 0; r < rows; r++) {
+    for (let col = 0; col < cols; col++) {
+      const cell = c.cells?.[`${r},${col}`] || {}
+      const header = r === 0 && c.headerRow
       const text = tableCellText(c, r, col, row)
-      if (!String(text).trim()) continue
-      const pad = Number(c.cellPadding) || 1
-      drawText(pdf, text, cx + pad, cy + pad * 0.4, Math.max(1, cw - pad * 2), Math.max(1, rh - pad), {
-        fontSize: c.fontSize || 12,
-        textAlign: header ? 'center' : (c.textAlign || 'left'),
-        fontWeight: header ? 'bold' : c.fontWeight,
-        fill: c.color || '#000000'
-      })
+      const cx = x + colX[col] + pad
+      const cy = y + rowY[r] + pad
+      const cw = Math.max(1, colW[col] - pad * 2)
+      const ch = Math.max(1, rowH[r] - pad * 2)
+      drawCellVisual(pdf, {
+        ...cell,
+        _fontSize: c.fontSize || 10,
+        _align: header ? 'center' : (c.textAlign || 'left'),
+        _weight: header ? 'bold' : c.fontWeight,
+        _vAlign: c.vAlign || 'middle'
+      }, text, cx, cy, cw, ch)
     }
   }
 }

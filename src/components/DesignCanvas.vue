@@ -747,6 +747,7 @@ function makeCellImage(el, left, top, w, h) {
     left, top,
     scaleX: w / el.width,
     scaleY: h / el.height,
+    strokeWidth: 0,
     selectable: false,
     evented: false
   })
@@ -840,20 +841,22 @@ function buildTable(c, row, baseOpts) {
 
   const items = []
 
+  // strokeWidth 必须为 0。Fabric 默认是 1，就算不画描边也会把包围盒向外撑一圈，
+  // 组件框从左上角裁切时，右边和下边的线会整段消失。
   const bg = new fabric.Rect({
     left: 0, top: 0,
     width: totalW, height: rowsTotalH,
-    fill, stroke: borderColor, strokeWidth: borderWidthPx
+    fill, strokeWidth: 0
   })
   items.push(bg)
 
-  // 表头行底色
+  // 表头行底色留在边框内侧，避免盖住上边和左边的线
   if (headerRow && rows > 0) {
     items.push(new fabric.Rect({
-      left: borderWidthPx / 2, top: borderWidthPx / 2,
-      width: Math.max(1, totalW - borderWidthPx),
-      height: Math.max(1, rowH[0] - borderWidthPx),
-      fill: headerBg, selectable: false, evented: false
+      left: borderWidthPx, top: borderWidthPx,
+      width: Math.max(1, totalW - borderWidthPx * 2),
+      height: Math.max(1, rowH[0] - borderWidthPx * 2),
+      fill: headerBg, strokeWidth: 0, selectable: false, evented: false
     }))
   }
 
@@ -867,7 +870,7 @@ function buildTable(c, row, baseOpts) {
         const v = new fabric.Rect({
           left: x + cellW - borderWidthPx / 2, top: y,
           width: borderWidthPx, height: cellH,
-          fill: borderColor, selectable: false, evented: false
+          fill: borderColor, strokeWidth: 0, selectable: false, evented: false
         })
         items.push(v)
       }
@@ -875,7 +878,7 @@ function buildTable(c, row, baseOpts) {
         const h = new fabric.Rect({
           left: x, top: y + cellH - borderWidthPx / 2,
           width: cellW, height: borderWidthPx,
-          fill: borderColor, selectable: false, evented: false
+          fill: borderColor, strokeWidth: 0, selectable: false, evented: false
         })
         items.push(h)
       }
@@ -900,7 +903,7 @@ function buildTable(c, row, baseOpts) {
           // 首帧占位，图片解码完成后会自动重绘
           items.push(new fabric.Rect({
             left: x + pad, top: y + pad, width: innerW, height: innerH,
-            fill: '#f1f5f9', selectable: false, evented: false,
+            fill: '#f1f5f9', strokeWidth: 0, selectable: false, evented: false,
             hoverCursor: 'pointer',
             data: { isImagePlaceholder: true, failedUrl: url }
           }))
@@ -917,7 +920,7 @@ function buildTable(c, row, baseOpts) {
         } else if (url) {
           items.push(new fabric.Rect({
             left: x + pad, top: y + pad, width: innerW, height: innerH,
-            fill: '#f1f5f9', selectable: false, evented: false,
+            fill: '#f1f5f9', strokeWidth: 0, selectable: false, evented: false,
             hoverCursor: 'pointer',
             data: { isImagePlaceholder: true, failedUrl: url }
           }))
@@ -942,16 +945,29 @@ function buildTable(c, row, baseOpts) {
           textAlign: isHeader ? 'center' : textAlign,
           lineHeight: 1.2,
           splitByGrapheme: true,
-          selectable: false, evented: false
+          strokeWidth: 0, selectable: false, evented: false
         })
         items.push(t)
       }
     }
   }
 
+  // 外框用填色细条，不用描边。描边画在边缘中线上，右边和下边会画出组件框，被裁切掉。
+  const frameH = Math.max(borderWidthPx, Math.min(rowsTotalH, totalH))
+  const bar = (left, top, width, height) => new fabric.Rect({
+    left, top, width: Math.max(borderWidthPx, width), height: Math.max(borderWidthPx, height),
+    fill: borderColor, strokeWidth: 0, selectable: false, evented: false
+  })
+  items.push(bar(0, 0, totalW, borderWidthPx))
+  items.push(bar(0, frameH - borderWidthPx, totalW, borderWidthPx))
+  items.push(bar(0, 0, borderWidthPx, frameH))
+  items.push(bar(totalW - borderWidthPx, 0, borderWidthPx, frameH))
+
   const group = new fabric.Group(items, {
     ...baseOpts,
-    subTargetCheck: false
+    subTargetCheck: false,
+    objectCaching: false,
+    strokeWidth: 0
   })
   return group
 }

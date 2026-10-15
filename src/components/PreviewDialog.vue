@@ -251,9 +251,9 @@ const CompRenderer = defineComponent({
           for (let r = 0; r < (c.rows || 3); r++) {
             const tds = []
             for (let col = 0; col < (c.cols || 3); col++) {
-              tds.push(h('td', { style: tableCellStyle(c, r) }, tableCellNode(c, r, col, row)))
+              tds.push(h('td', { style: tableCellStyle(c, r, col) }, tableCellNode(c, r, col, row)))
             }
-            rowsArr.push(h('tr', tds))
+            rowsArr.push(h('tr', { style: { height: (100 / Math.max(1, c.rows || 3)) + '%' } }, tds))
           }
           inner = h('table', { style: tableBaseStyle(c), class: 'pv-table' }, [
             tableColgroup(c),
@@ -372,7 +372,9 @@ function tableBaseStyle(c) {
     width: '100%',
     height: '100%',
     background: c.fill || '#fff',
-    borderCollapse: 'collapse',
+    borderCollapse: 'separate',
+    borderSpacing: '0',
+    boxSizing: 'border-box',
     color: '#111',
     fontSize: (c.fontSize || 10) * scale.value + 'px',
     fontFamily: c.fontFamily || 'Microsoft YaHei',
@@ -393,11 +395,21 @@ function tableColgroup(c) {
   ))
 }
 
-function tableCellStyle(c, r = 0) {
+function tableCellStyle(c, r = 0, col = 0) {
   const bw = (c.borderWidth || 0.2) * S()
+  const edge = `${bw}px solid ${c.borderColor || '#333'}`
+  const rows = Math.max(1, c.rows || 3)
   const isHeader = r === 0 && !!c.headerRow
+  // 每条内边线只归一个格子。collapse 时相邻格子各画一条，html2canvas 会把中间线叠粗。
   return {
-    border: `${bw}px solid ${c.borderColor || '#333'}`,
+    borderTop: r === 0 ? edge : '0',
+    borderLeft: col === 0 ? edge : '0',
+    borderRight: edge,
+    borderBottom: edge,
+    boxSizing: 'border-box',
+    position: 'relative',
+    height: (100 / rows) + '%',
+    overflow: 'hidden',
     padding: ((c.cellPadding || 1) * S()) + 'px',
     verticalAlign: c.vAlign || 'middle',
     wordBreak: 'break-all',
@@ -438,24 +450,32 @@ function tableCellNode(c, r, col, row) {
     }
     const src = cellImgCache.value[key]
     if (!src) return ''
-    return h('img', { src, style: CELL_IMG_STYLE })
+    return h('img', { src, style: cellImageStyle(c) })
   }
 
   if (type === 'image') {
     const src = value || cell.src || ''
     if (!src) return ''
-    return h('img', { src, style: CELL_IMG_STYLE })
+    return h('img', { src, style: cellImageStyle(c) })
   }
 
   return value
 }
 
-const CELL_IMG_STYLE = {
-  maxWidth: '100%',
-  maxHeight: '100%',
-  display: 'block',
-  margin: '0 auto',
-  objectFit: 'contain'
+function cellImageStyle(c) {
+  const pad = (c.cellPadding || 1) * S()
+  // 脱离文档流，避免二维码、条码的原始像素把行高撑开。缩放方式和画布一致：放进格子里。
+  return {
+    position: 'absolute',
+    left: '50%',
+    top: '50%',
+    transform: 'translate(-50%, -50%)',
+    maxWidth: `calc(100% - ${pad * 2}px)`,
+    maxHeight: `calc(100% - ${pad * 2}px)`,
+    width: 'auto',
+    height: 'auto',
+    objectFit: 'contain'
+  }
 }
 
 function renderTextHtml(text, row) {

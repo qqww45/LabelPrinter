@@ -1,6 +1,7 @@
 import { expandPrintLabels, paginateLabels, componentHidden, slotOffsetMm } from '../src/utils/printModel.js'
 import { buildTSPL, buildZPL } from '../src/utils/printerCmd.js'
 import { qrMatrix } from '../src/utils/codeGeom.js'
+import { textNeedsOutlineFont, tableColumnWidths, tableRowHeights } from '../src/utils/vectorPdf.js'
 import { runDiagnostics } from '../src/utils/diagnose.js'
 
 let passed = 0
@@ -94,6 +95,15 @@ const diag = runDiagnostics({
   paper: { width: 40, height: 30 }
 })
 check('体检页数已经乘上份数', diag.summary.pages === 6 && diag.summary.copies === 1)
+check('中文和人民币符号不走英文字体', textNeedsOutlineFont('矿泉水') && textNeedsOutlineFont('¥2.00') && textNeedsOutlineFont('￥9.9'))
+check('纯英文数字仍走矢量字', textNeedsOutlineFont('550ml') === false && textNeedsOutlineFont('2026-10-01') === false)
+const colW = tableColumnWidths({ cols: 2, colWidths: [40, 60] }, 100)
+check('列宽按比例', Math.abs(colW[0] - 40) < 0.01 && Math.abs(colW[1] - 60) < 0.01)
+const rowH = tableRowHeights({
+  rows: 3, cols: 2,
+  cells: { '1,1': { type: 'qrcode' } }
+}, 90)
+check('二维码不改变行高', rowH.every(n => Math.abs(n - 30) < 0.01))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)
