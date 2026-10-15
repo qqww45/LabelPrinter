@@ -5,4 +5,5 @@ dist
 .vscode
 .idea
 .codebuddy
+.AGENTS.md
 .playwright-cli
