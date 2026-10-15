@@ -328,7 +328,7 @@ th, td {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-th { background: var(--bg); position: sticky; top: 0; z-index: 1; }
+th { background: var(--bg); position: sticky; top: 0; z-index: 1; box-shadow: 0 1px 0 var(--border); }  /* box-shadow 兜底：collapse 下滚动时 th 底边框会被表格层吃掉 */
 tr.active td { background: var(--row-active-bg, #dbeafe); color: var(--row-active-text, #1e3a8a); }
 tr.active td .cell-input { color: inherit; }
 .cell-input {
@@ -343,7 +343,9 @@ tr.active td .cell-input { color: inherit; }
 
 /* 列头：可点击重命名 + 悬停显示删除 */
 .col-h {
-  position: relative;
+  /* 注意：不能写 position: relative —— 会覆盖 th 的 position: sticky，
+     导致纵向滚动时数据列头不冻结（# / 操作 列头没有此类所以正常）。
+     sticky 本身就是 positioned，可为内部 absolute 的 col-resize 提供定位上下文。 */
   padding-right: 22px !important;
   cursor: text;
   user-select: none;
