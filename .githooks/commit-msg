@@ -1,0 +1,9 @@
+#!/bin/sh
+# 自动删除 AI 工具（Cursor Agent 等）加的 "Co-authored-by:" trailer。
+# 目的：防止 AI 身份出现在 GitHub Contributors 列表。
+#
+# 原理：git 在写 commit message 前执行本脚本，$1 是 message 临时文件路径。
+#       直接把含 Co-authored-by 的行删掉即可。
+#
+# 安装：git config core.hooksPath .githooks
+sed -i '/Co-authored-by:/d' "$1"
