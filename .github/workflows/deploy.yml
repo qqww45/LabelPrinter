@@ -1,0 +1,101 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许手动触发
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false # 串行部署，避免并发覆盖
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建
+        run: npm run build
+
+      - name: 单元测试
+        run: node tests/basic.test.mjs
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 10
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production # 可加审批环
+    steps:
+      - name: 加载 SSH 私钥
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: 同步到服务器（原子替换，零停机）
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          STAGE="/var/www/label-printer.new"
+          TARGET="/var/www/label-printer"
+          SHA="${GITHUB_SHA::7}"
+          STAMP="$(date -u +%Y%m%d-%H%M%S)-${SHA}"
+
+          # 1) 上传到临时目录
+          ssh -o StrictHostKeyChecking=accept-new "${USER}@${HOST}" "rm -rf ${STAGE} && mkdir -p ${STAGE}"
+          rsync -az --delete \
+            -e "ssh -o StrictHostKeyChecking=accept-new" \
+            ./dist/ "${USER}@${HOST}:${STAGE}/"
+
+          # 2) 服务器端原子切换：旧目录归档为版本，新目录上线
+          ssh -o StrictHostKeyChecking=accept-new "${USER}@${HOST}" "
+            set -e
+            cd /var/www
+            if [ -d ${TARGET} ]; then
+              # 归档历史版本（保留 5 份）
+              mkdir -p versions
+              mv ${TARGET} versions/label-printer-${STAMP}
+              (cd versions && ls -1dt label-printer-* | tail -n +6 | xargs -r rm -rf)
+            fi
+            mv ${STAGE} ${TARGET}
+            # 写入当前版本号
+            echo ${STAMP} > ${TARGET}/.version
+          "
+
+      - name: 健康检查
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          # 等待 Caddy 读取新文件（file_server 直接读，理论上无需 reload）
+          for i in 1 2 3 4 5; do
+            CODE=$(curl -sk -o /dev/null -w "%{http_code}" "https://${HOST}/" || true)
+            if [ "$CODE" = "200" ]; then
+              echo "健康检查通过 (HTTP $CODE)"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "健康检查失败，最后状态码：$CODE"
+          exit 1
