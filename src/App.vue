@@ -81,7 +81,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useI18n } from './utils/i18n'
 const { t } = useI18n()
 import { useProjectStore } from './stores/project'
@@ -136,6 +136,20 @@ function dismissOnboarding() {
   onboardingDismissed.value = true
   localStorage.setItem('labelprint_onboarding_dismissed', '1')
 }
+
+// 切项目时同步 data store：让「数据」跟着当前项目走，而不是全局共享
+// embedded=true → 加载项目自带的数据副本；外置 path 或无数据 → 清空（用户按需重新导入）
+watch(() => project.currentId, (newId) => {
+  if (!newId) return
+  const p = project.project
+  if (p.dataSource?.embedded && Array.isArray(p.dataSource.data) && p.dataSource.data.length) {
+    const rows = JSON.parse(JSON.stringify(p.dataSource.data))
+    const headers = data.headers.length ? data.headers : Object.keys(rows[0] || {}).filter(k => k !== '__id')
+    data.setData({ headers, rows, sourcePath: p.dataSource.path || '', embedded: true })
+  } else {
+    data.clear()
+  }
+})
 
 // ============ 属性栏宽度 / 收起（localStorage 持久化） ============
 const PANEL_W_KEY = 'labelprint_property_panel_width'
@@ -197,13 +211,19 @@ function sanitizeName(s) {
 }
 
 function onNew() {
-  // 已有自动保存，无需确认；数据源为共享资源，不随新建清空（与项目切换行为一致）
+  // 数据与项目分离：把当前数据快照嵌入旧项目（避免数据丢失），新项目从零开始
+  if (data.rows.length) {
+    project.project.dataSource.embedded = true
+    project.project.dataSource.path = data.sourcePath
+    project.project.dataSource.data = JSON.parse(JSON.stringify(data.rows))
+  }
   const name = prompt('新项目名称：', `项目 ${project.projects.length + 1}`)
   if (name === null) return
   project.createProject(sanitizeName(name) || `项目 ${project.projects.length + 1}`)
   // 新项目 → 重新弹出引导卡（纸张/标签配置说不清是打印翻车的主因）
   onboardingDismissed.value = false
   localStorage.removeItem('labelprint_onboarding_dismissed')
+  // data store 在下方 watch(currentId) 中自动清空（保持「数据跟着当前项目走」的一致语义）
 }
 
 async function onOpen() {
