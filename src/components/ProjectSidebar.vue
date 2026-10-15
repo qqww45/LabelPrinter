@@ -72,7 +72,7 @@ import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
-defineEmits(['new', 'open', 'save', 'save-as'])
+const emit = defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
 
 const SIDEBAR_KEY = 'labelprint_sidebar_open'
 
@@ -113,7 +113,7 @@ function fmtFull(ts) {
 
 function onItemClick(p) {
   if (editingId.value === p.id) return
-  project.switchProject(p.id)
+  emit('switch', p.id)  // 走 App.vue 的安全切换（嵌入当前数据后再切）
 }
 
 // ============ 重命名（行内编辑） ============

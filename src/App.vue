@@ -21,6 +21,7 @@
         @open="onOpen"
         @save="onSave"
         @save-as="onSaveAs"
+        @switch="switchToProject"
       />
       <ComponentPanel class="left" />
       <DesignCanvas class="center" />
@@ -139,8 +140,8 @@ function dismissOnboarding() {
 
 // 切项目时同步 data store：让「数据」跟着当前项目走，而不是全局共享
 // embedded=true → 加载项目自带的数据副本；外置 path 或无数据 → 清空（用户按需重新导入）
-watch(() => project.currentId, (newId) => {
-  if (!newId) return
+watch(() => project.currentId, (newId, oldId) => {
+  if (!newId || newId === oldId) return
   const p = project.project
   if (p.dataSource?.embedded && Array.isArray(p.dataSource.data) && p.dataSource.data.length) {
     const rows = JSON.parse(JSON.stringify(p.dataSource.data))
@@ -150,6 +151,11 @@ watch(() => project.currentId, (newId) => {
     data.clear()
   }
 })
+
+// 兜底：data store 任何修改都自动嵌入到当前项目（防止「编辑数据但没切项目」时丢失）
+watch(() => [data.rows, data.sourcePath], () => {
+  embedCurrentData()
+}, { deep: true })
 
 // ============ 属性栏宽度 / 收起（localStorage 持久化） ============
 const PANEL_W_KEY = 'labelprint_property_panel_width'
@@ -210,13 +216,24 @@ function sanitizeName(s) {
   return (s || '').replace(/[\/\\<>:"|?*\x00-\x1f]/g, '_').trim()
 }
 
+// 把当前 data store 状态嵌入到当前项目（任何「切走」之前都该做）
+// —— 这是「数据跟着项目走」的关键：project.value.dataSource.data 必须包含当前所有数据，
+//    否则 persistNow / 切项目后再切回时，老项目会丢数据。
+function embedCurrentData() {
+  if (!data.rows.length) return  // 空数据不嵌入（避免破坏项目自带的 data）
+  if (project.project.dataSource.embedded
+      && project.project.dataSource.data.length === data.rows.length
+      && project.project.dataSource.path === data.sourcePath) {
+    return  // 已是最新
+  }
+  project.project.dataSource.embedded = true
+  project.project.dataSource.path = data.sourcePath
+  project.project.dataSource.data = JSON.parse(JSON.stringify(data.rows))
+}
+
 function onNew() {
   // 数据与项目分离：把当前数据快照嵌入旧项目（避免数据丢失），新项目从零开始
-  if (data.rows.length) {
-    project.project.dataSource.embedded = true
-    project.project.dataSource.path = data.sourcePath
-    project.project.dataSource.data = JSON.parse(JSON.stringify(data.rows))
-  }
+  embedCurrentData()
   const name = prompt('新项目名称：', `项目 ${project.projects.length + 1}`)
   if (name === null) return
   project.createProject(sanitizeName(name) || `项目 ${project.projects.length + 1}`)
@@ -224,6 +241,13 @@ function onNew() {
   onboardingDismissed.value = false
   localStorage.removeItem('labelprint_onboarding_dismissed')
   // data store 在下方 watch(currentId) 中自动清空（保持「数据跟着当前项目走」的一致语义）
+}
+
+// 切项目的安全入口：先嵌入再切（防止「切走前数据没保存导致丢」）
+function switchToProject(id) {
+  if (id === project.currentId) return
+  embedCurrentData()
+  project.switchProject(id)
 }
 
 async function onOpen() {
@@ -376,7 +400,7 @@ async function onRunQueue() {
 async function onReprint(entry) {
   printCenterVisible.value = false
   if (entry.projectId && entry.projectId !== project.currentId) {
-    project.switchProject(entry.projectId)
+    switchToProject(entry.projectId)
     await nextTick()
   }
   pendingExport.value = ''

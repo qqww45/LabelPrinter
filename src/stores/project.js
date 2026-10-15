@@ -708,6 +708,9 @@ export const useProjectStore = defineStore('project', () => {
 
   function switchProject(id) {
     if (id === currentId.value) return
+    // 切项目前：把当前 data store 的数据嵌入到当前项目（避免切走时丢数据）
+    // data store 状态由 App.vue 维护，这里只读 project.value.dataSource 并补全
+    // 注：data store 是另一份独立状态，需 App.vue 在 switchProject 之前同步嵌入（见 App.vue switchToProject）
     persistNow()  // 保存当前
     const target = projects.value.find(p => p.id === id)
     if (!target) return
