@@ -1,0 +1,237 @@
+/* 全局样式 */
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg: #f5f7fa;
+  --bg-panel: #ffffff;
+  --bg-toolbar: #ffffff;
+  --bg-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --radius: 6px;
+  /* 表格/列表行高亮（亮色：浅蓝底+深蓝字） */
+  --row-active-bg: #dbeafe;
+  --row-active-text: #1e3a8a;
+}
+
+/* ---- 暗色主题 ---- */
+[data-theme='dark'] {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --bg: #0f172a;
+  --bg-panel: #1e293b;
+  --bg-toolbar: #16213a;
+  --bg-hover: #27364f;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  /* 暗色行高亮：深蓝底+浅蓝字（与 #0f172a 背景形成足够对比，文字清晰可读） */
+  --row-active-bg: #1e3a5f;
+  --row-active-text: #bfdbfe;
+  /* 排版编辑器（LayoutEditor）在暗色下的图形元素颜色 */
+  --layout-margin-rect: #475569;
+  --layout-label-bg: rgba(129, 140, 248, 0.12);
+  --layout-label-border: #818cf8;
+  --layout-handle-cyan: #22d3ee;
+  --layout-handle-purple: #c084fc;
+}
+/* 暗色下的局部修正（组件里写死的浅色） */
+[data-theme='dark'] ::-webkit-scrollbar-thumb { background: #475569; }
+[data-theme='dark'] .design-canvas-wrap { background: #0b1220; }
+[data-theme='dark'] .preview-modal { background: #0b1220; }
+[data-theme='dark'] .preview-modal .modal-header { background: #1e293b; }
+[data-theme='dark'] .page { background: white; }   /* 纸张始终白色 */
+[data-theme='dark'] .component-item,
+[data-theme='dark'] .field-item { background: #16213a; }
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* 通用按钮 */
+.btn {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.btn-icon {
+  padding: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 输入框 */
+.input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: var(--primary);
+}
+
+/* 分隔线 */
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 8px;
+}
+
+/* 工具提示 */
+[title] {
+  position: relative;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 拖拽 */
+.dragging {
+  opacity: 0.5;
+}
+.drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+}
+
+/* 模态框 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal {
+  background: var(--bg-panel);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  min-width: 400px;
+  max-width: 80vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-body {
+  padding: 18px;
+  overflow: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 表单 */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.form-row label {
+  min-width: 80px;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,821 @@
+<template>
+  <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
+    <div class="preview-modal">
+      <div class="modal-header">
+        👁️ {{ t('打印预览') }} ({{ data.filteredRows.length || 0 }} {{ t('条') }} / {{ totalPages }} {{ t('页') }})
+        <div class="header-tools">
+          <input class="input" style="width:80px" type="number" :value="currentPage"
+            min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
+          / {{ totalPages }}
+          <button class="btn btn-sm" @click="prevPage">←</button>
+          <button class="btn btn-sm" @click="nextPage">→</button>
+          <span class="divider-v"></span>
+          <button class="btn btn-sm" @click="zoomOut">-</button>
+          <span style="font-size:12px;min-width:42px;text-align:center">{{ Math.round(scale*100) }}%</span>
+          <button class="btn btn-sm" @click="zoomIn">+</button>
+          <button class="btn btn-sm" @click="scale = 1" :title="t('真实物理尺寸（1:1）')">1:1</button>
+          <span class="divider-v"></span>
+          <button class="btn btn-primary" @click="onPrint">🖨️ {{ t('打印') }}</button>
+          <button class="btn" @click="onExportPDF">{{ t('导出 PDF') }}</button>
+          <button class="btn" @click="onExportImage">{{ t('导出图片') }}</button>
+          <button class="btn" @click="addQueue" :title="t('按当前打印设置加入队列，稍后依次打印')">🗂 {{ t('加入队列') }}</button>
+          <button class="btn btn-icon" @click="$emit('close')">×</button>
+        </div>
+      </div>
+
+      <!-- 预览区：仅当前页 -->
+      <div class="preview-body">
+        <div class="pages">
+          <div v-if="currentPageData" class="page" :style="pageStyle">
+            <div class="label" :style="labelStyle">
+              <div
+                v-for="(slot, si) in currentPageData.slots"
+                :key="si"
+                class="label-slot"
+                :style="slotStyle(si)"
+              >
+                <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
+                <div v-if="labelBorderStyle" :style="labelBorderStyle"></div>
+                <div v-if="slot.empty && !labelBorderStyle" class="slot-placeholder">{{ t('无数据') }}</div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-page">{{ t('无数据') }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隐藏的完整渲染容器（供打印/导出用） -->
+    <div class="export-hidden" aria-hidden="true">
+      <div
+        v-for="(page, pi) in pages"
+        :key="'ep' + pi"
+        class="page"
+        :style="pageStyle"
+        :ref="el => pageRefs[pi] = el"
+      >
+        <div class="label" :style="labelStyle">
+          <div
+            v-for="(slot, si) in page.slots"
+            :key="'s' + si"
+            class="label-slot"
+            :style="slotStyle(si)"
+          >
+            <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
+            <div v-if="labelBorderStyle" :style="labelBorderStyle"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineComponent } from 'vue'
+import { useProjectStore } from '../stores/project'
+import { useDataStore } from '../stores/data'
+import { renderText, resolveRow } from '../utils/render'
+import { generateQRCode } from '../utils/qrcode'
+import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
+import { generateBarcode } from '../utils/barcode'
+import { exportElementsToPDF, exportElementToImage } from '../utils/pdf'
+import { usePrintStore } from '../stores/print'
+import { useI18n } from '../utils/i18n'
+import dayjs from 'dayjs'
+
+const { t } = useI18n()
+
+const props = defineProps({
+  autoExport: { type: String, default: '' }
+})
+
+const project = useProjectStore()
+const data = useDataStore()
+const printStore = usePrintStore()
+
+const MM_TO_PX = 96 / 25.4
+const currentPage = ref(1)
+// 默认用设计画布的 zoom，保证"预览所见 = 设计所见"（否则预览比例跟设计画布对不上，用户会以为尺寸错了）
+const scale = ref(project.zoom || 1.5)
+const pageRefs = ref([])
+
+// 预览缩放因子：1mm 对应多少 px（与用户缩放联动）
+function S() { return MM_TO_PX * scale.value }
+
+// 等待所有 <img> 真正加载完（data:URL 同步也算完成；外部 URL 最多等 timeout）
+function waitForImages(els, timeout = 3000) {
+  const imgs = [...els].flatMap(el => [...el.querySelectorAll('img')])
+  if (!imgs.length) return Promise.resolve()
+  return new Promise(resolve => {
+    let pending = imgs.length
+    const done = () => { if (--pending <= 0) resolve() }
+    const fail = () => done()  // 单张失败不阻塞
+    imgs.forEach(img => {
+      if (img.complete && img.naturalWidth > 0) return done()
+      img.addEventListener('load', done, { once: true })
+      img.addEventListener('error', fail, { once: true })
+    })
+    setTimeout(resolve, timeout)  // 兜底
+  })
+}
+
+// ============ 分页逻辑 ============
+// single 模式：1 条数据 = 1 页 = 1 个标签
+// auto 模式：每页 rows×cols 个标签，按数据顺序填充
+const layoutCfg = computed(() => {
+  const l = project.project.layout
+  const cols = Math.max(1, l.cols || 1)
+  const rws = Math.max(1, l.rows || 1)
+  return { mode: l.mode || 'single', cols, rws, hGap: l.hGap || 0, vGap: l.vGap || 0 }
+})
+
+const labelsPerPage = computed(() => {
+  const l = layoutCfg.value
+  return l.mode === 'auto' ? l.cols * l.rws : 1
+})
+
+const pages = computed(() => {
+  const l = layoutCfg.value
+  const rows = data.filteredRows.length ? data.filteredRows : []
+  const per = labelsPerPage.value
+  const out = []
+  if (per === 1) {
+    // single：无数据也显示一页空白
+    const list = rows.length ? rows : [{}]
+    for (const row of list) {
+      out.push({ slots: [{ row, index: out.length }] })
+    }
+  } else {
+    for (let i = 0; i < rows.length; i += per) {
+      const slots = []
+      for (let j = 0; j < per; j++) {
+        const row = rows[i + j]
+        slots.push({ row: row || {}, index: i + j, empty: !row })
+      }
+      out.push({ slots })
+    }
+    if (!out.length) {
+      out.push({ slots: Array.from({ length: per }, (_, j) => ({ row: {}, index: j, empty: true })) })
+    }
+  }
+  return out
+})
+
+const totalPages = computed(() => Math.max(1, pages.value.length))
+const currentPageData = computed(() => {
+  // 允许临时超出范围（导出时 currentPage 被设为 1）
+  const idx = Math.min(Math.max(0, currentPage.value - 1), pages.value.length - 1)
+  return pages.value[idx]
+})
+
+// 字段映射：数据行 → 模板字段行（预览/打印/导出统一生效）
+function mappedRow(row) {
+  return resolveRow(row, project.project.dataSource.fieldMap)
+}
+
+// 每个 slot 在内容区内的位置（px）
+function slotStyle(si) {
+  const l = layoutCfg.value
+  // 标签的物理尺寸 = project.label（数据单元），不是内容区大小
+  const lb = project.project.label
+  const lw = lb.width * S()
+  const lh = lb.height * S()
+  // 注意：边框不用 slot 自身 border——html2canvas 对 overflow:hidden 元素
+  // 的右/下边框有裁剪 bug，改用内部 inset 框（见 labelBorderStyle）
+  const bg = lb.backgroundColor ? { background: lb.backgroundColor } : {}
+  if (l.mode !== 'auto' || l.cols <= 1 && l.rws <= 1) {
+    // 单个模式：标签在标签区左上角；如果标签比标签区大则裁切
+    return { position: 'absolute', left: 0, top: 0, width: lw + 'px', height: lh + 'px', overflow: 'hidden', ...bg }
+  }
+  const hGap = (l.hGap || 0) * S()
+  const vGap = (l.vGap || 0) * S()
+  const col = si % l.cols
+  const row = Math.floor(si / l.cols)
+  return {
+    position: 'absolute',
+    left: (col * (lw + hGap)) + 'px',
+    top: (row * (lh + vGap)) + 'px',
+    width: lw + 'px',
+    height: lh + 'px',
+    overflow: 'hidden',
+    ...bg
+  }
+}
+
+// 标签内边框：绝对定位铺满 slot 的独立 div，四边完整渲染
+const labelBorderStyle = computed(() => {
+  const lb = project.project.label
+  if (!lb.showBorder) return null
+  return {
+    position: 'absolute',
+    inset: 0,
+    border: `${(lb.borderWidth || 0.3) * S()}px solid ${lb.borderColor || '#000'}`,
+    boxSizing: 'border-box',
+    pointerEvents: 'none'
+  }
+})
+
+// ============ 组件渲染器（函数式） ============
+const CompRenderer = defineComponent({
+  name: 'CompRenderer',
+  props: { c: { type: Object, required: true }, row: { type: Object, default: () => ({}) } },
+  setup(props) {
+    return () => {
+      const c = props.c
+      const row = props.row || {}
+      const style = compStyle(c)
+      let inner = null
+      switch (c.type) {
+        case 'text': {
+          inner = h('div', { style: textStyle(c), innerHTML: renderTextHtml(c.text || '', row) })
+          break
+        }
+        case 'image': {
+          const src = imageSrc(c, row)
+          if (!src) return null
+          inner = h('img', { src, style: imgStyle(c), crossorigin: 'anonymous' })
+          break
+        }
+        case 'qrcode': {
+          const url = qrUrl(c, row)
+          if (!url) return null
+          inner = h('img', { src: url, style: imgStyle(c) })
+          break
+        }
+        case 'barcode': {
+          const url = barcodeUrl(c, row)
+          if (!url) return null
+          inner = h('img', { src: url, style: imgStyle(c) })
+          break
+        }
+        case 'rect': {
+          inner = h('div', { style: rectStyle(c) })
+          break
+        }
+        case 'line': {
+          inner = h('div', { style: lineStyle(c) })
+          break
+        }
+        case 'date': {
+          inner = h('div', { style: textStyle(c) }, formatDate(c, row))
+          break
+        }
+        case 'table': {
+          const rowsArr = []
+          for (let r = 0; r < (c.rows || 3); r++) {
+            const tds = []
+            for (let col = 0; col < (c.cols || 3); col++) {
+              tds.push(h('td', { style: tableCellStyle(c, r) }, tableCellNode(c, r, col, row)))
+            }
+            rowsArr.push(h('tr', tds))
+          }
+          inner = h('table', { style: tableBaseStyle(c), class: 'pv-table' }, [
+            tableColgroup(c),
+            rowsArr
+          ])
+          break
+        }
+        default: return null
+      }
+      return h('div', { class: 'comp', style, 'data-comp-id': c.id }, [inner])
+    }
+  }
+})
+
+// ============ 样式函数 ============
+const pageStyle = computed(() => {
+  const p = project.project.paper
+  return {
+    width: (p.width * S()) + 'px',
+    height: (p.height * S()) + 'px',
+    padding: 0,
+    margin: '20px auto',
+    background: 'white',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
+  }
+})
+
+const labelStyle = computed(() => {
+  // 纸张 - 纸张边距 = 标签区
+  const p = project.project.paper
+  const m = project.project.margin
+  const w = (p.width - m.left - m.right) * S()
+  const h = (p.height - m.top - m.bottom) * S()
+  return {
+    position: 'relative',
+    width: w + 'px',
+    height: h + 'px',
+    marginLeft: (m.left * S()) + 'px',
+    marginTop: (m.top * S()) + 'px',
+    overflow: 'hidden'
+  }
+})
+
+// 每个标签的左上角和尺寸（相对标签区，px）
+function slotRect(idx) {
+  const lw = project.project.label.width * S()
+  const lh = project.project.label.height * S()
+  const L = project.project.layout
+  if (L.mode !== 'auto' || !L.cols || !L.rows || (L.cols <= 1 && L.rows <= 1)) {
+    return { x: 0, y: 0, w: lw, h: lh }
+  }
+  const hGap = (L.hGap || 0) * S()
+  const vGap = (L.vGap || 0) * S()
+  const col = idx % L.cols
+  const row = Math.floor(idx / L.cols)
+  return {
+    x: col * (lw + hGap),
+    y: row * (lh + vGap),
+    w: lw, h: lh
+  }
+}
+
+function compStyle(c) {
+  return {
+    position: 'absolute',
+    left: (c.left * S()) + 'px',
+    top: (c.top * S()) + 'px',
+    width: (c.width * S()) + 'px',
+    height: (c.height * S()) + 'px',
+    transform: c.angle ? `rotate(${c.angle}deg)` : 'none',
+    transformOrigin: 'center',
+    overflow: 'hidden'
+  }
+}
+
+function textStyle(c) {
+  return {
+    fontSize: ((c.fontSize || 14) * scale.value) + 'px',
+    color: c.fill,
+    fontFamily: c.fontFamily,
+    fontWeight: c.fontWeight,
+    textAlign: c.textAlign || 'left',
+    lineHeight: 1.2,
+    width: '100%',
+    height: '100%',
+    wordBreak: 'break-all',
+    whiteSpace: 'pre-wrap'
+  }
+}
+
+function imgStyle(c) {
+  return { width: '100%', height: '100%', objectFit: 'fill' }
+}
+
+function rectStyle(c) {
+  return {
+    width: '100%',
+    height: '100%',
+    background: c.fill,
+    border: `${(c.strokeWidth||1) * scale.value}px solid ${c.stroke}`,
+    borderRadius: ((c.rx||0) * S()) + 'px'
+  }
+}
+
+function lineStyle(c) {
+  return {
+    width: '100%',
+    height: (c.strokeWidth || 1) + 'px',
+    background: c.stroke,
+    marginTop: '50%'
+  }
+}
+
+function tableBaseStyle(c) {
+  return {
+    width: '100%',
+    height: '100%',
+    background: c.fill || '#fff',
+    borderCollapse: 'collapse',
+    color: '#111',
+    fontSize: (c.fontSize || 10) * scale.value + 'px',
+    fontFamily: c.fontFamily || 'Microsoft YaHei',
+    textAlign: c.textAlign || 'left',
+    tableLayout: 'fixed'
+  }
+}
+
+// 列宽比例 → <colgroup>；数量与列数不符时等宽
+function tableColgroup(c) {
+  const cols = Math.max(1, c.cols || 3)
+  const weights = (Array.isArray(c.colWidths) && c.colWidths.length === cols)
+    ? c.colWidths.map(w => Math.max(0.05, Number(w) || 0))
+    : Array(cols).fill(1)
+  const sum = weights.reduce((a, b) => a + b, 0)
+  return h('colgroup', weights.map((w, i) =>
+    h('col', { key: 'col' + i, style: { width: (w / sum * 100).toFixed(3) + '%' } })
+  ))
+}
+
+function tableCellStyle(c, r = 0) {
+  const bw = (c.borderWidth || 0.2) * S()
+  const isHeader = r === 0 && !!c.headerRow
+  return {
+    border: `${bw}px solid ${c.borderColor || '#333'}`,
+    padding: ((c.cellPadding || 1) * S()) + 'px',
+    verticalAlign: c.vAlign || 'middle',
+    wordBreak: 'break-all',
+    background: isHeader ? (c.headerBg || '#f1f5f9') : (c.fill || '#fff'),
+    fontWeight: isHeader ? 'bold' : 'normal',
+    textAlign: isHeader ? 'center' : (c.textAlign || 'left')
+  }
+}
+
+function tableCellText(c, r, col, row) {
+  const cell = c.cells?.[`${r},${col}`]
+  if (!cell) return ''
+  // 文本含 {{占位符}} → 模板渲染（支持"前缀{{字段}}后缀"拼接）
+  if (cell.text && cell.text.includes('{{')) return renderText(cell.text, row)
+  if (cell.binding) {
+    const v = row[cell.binding]
+    return v != null && v !== '' ? v : (cell.text || '')
+  }
+  return cell.text || ''
+}
+
+// 单元格渲染节点：文本 / 二维码 / 条码 / 图片
+const cellImgCache = ref({})
+function tableCellNode(c, r, col, row) {
+  const cell = c.cells?.[`${r},${col}`]
+  if (!cell) return ''
+  const type = cell.type || 'text'
+  const value = tableCellText(c, r, col, row)
+
+  if (type === 'qrcode' || type === 'barcode') {
+    if (!value) return ''
+    const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}`
+    if (!cellImgCache.value[key]) {
+      const cv = type === 'qrcode'
+        ? qrToCanvas(String(value), 240)
+        : barcodeToCanvas(String(value), { format: cell.format || 'CODE128' })
+      cellImgCache.value[key] = cv ? canvasToDataURL(cv) : ''
+    }
+    const src = cellImgCache.value[key]
+    if (!src) return ''
+    return h('img', { src, style: CELL_IMG_STYLE })
+  }
+
+  if (type === 'image') {
+    const src = value || cell.src || ''
+    if (!src) return ''
+    return h('img', { src, style: CELL_IMG_STYLE })
+  }
+
+  return value
+}
+
+const CELL_IMG_STYLE = {
+  maxWidth: '100%',
+  maxHeight: '100%',
+  display: 'block',
+  margin: '0 auto',
+  objectFit: 'contain'
+}
+
+function renderTextHtml(text, row) {
+  if (!text) return ''
+  const rendered = renderText(text, row)
+  return rendered.replace(/\n/g, '<br/>')
+}
+
+function imageSrc(c, row) {
+  if (c.source === 'field') return row[c.binding] || ''
+  return c.src || ''
+}
+
+const qrCache = ref({})
+function qrUrl(c, row) {
+  const txt = c.binding ? (row[c.binding] || c.text || ' ') : (c.text || ' ')
+  const key = c.id + '|' + txt
+  if (!qrCache.value[key]) {
+    generateQRCode(String(txt), { width: 300 }).then(url => {
+      qrCache.value[key] = url
+    })
+  }
+  return qrCache.value[key]
+}
+
+const barCache = ref({})
+function barcodeUrl(c, row) {
+  const txt = c.binding ? (row[c.binding] || c.text || '123456') : (c.text || '123456')
+  const key = c.id + '|' + txt + '|' + (c.format || 'CODE128')
+  if (!barCache.value[key]) {
+    barCache.value[key] = generateBarcode(String(txt), { format: c.format })
+  }
+  return barCache.value[key]
+}
+
+function formatDate(c, row) {
+  if (c.source === 'field' && row[c.binding]) {
+    return dayjs(row[c.binding]).format(c.format || 'YYYY-MM-DD')
+  }
+  return dayjs().format(c.format || 'YYYY-MM-DD HH:mm:ss')
+}
+
+// ============ 翻页 / 缩放 ============
+function prevPage() { if (currentPage.value > 1) currentPage.value-- }
+function nextPage() { if (currentPage.value < totalPages.value) currentPage.value++ }
+function goToPage(p) { if (p >= 1 && p <= totalPages.value) currentPage.value = p }
+function zoomIn() { scale.value = Math.min(3, +(scale.value + 0.1).toFixed(2)) }
+function zoomOut() { scale.value = Math.max(0.3, +(scale.value - 0.1).toFixed(2)) }
+
+watch(totalPages, v => {
+  if (currentPage.value > v) currentPage.value = v
+})
+
+onMounted(async () => {
+  window.__labelPrinterExport = async (type) => {
+    await nextTick()
+    if (type === 'pdf') onExportPDF()
+    else if (type === 'image') onExportImage()
+  }
+  if (props.autoExport === 'pdf') {
+    await nextTick()
+    onExportPDF()
+  } else if (props.autoExport === 'image') {
+    await nextTick()
+    onExportImage()
+  }
+})
+
+onBeforeUnmount(() => {
+  delete window.__labelPrinterExport
+})
+
+// ============ 打印/导出 ============
+async function getPrintableEls() {
+  await nextTick()
+  await new Promise(r => setTimeout(r, 600)) // 等二维码/条形码生成
+  return pageRefs.value.filter(Boolean)
+}
+
+// 按任务参数筛页：all=全部 / current=当前页 / range=区间
+function pagesForTask(opts = {}) {
+  const all = pageRefs.value.filter(Boolean)
+  const range = opts.range || 'all'
+  if (range === 'current') {
+    const i = Math.min(Math.max(0, currentPage.value - 1), all.length - 1)
+    return all.slice(i, i + 1)
+  }
+  if (range === 'range') {
+    const s = Math.max(1, opts.rangeStart || 1)
+    const e = Math.max(s, opts.rangeEnd || s)
+    return all.slice(s - 1, e)
+  }
+  return all
+}
+
+function rangeLabel(o = {}) {
+  if (!o.range || o.range === 'all') return '全部'
+  if (o.range === 'current') return `第 ${currentPage.value} 页`
+  return `${o.rangeStart || 1}-${o.rangeEnd || '?'} 页`
+}
+
+/**
+ * 核心打印：按 opts（range/rangeStart/rangeEnd/copies）构建打印 HTML 并调起系统打印
+ */
+async function printPages(opts = {}) {
+  await nextTick()
+  const els = pagesForTask(opts)
+  if (!els.length) { alert(t('没有可打印的内容')); return false }
+  // 等二维码/条形码 data:URL 生成完（生成是异步的，且 await 链可达）
+  await waitForImages(els, 3000)
+
+  const copies = Math.max(1, Math.floor(opts.copies || 1))
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  document.body.appendChild(iframe)
+
+  // 灰度开关：打印 CSS 滤镜
+  const grayscaleFilter = opts.grayscale ? 'filter: grayscale(1);' : ''
+
+  const doc = iframe.contentDocument
+  doc.open()
+  doc.write(`<!DOCTYPE html><html><head><title>print</title>
+    <style>
+      @page { size: ${project.project.paper.width}mm ${project.project.paper.height}mm; margin: 0; }
+      body { margin: 0; padding: 0; }
+      .page {
+        position: relative;
+        width: ${project.project.paper.width}mm;
+        height: ${project.project.paper.height}mm;
+        page-break-after: always;
+        break-after: page;
+        overflow: hidden;
+        ${grayscaleFilter}
+      }
+      .page:last-child { page-break-after: auto; break-after: auto; }
+      img { display: block; image-rendering: ${opts.quality === 'high' ? 'pixelated' : 'auto'}; }
+    </style></head><body>`)
+  doc.close()
+
+  const pxPerMm = S()
+  const appendPage = (el) => {
+    const clone = el.cloneNode(true)
+    clone.removeAttribute('data-v-inspector')
+    convertPxToMm(clone, 1 / pxPerMm)
+    // 去掉预览用的视觉样式，保证打印干净
+    clone.style.boxShadow = ''
+    clone.style.margin = '0'
+    clone.style.background = 'white'
+    doc.body.appendChild(clone)
+  }
+  // 份数 + 逐份/逐页
+  // collate=true (默认):  1,2,3, 1,2,3, 1,2,3 — 每"套"重复 N 遍
+  // collate=false:         1,1,1, 2,2,2, 3,3,3 — 每页重复 N 遍
+  if (opts.collate !== false) {
+    for (let c = 0; c < copies; c++) {
+      for (const el of els) appendPage(el)
+    }
+  } else {
+    for (const el of els) {
+      for (let c = 0; c < copies; c++) appendPage(el)
+    }
+  }
+
+  // 等 iframe 内所有图片真正加载完（data:URL 同步完成；外部 URL 等待或超时）
+  await waitForImages([doc.body], 3000)
+
+  iframe.contentWindow.focus()
+  iframe.contentWindow.print()
+
+  setTimeout(() => document.body.removeChild(iframe), 1000)
+  return true
+}
+
+function currentPrintOpts() {
+  const cfg = project.project.printConfig
+  return {
+    range: cfg.range || 'all',
+    rangeStart: cfg.rangeStart,
+    rangeEnd: cfg.rangeEnd,
+    copies: cfg.copies || 1,
+    collate: !!cfg.collate,
+    grayscale: !!cfg.grayscale,
+    quality: cfg.quality || 'standard'
+  }
+}
+
+async function onPrint() {
+  const opts = currentPrintOpts()
+  const ok = await printPages(opts)
+  if (ok) {
+    printStore.addHistory({
+      type: 'print',
+      projectId: project.currentId,
+      projectName: project.project.meta.name,
+      pages: pagesForTask(opts).length,
+      copies: opts.copies,
+      detail: rangeLabel(opts)
+    })
+  }
+}
+
+// 当前预览的打印设置加入队列
+function addQueue() {
+  const opts = currentPrintOpts()
+  printStore.addTask({
+    projectId: project.currentId,
+    projectName: project.project.meta.name,
+    range: opts.range,
+    rangeStart: opts.rangeStart,
+    rangeEnd: opts.rangeEnd,
+    copies: opts.copies,
+    pages: pagesForTask(opts).length,
+    label: `${rangeLabel(opts)} × ${opts.copies} 份`
+  })
+}
+
+// 依次执行当前项目的排队任务（每个任务弹一次系统打印对话框）
+async function runQueue() {
+  const pid = project.currentId
+  const tasks = printStore.queue.filter(t => t.status === 'pending' && t.projectId === pid)
+  for (const task of tasks) {
+    printStore.updateTask(task.id, { status: 'printing' })
+    try {
+      const ok = await printPages(task)
+      printStore.updateTask(task.id, { status: ok ? 'done' : 'failed' })
+      if (ok) {
+        printStore.addHistory({
+          type: 'print',
+          projectId: pid,
+          projectName: task.projectName,
+          pages: task.pages || pagesForTask(task).length,
+          copies: task.copies,
+          detail: task.label || rangeLabel(task)
+        })
+      }
+    } catch (e) {
+      printStore.updateTask(task.id, { status: 'failed' })
+    }
+  }
+}
+
+defineExpose({ runQueue })
+
+function convertPxToMm(root, factor) {
+  const convert = (el) => {
+    if (el.style && el.style.cssText) {
+      el.style.cssText = el.style.cssText.replace(/(\d+(\.\d+)?)px/g, (m, v) => {
+        return (parseFloat(v) * factor).toFixed(3) + 'mm'
+      })
+    }
+  }
+  // 先处理根元素自身（关键：TreeWalker 不含 root）
+  convert(root)
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
+  let n = walker.nextNode()
+  while (n) {
+    convert(n)
+    n = walker.nextNode()
+  }
+}
+
+async function onExportPDF() {
+  const els = await getPrintableEls()
+  if (!els.length) return alert(t('没有可导出的内容'))
+  const fname = (project.project.meta.name || 'label') + '.pdf'
+  await exportElementsToPDF(els, {
+    width: project.project.paper.width,
+    height: project.project.paper.height
+  }, fname)
+  printStore.addHistory({
+    type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
+    pages: els.length, copies: 1, detail: '全部'
+  })
+}
+
+async function onExportImage() {
+  const els = await getPrintableEls()
+  if (!els.length) return alert(t('没有可导出的内容'))
+  const fname = (project.project.meta.name || 'label') + '.png'
+  await exportElementToImage(els[0], fname)
+  printStore.addHistory({
+    type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
+    pages: 1, copies: 1, detail: '第 1 页'
+  })
+}
+</script>
+
+<style scoped>
+.preview-overlay { background: rgba(0,0,0,0.6); }
+.preview-modal {
+  background: #f1f5f9;
+  border-radius: 8px;
+  width: 92vw;
+  height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.preview-modal .modal-header {
+  padding: 10px 16px;
+  background: white;
+  border-radius: 8px 8px 0 0;
+}
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.divider-v {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.preview-body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+.pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.page { background: white; }
+.label { background: white; }
+.label-slot { background: transparent; }
+.slot-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: #cbd5e1; border: 1px dashed #e2e8f0;
+  box-sizing: border-box;
+}
+.empty-page { text-align: center; color: var(--text-muted); padding: 60px; }
+/* 打印/导出专用隐藏容器（保持在渲染树中，html2canvas 可抓取） */
+.export-hidden {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+</style>
