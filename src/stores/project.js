@@ -577,6 +577,8 @@ export const useProjectStore = defineStore('project', () => {
 
   function persistNow() {
     if (!persistReady || restoring || !currentId.value) return
+    clearTimeout(saveTimer)
+    saveTimer = null
     const idx = projects.value.findIndex(p => p.id === currentId.value)
     if (idx < 0) return
     projects.value[idx] = {
@@ -599,7 +601,10 @@ export const useProjectStore = defineStore('project', () => {
       console.warn('自动保存失败（可能超出存储配额）:', e)
       persistError.value = MILD
     }
+    // 实时落盘成功 → 清 dirty（否则刷新仍弹「可能未保存」）
+    if (localOk) dirty.value = false
     idbPromise.then(ok => {
+      if (ok) dirty.value = false
       if (ok === false && !localOk) persistError.value = HARD
     })
   }
@@ -607,6 +612,11 @@ export const useProjectStore = defineStore('project', () => {
   function schedulePersist() {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(persistNow, 600)
+  }
+
+  /** 离开页面前把防抖队列立刻写完，避免 600ms 窗口丢改动 */
+  function flushPersist() {
+    if (saveTimer) persistNow()
   }
 
   function loadFromStorage() {
@@ -895,7 +905,7 @@ export const useProjectStore = defineStore('project', () => {
     selectedComponent, isMultiSelect,
     labelAreaOrigin, labelAreaSize, labelsPerPage,
     projects, currentId, persistError,
-    newProject, setProject, setFilePath, markDirty,
+    newProject, setProject, setFilePath, markDirty, persistNow, flushPersist,
     addComponent, updateComponent, removeComponent, moveComponent,
     batchUpdate, absorbHistory,
     reorderComponent, bringForward, sendBackward,

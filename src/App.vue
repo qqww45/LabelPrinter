@@ -148,9 +148,10 @@ const OnboardingGuide = defineAsyncComponent(() => import('./components/Onboardi
 const project = useProjectStore()
 const data = useDataStore()
 
-// 未保存改动时关闭/刷新页面前警告（自动保存仍可能延迟）
+// 离开页面前先刷完自动保存；只有落盘失败才拦刷新（避免「已实时保存」仍弹未保存）
 function onBeforeUnload(e) {
-  if (!project.dirty) return
+  try { project.flushPersist() } catch { /* ignore */ }
+  if (!project.persistError) return
   e.preventDefault()
   e.returnValue = ''
 }
@@ -382,7 +383,8 @@ function switchToProject(id) {
 }
 
 async function onOpen() {
-  if (project.dirty && !confirm('当前项目未保存，确定打开其他项目吗？')) return
+  try { project.flushPersist() } catch { /* ignore */ }
+  if (project.persistError && !confirm(t('自动保存失败，确定继续打开其他项目吗？'))) return
   try {
     const file = await pickFile('.json,.lbp,application/json')
     const json = await readJSONFile(file)
@@ -805,6 +807,13 @@ window.addEventListener('keydown', onGlobalKey)
   flex-shrink: 0;
   min-height: 0;
   overflow: hidden;
+  transition: height 0.14s ease;
+}
+.bottom.is-collapsed {
+  height: 36px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom { transition: none; }
 }
 .import-choice { width: min(440px, 92vw); }
 .import-choice p { margin: 0 0 8px; line-height: 1.5; }

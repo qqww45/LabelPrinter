@@ -1,15 +1,46 @@
 <template>
-  <div class="data-panel">
+  <div class="data-panel" :class="{ 'is-collapsed': collapsed }">
     <div
       class="data-toolbar"
       role="toolbar"
       :aria-label="t('数据')"
       :class="{ 'menu-open': sampleOpen && !data.headers.length }"
     >
+      <button
+        type="button"
+        class="tool collapse-btn"
+        :aria-expanded="!collapsed"
+        :aria-controls="bodyId"
+        :title="collapsed ? t('展开数据面板') : t('收起数据面板')"
+        :aria-label="collapsed ? t('展开数据面板') : t('收起数据面板')"
+        @click="toggleCollapsed"
+      >
+        <svg class="collapse-ico" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+          <path
+            v-if="collapsed"
+            d="M4 10.5 8 6.5l4 4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            v-else
+            d="M4 5.5 8 9.5l4-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+
       <!-- 左：身份 + 筛选 + 统计 -->
       <div class="tb-meta">
         <span class="title">{{ t('数据') }}</span>
-        <label class="filter-wrap" v-if="data.headers.length">
+        <label class="filter-wrap" v-if="!collapsed && data.headers.length">
           <span class="sr-only">{{ t('筛选...') }}</span>
           <input
             class="filter-input"
@@ -28,8 +59,8 @@
 
       <span class="spacer" aria-hidden="true"></span>
 
-      <!-- 中：编辑类（有表结构时） -->
-      <div v-if="data.headers.length" class="tb-cluster">
+      <!-- 中：编辑类（展开且有表结构时） -->
+      <div v-if="!collapsed && data.headers.length" class="tb-cluster">
         <button type="button" class="tool" @click="addEmpty" :title="t('在末尾添加一行')" :aria-label="t('添加行')">+ {{ t('添加行') }}</button>
         <div v-if="data.rows.length" class="sample-wrap" :class="{ open: exportOpen }">
           <button
@@ -47,7 +78,7 @@
         </div>
       </div>
 
-      <!-- 右：空态入口 / 有数据时清空 + 导入 -->
+      <!-- 右：空态入口 / 有数据时清空 + 导入（收起时仍保留导入/示例，方便不展开就灌数） -->
       <div class="tb-actions">
         <template v-if="!data.headers.length">
           <div class="sample-wrap">
@@ -58,7 +89,7 @@
               aria-haspopup="menu"
               @click.stop="sampleOpen = !sampleOpen"
             >{{ t('加载示例') }} ▾</button>
-            <div v-if="sampleOpen" class="pop-menu" role="menu" @click.stop>
+            <div v-if="sampleOpen" class="pop-menu" :class="{ 'pop-menu-up': collapsed }" role="menu" @click.stop>
               <button
                 v-for="s in samples"
                 :key="s.id"
@@ -69,10 +100,16 @@
               >{{ t(s.name) }}</button>
             </div>
           </div>
-          <button type="button" class="tool quiet" @click="addCol('名称')" :title="t('手动建表')">+ {{ t('建表') }}</button>
+          <button
+            v-if="!collapsed"
+            type="button"
+            class="tool quiet"
+            @click="addCol('名称')"
+            :title="t('手动建表')"
+          >+ {{ t('建表') }}</button>
         </template>
         <button
-          v-if="data.headers.length || data.rows.length"
+          v-if="!collapsed && (data.headers.length || data.rows.length)"
           type="button"
           class="tool danger"
           @click="clearAll"
@@ -82,6 +119,7 @@
       </div>
     </div>
 
+    <div :id="bodyId" class="data-body" v-show="!collapsed">
     <div class="data-grid" v-if="data.headers.length" ref="gridEl" @scroll="onGridScroll">
       <table>
         <thead>
@@ -185,8 +223,10 @@
         <span class="empty-rule"></span>
       </div>
       <p class="empty-copy">{{ t('还没有数据') }}</p>
-      <p class="empty-hint">{{ t('右上角导入表格，或加载示例 / 建表') }}</p>
+      <p class="empty-hint">{{ t('下一步：用工具栏导入表格，或加载示例 / 建表') }}</p>
     </div>
+    </div>
+
     <div v-if="sampleOpen" class="pop-mask" @click="sampleOpen = false"></div>
     <div v-if="exportOpen" class="pop-mask" @click="exportOpen = false"></div>
   </div>
@@ -248,7 +288,25 @@ onMounted(() => {
 
 const emit = defineEmits(['import', 'load-sample'])
 const sampleOpen = ref(false)
+const exportOpen = ref(false)
 const samples = SAMPLE_DATASETS
+const bodyId = 'data-panel-body'
+
+const COLLAPSE_KEY = 'labelprint_data_panel_collapsed'
+const collapsed = ref(false)
+try {
+  collapsed.value = localStorage.getItem(COLLAPSE_KEY) === '1'
+} catch { /* ignore */ }
+
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value
+  if (collapsed.value) {
+    sampleOpen.value = false
+    exportOpen.value = false
+  }
+  try { localStorage.setItem(COLLAPSE_KEY, collapsed.value ? '1' : '0') } catch { /* ignore */ }
+}
+function openExport() { exportOpen.value = !exportOpen.value }
 
 const metaTitle = computed(() => {
   const parts = []
@@ -422,8 +480,6 @@ function clearAll() {
 }
 
 // ============ 导出 ============
-const exportOpen = ref(false)
-function openExport() { exportOpen.value = !exportOpen.value }
 async function doExport(fmt) {
   exportOpen.value = false
   const ts = new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')
@@ -447,6 +503,24 @@ async function doExport(fmt) {
   height: 100%;
   position: relative;
 }
+.data-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.collapse-btn {
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.collapse-ico {
+  display: block;
+  flex-shrink: 0;
+}
 
 /* —— 工具栏：左 meta | 中编辑簇 | 右动作 —— */
 .data-toolbar {
@@ -461,6 +535,13 @@ async function doExport(fmt) {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 92%, var(--primary) 6%), var(--bg-panel));
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.data-panel.is-collapsed .data-toolbar {
+  min-height: 36px;
+  height: 100%;
+  padding: 0 10px;
+  border-bottom: 0;
+  box-shadow: none;
 }
 .tb-meta {
   display: inline-flex;
@@ -596,6 +677,11 @@ async function doExport(fmt) {
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
+}
+/* 收起条贴底：菜单向上开，避免被视口裁切 */
+.pop-menu-up {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 .pop-item {
   border: 0;

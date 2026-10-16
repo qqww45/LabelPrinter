@@ -19,50 +19,62 @@
 
     <div class="divider divider-hide-narrow" />
 
-    <div class="group group-config">
-      <button class="btn" @click="$emit('template-library')" :title="t('内置模板与我的模板')">
-        <span class="ico" v-html="icons.library"></span><span class="txt">{{ t('模板库') }}</span>
+    <!-- 主路径：纸张 · 预览 · 打印 · 导出 -->
+    <div class="group group-main">
+      <button class="btn" type="button" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')">
+        <span class="ico" v-html="icons.paper"></span><span class="txt">{{ t('纸张') }}</span>
       </button>
-      <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 调整：对着当前标签说话，画布上马上能看到')">
-        <span class="ico" v-html="icons.ai"></span><span class="txt">{{ t('AI 调整') }}</span>
-      </button>
-      <button class="btn" @click="$emit('field-map')" :title="t('模板字段与数据列的对应关系')">
-        <span class="ico" v-html="icons.map"></span><span class="txt">{{ t('字段映射') }}</span>
-      </button>
-      <button class="btn" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')">
-        <span class="ico" v-html="icons.paper"></span><span class="txt">{{ t('纸张设置') }}</span>
-      </button>
-      <button class="btn" @click="$emit('layout-editor')" :title="t('排版与边距')">
-        <span class="ico" v-html="icons.layout"></span><span class="txt">{{ t('排版') }}</span>
-      </button>
-    </div>
-
-    <div class="divider divider-hide-narrow" />
-
-    <div class="group group-ops">
-      <button class="btn keep-label" @click="$emit('print-config')" :title="t('打印设置')">
-        <span class="ico" v-html="icons.printSetup"></span><span class="txt">{{ t('打印设置') }}</span>
-      </button>
-      <button class="btn" @click="$emit('print-center')" :title="t('打印队列与历史记录')">
-        <span class="ico" v-html="icons.queue"></span><span class="txt">{{ t('打印中心') }}</span>
-      </button>
-      <button class="btn" @click="$emit('preview')" :title="t('预览')">
+      <button class="btn keep-label" type="button" @click="$emit('preview')" :title="t('预览')">
         <span class="ico" v-html="icons.preview"></span><span class="txt">{{ t('预览') }}</span>
       </button>
+      <button class="btn btn-primary keep-label" type="button" @click="$emit('print')" :title="t('打印')">
+        <span class="ico" v-html="icons.print"></span><span class="txt">{{ t('打印') }}</span>
+      </button>
+      <button class="btn" type="button" @click="$emit('export-pdf')" :title="t('导出 PDF')">
+        <span class="ico" v-html="icons.pdf"></span><span class="txt">PDF</span>
+      </button>
+      <button class="btn" type="button" @click="$emit('export-image')" :title="t('导出图片')">
+        <span class="ico" v-html="icons.image"></span><span class="txt">{{ t('图片') }}</span>
+      </button>
     </div>
 
     <div class="divider divider-hide-narrow" />
 
-    <div class="group group-output">
-      <button class="btn btn-primary keep-label" @click="$emit('print')" :title="t('打印')">
-        <span class="ico" v-html="icons.print"></span><span class="txt">{{ t('打印') }}</span>
-      </button>
-      <button class="btn" @click="$emit('export-pdf')" :title="t('导出 PDF')">
-        <span class="ico" v-html="icons.pdf"></span><span class="txt">PDF</span>
-      </button>
-      <button class="btn" @click="$emit('export-image')" :title="t('导出图片')">
-        <span class="ico" v-html="icons.image"></span><span class="txt">{{ t('图片') }}</span>
-      </button>
+    <!-- 次要入口收进「更多」 -->
+    <div class="group group-more">
+      <div class="more-wrap">
+        <button
+          class="btn"
+          type="button"
+          :aria-expanded="moreOpen"
+          aria-haspopup="menu"
+          @click.stop="moreOpen = !moreOpen"
+        >
+          <span class="ico" v-html="icons.more"></span>
+          <span class="txt">{{ t('更多') }}</span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <div v-if="moreOpen" class="more-menu" role="menu" @click.stop>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('template-library')">
+            <span class="ico" v-html="icons.library"></span>{{ t('模板库') }}
+          </button>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('ai')">
+            <span class="ico" v-html="icons.ai"></span>{{ t('AI 调整') }}
+          </button>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('field-map')">
+            <span class="ico" v-html="icons.map"></span>{{ t('字段映射') }}
+          </button>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('layout-editor')">
+            <span class="ico" v-html="icons.layout"></span>{{ t('排版') }}
+          </button>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('print-config')">
+            <span class="ico" v-html="icons.printSetup"></span>{{ t('打印设置') }}
+          </button>
+          <button type="button" class="more-item" role="menuitem" @click="pickMore('print-center')">
+            <span class="ico" v-html="icons.queue"></span>{{ t('打印中心') }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="spacer" />
@@ -87,6 +99,7 @@
         {{ settings.lang === 'en' ? '中' : 'EN' }}
       </button>
     </div>
+    <div v-if="moreOpen" class="more-mask" @click="moreOpen = false"></div>
   </div>
 </template>
 
@@ -100,9 +113,17 @@ const project = useProjectStore()
 const settings = useSettingsStore()
 const { t } = useI18n()
 
-defineEmits(['import-data',
+const emit = defineEmits([
+  'import-data',
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
-  'template-library', 'field-map', 'print-center', 'ai'])
+  'template-library', 'field-map', 'print-center', 'ai'
+])
+
+const moreOpen = ref(false)
+function pickMore(ev) {
+  moreOpen.value = false
+  emit(ev)
+}
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const icons = {
@@ -117,20 +138,24 @@ const icons = {
   print: S('<path d="M7 9V4.5h10V9"/><rect x="5" y="9" width="14" height="8" rx="1.5"/><path d="M8 17v2.5h8V17"/>'),
   pdf: S('<path d="M8 3.5h6l4 4V20.5H8z"/><path d="M14 3.5V8h4"/><path d="M10 13h4M10 16h6"/>'),
   image: S('<rect x="4" y="5" width="16" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 16.5l4.5-4.5 3 3 3-4 4.5 5.5"/>'),
+  more: S('<circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/>'),
   sun: S('<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6 6 18"/>'),
   moon: S('<path d="M16.5 14.2A6.2 6.2 0 0 1 9.8 7.5 6.5 6.5 0 1 0 16.5 14.2z"/>')
 }
 
-const COMPACT_THRESHOLD = 1180
+const COMPACT_THRESHOLD = 900
 const isCompact = ref(typeof window !== 'undefined' && window.innerWidth < COMPACT_THRESHOLD)
 function onResize() { isCompact.value = window.innerWidth < COMPACT_THRESHOLD }
 
 onMounted(() => { window.addEventListener('resize', onResize) })
-onBeforeUnmount(() => { window.removeEventListener('resize', onResize) })
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize)
+})
 </script>
 
 <style scoped>
 .toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   padding: 8px 12px;
@@ -147,18 +172,11 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onResize) })
   align-items: center;
   gap: 4px;
 }
-.group-config,
-.group-ops { background: var(--bg-soft); padding: 2px 6px; border-radius: 6px; }
-.group-output { background: rgba(16, 185, 129, 0.08); padding: 2px 6px; border-radius: 6px; }
-
-.btn-ai {
-  color: var(--primary) !important;
-  border-color: rgba(37, 99, 235, 0.45) !important;
-  background: rgba(37, 99, 235, 0.08) !important;
-}
-.btn-ai:hover {
-  background: rgba(37, 99, 235, 0.14) !important;
-  border-color: var(--primary) !important;
+.group-main {
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .logo {
@@ -176,7 +194,7 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onResize) })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(37, 99, 235, 0.1);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
   color: var(--primary);
 }
 .logo-text { white-space: nowrap; }
@@ -208,12 +226,52 @@ onBeforeUnmount(() => { window.removeEventListener('resize', onResize) })
 }
 .btn .ico :deep(svg) { display: block; }
 .btn .txt { white-space: nowrap; }
+.caret { font-size: 10px; opacity: 0.7; margin-left: -2px; }
+
+.more-wrap { position: relative; z-index: 30; }
+.more-mask { position: fixed; inset: 0; z-index: 20; }
+.more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 31;
+  min-width: 168px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent);
+  overscroll-behavior: contain;
+}
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.more-item:hover { background: var(--bg-hover); }
+.more-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.more-item .ico { opacity: 0.85; color: var(--text-secondary); }
 
 .toolbar.compact .logo-text,
 .toolbar.compact .filename-text { display: none; }
 .toolbar.compact .btn .txt { display: none; }
 .toolbar.compact .btn.keep-label .txt { display: inline; }
+.toolbar.compact .caret { display: none; }
 .toolbar.compact .divider-hide-narrow { display: none; }
-.toolbar.compact .group { background: transparent; padding: 0; }
+.toolbar.compact .group-main { background: transparent; border: 0; padding: 0; }
 .toolbar.compact .btn { padding: 4px 6px; }
 </style>

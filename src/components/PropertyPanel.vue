@@ -1,8 +1,9 @@
 <template>
   <div class="property-panel">
     <div v-if="!selected && !isMultiSelect" class="empty">
-      <div style="font-size:32px;opacity:0.3">⚙️</div>
-      <div>选中画布中的组件<br/>在此编辑属性</div>
+      <div class="empty-mark" aria-hidden="true"></div>
+      <p class="empty-copy">{{ t('还没有选中组件') }}</p>
+      <p class="empty-hint">{{ t('下一步：在画布上点选，或从左侧拖入组件') }}</p>
     </div>
 
     <div v-else-if="isMultiSelect" class="content content-multi">
@@ -53,26 +54,7 @@
         <span>{{ t(typeNames[selected.type] || selected.type) }} {{ t('属性') }}</span>
       </div>
 
-      <!-- 通用：位置尺寸 -->
-      <fieldset>
-        <legend>位置 & 尺寸 (mm)</legend>
-        <div class="form-row">
-          <label>X</label><input class="input" type="number" step="0.1" :value="selected.left" @input="update('left', +$event.target.value)" />
-          <label>Y</label><input class="input" type="number" step="0.1" :value="selected.top" @input="update('top', +$event.target.value)" />
-        </div>
-        <div class="form-row">
-          <label>宽</label><input class="input" type="number" step="0.1" :value="selected.width" @input="update('width', +$event.target.value)" />
-          <label>高</label><input class="input" type="number" step="0.1" :value="selected.height" @input="update('height', +$event.target.value)" />
-        </div>
-        <div class="form-row">
-          <label>角度</label><input class="input" type="number" step="1" :value="selected.angle || 0" @input="update('angle', +$event.target.value)" />
-          <span class="hint">度（-180~180）</span>
-        </div>
-        <p class="hint">{{ t('在画布上拖动可移动，拖角点可放大缩小。') }}</p>
-        <label class="check-line"><input type="checkbox" :checked="!!selected.hidden" @change="update('hidden', $event.target.checked)" /> {{ t('隐藏（画布和打印都不显示）') }}</label>
-      </fieldset>
-
-      <!-- 通用：字段失效即时预警（所有组件类型通用） -->
+      <!-- 通用：字段失效即时预警 -->
       <div v-if="missingInSelection.length" class="field-alert">
         <div class="field-alert-head">⚠ {{ t('这个组件引用了数据里没有的字段') }}</div>
         <div class="field-alert-list">
@@ -82,32 +64,27 @@
         <button class="btn btn-sm" @click="emit('field-map')">{{ t('去字段映射') }}</button>
       </div>
 
-      <!-- 通用：组件名 -->
-      <fieldset>
-        <legend>组件名（图层）</legend>
-        <input class="input" :value="selected.name" @input="update('name', $event.target.value)" placeholder="便于在图层列表识别" />
-      </fieldset>
-
-      <!-- 文本 -->
-      <fieldset v-if="selected.type === 'text'">
-        <legend>文本内容</legend>
-        <textarea class="input" rows="3" :value="selected.text" @input="update('text', $event.target.value)" placeholder="支持 {{字段名}} 占位符" />
+      <!-- 文本：内容/绑定/外观置顶（高频） -->
+      <PropSection v-if="selected.type === 'text'" id="text" :title="t('文本')" :default-open="true">
+        <div class="form-stack">
+          <textarea class="input area" rows="3" :value="selected.text" @input="update('text', $event.target.value)" placeholder="支持 {{字段名}} 占位符" />
+        </div>
         <div class="form-row">
-          <label>绑定字段</label>
+          <label>{{ t('绑定') }}</label>
           <select class="input" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
-            <option value="">（不绑定）</option>
+            <option value="">{{ t('（不绑定）') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
-        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
-        <div class="form-row">
-          <label>字号</label><input class="input" type="number" :value="selected.fontSize" @input="update('fontSize', +$event.target.value)" />
+        <p v-if="selected.binding" class="hint indent">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
+        <div class="form-row pair">
+          <label>{{ t('字号') }}</label>
+          <input class="input num" type="number" :value="selected.fontSize" @change="update('fontSize', +$event.target.value)" />
+          <label>{{ t('字色') }}</label>
+          <input class="input swatch" type="color" :value="selected.fill" @input="update('fill', $event.target.value)" />
         </div>
         <div class="form-row">
-          <label>字色</label><input class="input" type="color" :value="selected.fill" @input="update('fill', $event.target.value)" />
-        </div>
-        <div class="form-row">
-          <label>字体</label>
+          <label>{{ t('字体') }}</label>
           <select class="input" :value="selected.fontFamily" @change="update('fontFamily', $event.target.value)">
             <option value="Microsoft YaHei">微软雅黑</option>
             <option value="SimSun">宋体</option>
@@ -118,21 +95,58 @@
           </select>
         </div>
         <div class="form-row">
-          <label>字重</label>
+          <label>{{ t('字重') }}</label>
           <select class="input" :value="selected.fontWeight" @change="update('fontWeight', $event.target.value)">
-            <option value="normal">常规</option>
-            <option value="bold">粗体</option>
+            <option value="normal">{{ t('常规') }}</option>
+            <option value="bold">{{ t('粗体') }}</option>
           </select>
         </div>
         <div class="form-row">
-          <label>对齐</label>
-          <div class="btn-group">
-            <button class="btn btn-sm" :class="{active: selected.textAlign==='left'}" @click="update('textAlign','left')">左</button>
-            <button class="btn btn-sm" :class="{active: selected.textAlign==='center'}" @click="update('textAlign','center')">中</button>
-            <button class="btn btn-sm" :class="{active: selected.textAlign==='right'}" @click="update('textAlign','right')">右</button>
+          <label>{{ t('对齐') }}</label>
+          <div class="seg" role="group" :aria-label="t('对齐')">
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='left' }" @click="update('textAlign','left')">{{ t('左') }}</button>
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='center' }" @click="update('textAlign','center')">{{ t('中') }}</button>
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='right' }" @click="update('textAlign','right')">{{ t('右') }}</button>
           </div>
         </div>
-      </fieldset>
+      </PropSection>
+
+      <!-- 通用：位置尺寸（可折叠） -->
+      <PropSection id="geom" :title="t('位置与尺寸')" unit="mm" :default-open="selected.type !== 'text'">
+        <div class="form-row pair">
+          <label>X</label>
+          <input class="input num" type="number" step="0.1" :value="mm(selected.left)" @change="updateMm('left', $event.target.value)" />
+          <label>Y</label>
+          <input class="input num" type="number" step="0.1" :value="mm(selected.top)" @change="updateMm('top', $event.target.value)" />
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('宽') }}</label>
+          <input class="input num" type="number" step="0.1" :value="mm(selected.width)" @change="updateMm('width', $event.target.value)" />
+          <label>{{ t('高') }}</label>
+          <input class="input num" type="number" step="0.1" :value="mm(selected.height)" @change="updateMm('height', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('角度') }}</label>
+          <div class="field-inline">
+            <input class="input num" type="number" step="1" :value="Math.round(selected.angle || 0)" @change="update('angle', +$event.target.value || 0)" />
+            <span class="unit">°</span>
+          </div>
+        </div>
+        <label class="check-line">
+          <input type="checkbox" :checked="!!selected.hidden" @change="update('hidden', $event.target.checked)" />
+          <span>{{ t('隐藏（画布和打印都不显示）') }}</span>
+        </label>
+      </PropSection>
+
+      <!-- 通用：组件名（默认收起） -->
+      <PropSection id="name" :title="t('组件名')" :default-open="false">
+        <input
+          class="input name-input"
+          :value="selected.name"
+          @input="update('name', $event.target.value)"
+          :placeholder="t('便于在图层列表识别')"
+        />
+      </PropSection>
 
       <!-- 图片 -->
       <fieldset v-if="selected.type === 'image'">
@@ -226,27 +240,36 @@
 
       <!-- 矩形 -->
       <fieldset v-if="selected.type === 'rect'">
-        <legend>样式</legend>
-        <div class="form-row">
-          <label>填充</label><input class="input" type="color" :value="selected.fill" @input="update('fill', $event.target.value)" />
-          <label>边框</label><input class="input" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
+        <legend>{{ t('样式') }}</legend>
+        <div class="form-row pair">
+          <label>{{ t('填充') }}</label>
+          <input class="input swatch" type="color" :value="selected.fill" @input="update('fill', $event.target.value)" />
+          <label>{{ t('边框') }}</label>
+          <input class="input swatch" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
         </div>
-        <div class="form-row">
-          <label>边框宽</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
-          <label>圆角</label><input class="input" type="number" :value="selected.rx" @input="update('rx', +$event.target.value)" />
+        <div class="form-row pair">
+          <label>{{ t('边框宽') }}</label>
+          <input class="input num" type="number" :value="selected.strokeWidth" @change="update('strokeWidth', +$event.target.value)" />
+          <label>{{ t('圆角') }}</label>
+          <input class="input num" type="number" :value="selected.rx" @change="update('rx', +$event.target.value)" />
         </div>
       </fieldset>
 
       <!-- 椭圆 -->
       <fieldset v-if="selected.type === 'ellipse'">
-        <legend>样式</legend>
-        <div class="form-row">
-          <label>填充</label><input class="input" type="color" :value="selected.fill === 'transparent' || !selected.fill ? '#ffffff' : selected.fill" @input="update('fill', $event.target.value)" />
-          <label>边框</label><input class="input" type="color" :value="selected.stroke || '#000000'" @input="update('stroke', $event.target.value)" />
+        <legend>{{ t('样式') }}</legend>
+        <div class="form-row pair">
+          <label>{{ t('填充') }}</label>
+          <input class="input swatch" type="color" :value="selected.fill === 'transparent' || !selected.fill ? '#ffffff' : selected.fill" @input="update('fill', $event.target.value)" />
+          <label>{{ t('边框') }}</label>
+          <input class="input swatch" type="color" :value="selected.stroke || '#000000'" @input="update('stroke', $event.target.value)" />
         </div>
         <div class="form-row">
-          <label>边框宽</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
-          <button class="btn btn-sm" type="button" @click="update('fill', 'transparent')">{{ t('透明填充') }}</button>
+          <label>{{ t('边框宽') }}</label>
+          <div class="field-inline">
+            <input class="input num" type="number" :value="selected.strokeWidth" @change="update('strokeWidth', +$event.target.value)" />
+            <button class="btn btn-sm" type="button" @click="update('fill', 'transparent')">{{ t('透明填充') }}</button>
+          </div>
         </div>
       </fieldset>
 
@@ -530,6 +553,7 @@ import { useDataStore } from '../stores/data'
 import { availableFields, componentFields, componentMissingFields } from '../utils/diagnose'
 import { placeholderNames, rewriteBindingText } from '../utils/render'
 import { ref, computed } from 'vue'
+import PropSection from './PropSection.vue'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -573,6 +597,18 @@ function update(key, value) {
   if (selected.value) {
     project.updateComponent(selected.value.id, { [key]: value })
   }
+}
+
+/** 毫米显示：一位小数，去掉拖拽带来的长尾浮点 */
+function mm(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return v ?? ''
+  return Math.round(n * 10) / 10
+}
+function updateMm(key, raw) {
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return
+  update(key, Math.round(n * 10) / 10)
 }
 
 function dropUnusedFieldMapKeys(removedNames) {
@@ -788,46 +824,239 @@ function onImgPreviewError() {
 
 <style scoped>
 .property-panel {
-  padding: 12px;
   height: 100%;
   overflow: auto;
-}
-/* 覆盖全局 label 80px 最小宽度：属性面板空间有限，用紧凑布局 */
-.form-row {
-  gap: 6px;
-}
-.form-row label {
-  min-width: 0;
-  width: auto;
-  flex-shrink: 0;
+  overscroll-behavior: contain;
+  padding: 10px 12px 20px;
   font-size: 12px;
-  white-space: nowrap;
+  color: var(--text);
 }
-.form-row .input {
-  flex: 1;
-  min-width: 0;
-  max-width: 260px;
-  padding: 4px 6px;
-  font-size: 12px;
-}
-.form-row input[type="color"] {
-  flex: 0 0 40px;
-  padding: 2px;
-  height: 28px;
-}
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 60px 20px;
-  font-size: 12px;
-}
+.content { min-width: 0; }
 .title {
-  font-weight: 600;
-  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  margin: 2px 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+/* —— 区块：去框线，靠标题分隔 —— */
+fieldset {
+  border: 0;
+  margin: 0 0 16px;
+  padding: 0;
+  min-width: 0;
+}
+legend {
+  display: block;
+  width: 100%;
+  float: none;
+  padding: 0 0 7px;
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+.leg-unit {
+  margin-left: 6px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--text-muted) 70%, var(--primary));
+  text-transform: uppercase;
+}
+
+/* —— 表单行：固定标签列；4 子项自动双列 —— */
+.form-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 0;
+  margin-bottom: 8px;
+}
+.form-row.pair,
+.form-row:has(> :nth-child(4)) {
+  grid-template-columns: 52px minmax(0, 1fr) 52px minmax(0, 1fr);
+}
+.form-row > label {
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.form-row .input,
+.form-row > .field-inline,
+.form-row > .seg,
+.form-row > .img-preview,
+.form-row > .img-actions,
+.form-row > .btn-group {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+.form-row .input {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.form-row .input.num {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.form-row .input.swatch,
+.form-row input[type="color"] {
+  width: 100%;
+  max-width: none;
+  height: 28px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.name-input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+.form-stack { margin-bottom: 8px; }
+.form-stack .area {
+  width: 100%;
+  min-height: 64px;
+  padding: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  border-radius: 6px;
+  resize: vertical;
+}
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.field-inline .input { flex: 1; }
+.unit {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.hint {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.hint.indent { padding-left: 60px; }
+.check-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-soft, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.check-line input {
+  margin-top: 1px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+/* 分段按钮（对齐） */
+.seg {
+  display: inline-flex;
+  width: 100%;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 8px;
+  background: var(--bg-soft, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+.seg-btn {
+  flex: 1;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.seg-btn:hover { color: var(--text); background: var(--bg-hover); }
+.seg-btn.on {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--primary);
+}
+.seg-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.btn-group {
+  display: flex;
+  gap: 2px;
+}
+.btn-group .btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 180px;
+  padding: 32px 20px;
+  text-align: center;
+}
+.empty-mark {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, transparent), transparent 60%),
+    var(--bg-soft, var(--bg));
+}
+.empty-copy {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.empty-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  max-width: 16em;
 }
 
 /* ============ 多选模式：排版工具栏 ============ */
@@ -856,32 +1085,9 @@ function onImgPreviewError() {
   border-radius: 4px;
   margin-top: 8px;
 }
-fieldset {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  /* fieldset 默认 min-inline-size:min-content，会被宽表格撑破面板 */
-  min-width: 0;
-}
-legend {
-  padding: 0 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.hint {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin: 4px 0;
-}
-.btn-group {
-  display: flex;
-  gap: 2px;
-}
-.btn-group .btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+
+@media (prefers-reduced-motion: reduce) {
+  .seg-btn { transition: none; }
 }
 /* 列宽比例编辑 */
 .col-weights {

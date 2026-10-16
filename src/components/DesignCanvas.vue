@@ -9,15 +9,17 @@
              :style="labelBorderOverlayStyle"></div>
         <!-- 空画布引导：首拖即消失；pointer-events:none 不挡拖放 -->
         <div v-if="!pj.project.components.length" class="canvas-empty" aria-hidden="true">
-          <div class="canvas-empty-title">{{ t('从左侧拖入组件') }}</div>
-          <div class="canvas-empty-sub">{{ t('文字、条码、二维码、序号、勾选框都可以直接拖到这里') }}</div>
+          <div class="canvas-empty-title">{{ t('还没有组件') }}</div>
+          <div class="canvas-empty-sub">{{ t('下一步：从左侧拖入文字、条码或二维码') }}</div>
         </div>
       </div>
 
-      <!-- 纸张与当前行：缩放/标签尺寸已在画布工具条 -->
-      <div class="info-bar">
-        <span>{{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
-        <span v-if="data.rows.length">{{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
+      <!-- 纸张 · 当前数据行 · 本页张数（文案在 computed，避免模板里 {n} 被解析器误伤） -->
+      <div class="info-bar" :title="infoBarTitle">
+        <span>{{ paperHint }}</span>
+        <span v-if="data.displayRows.length" class="info-row">{{ rowHint }}</span>
+        <span v-else class="info-muted">{{ t('无数据') }}</span>
+        <span v-if="labelsPerPage > 1">{{ pageHint }}</span>
       </div>
     </div>
   </div>
@@ -49,6 +51,26 @@ let fabricCanvas = null
 const pj = useProjectStore()
 const data = useDataStore()
 const { t } = useI18n()
+
+const labelsPerPage = computed(() => {
+  const L = pj.project.layout || {}
+  if (L.mode === 'auto') return Math.max(1, (L.cols || 1) * (L.rows || 1))
+  return 1
+})
+const paperHint = computed(() =>
+  `${t('纸张')} ${pj.project.paper.width}×${pj.project.paper.height} mm`
+)
+const rowHint = computed(() =>
+  t('第 {i} / {n} 行', { i: data.activeRowIndex + 1, n: data.displayRows.length })
+)
+const pageHint = computed(() => t('{n} 张/页', { n: labelsPerPage.value }))
+const infoBarTitle = computed(() => {
+  const parts = [paperHint.value]
+  if (data.displayRows.length) parts.push(rowHint.value)
+  else parts.push(t('无数据'))
+  if (labelsPerPage.value > 1) parts.push(pageHint.value)
+  return parts.join(' · ')
+})
 
 // 可用字段集合（数据源列名 + 已成功映射的模板字段名）
 // 用于设计态提示「字段在数据里不存在」——数据为空时集合为空，此时不提示（另有“没有数据”引导）
@@ -1155,40 +1177,46 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   padding: 12px;
   text-align: center;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.2), rgba(241, 245, 249, 0.55));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg) 20%, transparent),
+    color-mix(in srgb, var(--bg-hover) 55%, transparent)
+  );
 }
 .canvas-empty-title {
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-secondary);
   letter-spacing: 0.02em;
 }
 .canvas-empty-sub {
   font-size: 11px;
-  color: #94a3b8;
-  max-width: 180px;
+  color: var(--text-muted);
+  max-width: 200px;
   line-height: 1.45;
 }
-:global([data-theme='dark']) .canvas-empty {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.35));
-}
-:global([data-theme='dark']) .canvas-empty-title { color: #cbd5e1; }
-:global([data-theme='dark']) .canvas-empty-sub { color: #64748b; }
 .info-bar {
   position: absolute;
-  left: 12px;            /* 左下角，不挡组件 / 缩放控件 */
+  left: 12px;
   bottom: 12px;
-  background: rgba(15, 23, 42, 0.85);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 4px;
+  background: color-mix(in srgb, #0f172a 88%, transparent);
+  color: #f8fafc;
+  padding: 5px 10px;
+  border-radius: 6px;
   font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   display: flex;
-  gap: 12px;
-  z-index: 2;            /* 低于 fabric 的选中框 / 拖拽框 */
-  pointer-events: auto;  /* 默认接受 hover（用户可主动触发展示） */
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+  pointer-events: auto;
   user-select: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  opacity: 1;
+  backdrop-filter: blur(4px);
+}
+.info-row { color: #bfdbfe; }
+.info-muted { color: #94a3b8; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) {
+  .info-bar { transition: none; }
 }
 </style>

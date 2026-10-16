@@ -50,10 +50,11 @@
       <p v-else class="section-lead">
         {{ project.project.components.length
           ? t('已选 {n} / 共 {m}', { n: project.selectedIds.length, m: project.project.components.length })
-          : t('画布为空') }}
+          : t('还没有组件') }}
       </p>
       <div v-if="!project.project.components.length" class="empty">
-        {{ t('画布为空') }}
+        <div class="empty-copy">{{ t('还没有组件') }}</div>
+        <div class="empty-hint">{{ t('下一步：从上方组件库添加') }}</div>
       </div>
       <div v-else class="layers">
         <div
@@ -490,10 +491,23 @@ function onLayerDrop(e, target) {
 }
 .name { font-size: 11px; margin-top: 2px; color: var(--text-secondary); }
 .empty {
-  padding: 20px 0;
+  padding: 20px 8px;
   text-align: center;
   color: var(--text-muted);
   font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.empty-copy {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.empty-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 .fields {
   display: flex;

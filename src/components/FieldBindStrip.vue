@@ -7,7 +7,7 @@
 
     <div v-if="!data.fields.length" class="empty">
       <div>{{ t('暂无字段') }}</div>
-      <div class="empty-sub">{{ t('请先在底部导入数据') }}</div>
+      <div class="empty-sub">{{ t('下一步：先在底部导入数据') }}</div>
       <button class="empty-btn" type="button" @click="addFieldPrompt">+ {{ t('添加字段') }}</button>
     </div>
 

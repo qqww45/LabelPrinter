@@ -49,12 +49,12 @@
 }
 /* 暗色下的局部修正（组件里写死的浅色） */
 [data-theme='dark'] ::-webkit-scrollbar-thumb { background: #475569; }
-[data-theme='dark'] .design-canvas-wrap { background: #0b1220; }
-[data-theme='dark'] .preview-modal { background: #0b1220; }
-[data-theme='dark'] .preview-modal .modal-header { background: #1e293b; }
+[data-theme='dark'] .design-canvas-wrap { background: color-mix(in srgb, var(--bg) 88%, #000); }
+[data-theme='dark'] .preview-modal { background: color-mix(in srgb, var(--bg) 88%, #000); }
+[data-theme='dark'] .preview-modal .modal-header { background: var(--bg-panel); }
 [data-theme='dark'] .page { background: white; }   /* 纸张始终白色 */
 [data-theme='dark'] .component-item,
-[data-theme='dark'] .field-item { background: #16213a; }
+[data-theme='dark'] .field-item { background: var(--bg-toolbar); }
 
 * {
   margin: 0;
