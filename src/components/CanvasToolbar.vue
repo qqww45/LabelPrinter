@@ -70,6 +70,47 @@
       </button>
     </div>
 
+    <span class="rule" aria-hidden="true"></span>
+
+    <!-- 选中操作：样式 / 删除 —— 跟画布上下文走，不挤属性栏标题 -->
+    <div class="cluster sel-cluster" :class="{ dim: !hasSelection }">
+      <button
+        class="tool"
+        type="button"
+        :disabled="!hasSelection"
+        @click="onCopyStyle"
+        :title="t('复制样式') + ' (Ctrl+Shift+C)'"
+        :aria-label="t('复制样式')"
+      >
+        <span class="ico" v-html="icons.copyStyle"></span>
+      </button>
+      <button
+        class="tool"
+        type="button"
+        :disabled="!canPaste"
+        @click="onPasteStyle"
+        :title="canPaste ? (t('粘贴样式') + ' (Ctrl+Shift+V)') : t('剪贴板无匹配样式或类型不同')"
+        :aria-label="t('粘贴样式')"
+      >
+        <span class="ico" v-html="icons.pasteStyle"></span>
+      </button>
+      <button
+        class="tool danger"
+        type="button"
+        :disabled="!hasSelection"
+        @click="onDelete"
+        :title="deleteTitle"
+        :aria-label="t('删除组件')"
+      >
+        <span class="ico" v-html="icons.trash"></span>
+      </button>
+      <span
+        v-if="styleClipboard"
+        class="clip-chip"
+        :title="clipboardHint"
+      >{{ t('已复制样式') }}</span>
+    </div>
+
     <div class="spacer"></div>
 
     <div class="meta" :title="sizeHint">
@@ -86,9 +127,21 @@ import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
 import { fitZoomToWindow } from '../utils/canvasFit'
+import { toastInfo, toastSuccess } from '../utils/toast'
+import {
+  styleClipboard,
+  copyStyleFrom,
+  canPasteStyleTo,
+  stylePatchFor
+} from '../utils/styleClipboard'
 
 const project = useProjectStore()
 const { t } = useI18n()
+
+const TYPE_NAMES = {
+  text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码',
+  rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框'
+}
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const icons = {
@@ -105,11 +158,62 @@ const icons = {
   alignV: S('<path d="M4 12h16M8 7v10M12 5v14M16 8v8"/>'),
   alignBottom: S('<path d="M4 20h16M8 8v8M12 4v12M16 10v6"/>'),
   distH: S('<path d="M4 6v12M20 6v12M9 10h6M9 14h6"/>'),
-  distV: S('<path d="M6 4h12M6 20h12M10 9v6M14 9v6"/>')
+  distV: S('<path d="M6 4h12M6 20h12M10 9v6M14 9v6"/>'),
+  copyStyle: S('<rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15"/><path d="M12 13h5M12 16h3"/>'),
+  pasteStyle: S('<path d="M8 5h2a2 2 0 0 0 4 0h2v3H8V5z"/><rect x="6" y="8" width="12" height="12" rx="1.5"/><path d="M10 14h4M12 12v4"/>'),
+  trash: S('<path d="M4 7h16M9 7V5h6v2M8 7l1 12h6l1-12"/>')
 }
 
 const canAlign = computed(() => project.selectedIds.length >= 2)
 const canDistribute = computed(() => project.selectedIds.length >= 3)
+const hasSelection = computed(() => project.selectedIds.length >= 1)
+const primary = computed(() => {
+  const id = project.selectedIds[project.selectedIds.length - 1]
+  return project.project.components.find(c => c.id === id) || null
+})
+const canPaste = computed(() => canPasteStyleTo(primary.value))
+const deleteTitle = computed(() => {
+  const n = project.selectedIds.length
+  if (n > 1) return t('删除选中的所有组件') + ` (${n})`
+  return t('删除组件') + ' (Del)'
+})
+const clipboardHint = computed(() => {
+  if (!styleClipboard.value) return ''
+  const keys = Object.keys(styleClipboard.value.style || {})
+  return t('已复制') + ` ${styleClipboard.value.sourceName} · ${keys.length}`
+})
+
+function onCopyStyle() {
+  const c = primary.value
+  if (!c) return
+  const name = c.name || t(TYPE_NAMES[c.type] || c.type)
+  const r = copyStyleFrom(c, name)
+  if (r === 'empty') toastInfo(t('当前组件没有可复制的样式属性'))
+  else toastSuccess(t('样式已复制'))
+}
+
+function onPasteStyle() {
+  const c = primary.value
+  const patch = stylePatchFor(c)
+  if (!patch) return
+  project.updateComponent(c.id, patch)
+  toastSuccess(t('样式已粘贴'))
+}
+
+function onDelete() {
+  const ids = project.selectedIds
+  if (!ids.length) return
+  if (ids.length > 1) {
+    if (!confirm(t('确定要删除选中的 {n} 个组件？\n此操作可通过 Ctrl+Z 撤销。').replace('{n}', String(ids.length)))) return
+    project.removeSelected()
+    return
+  }
+  const c = primary.value
+  if (!c) return
+  const name = c.name || t(TYPE_NAMES[c.type] || c.type)
+  if (!confirm(t('确定要删除「{name}」组件？\n此操作可通过 Ctrl+Z 撤销。').replace('{name}', name))) return
+  project.removeComponent(c.id)
+}
 
 const zoomPresets = [25, 50, 75, 100, 125, 150, 200, 300, 400]
 const zoomPercent = computed(() => Math.round(project.zoom * 100))
@@ -154,7 +258,13 @@ function distribute(axis) { project.distributeSelected(axis) }
 function onKeydown(e) {
   const tag = (e.target.tagName || '').toLowerCase()
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return
-  if (e.ctrlKey || e.metaKey) {
+  const mod = e.ctrlKey || e.metaKey
+  if (mod && e.shiftKey) {
+    const k = e.key.toLowerCase()
+    if (k === 'c') { e.preventDefault(); onCopyStyle(); return }
+    if (k === 'v') { e.preventDefault(); onPasteStyle(); return }
+  }
+  if (mod) {
     if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn() }
     else if (e.key === '-') { e.preventDefault(); zoomOut() }
     else if (e.key === '0') { e.preventDefault(); zoomReset() }
@@ -236,6 +346,31 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
   color: var(--primary);
 }
+.tool.danger {
+  color: var(--text-secondary);
+}
+.tool.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+.clip-chip {
+  max-width: 88px;
+  margin: 0 4px 0 2px;
+  padding: 0 6px;
+  height: 22px;
+  line-height: 22px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
 .ico {
   display: inline-flex;
   width: 15px;
@@ -310,6 +445,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .align-cluster { display: none; }
+  .clip-chip { display: none; }
   .meta { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

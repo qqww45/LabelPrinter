@@ -1,40 +1,85 @@
 <template>
   <div class="data-panel">
-    <div class="data-toolbar">
-      <span class="title">{{ t('数据') }}</span>
-      <input class="input" style="width:160px" :placeholder="t('筛选...')" :value="data.filter"
-        @input="data.setFilter($event.target.value)" />
-      <span v-if="data.sourcePath" class="src">{{ data.sourcePath }}</span>
-      <span v-if="data.embedded" class="badge embedded">{{ t('内嵌快照') }}</span>
-      <span class="count">{{ data.filteredRows.length }} / {{ data.rows.length }} {{ t('行') }} · {{ data.headers.length }} {{ t('列') }}</span>
-
-      <span class="spacer"></span>
-
-      <button v-if="data.headers.length" class="btn btn-sm" @click="addEmpty" :title="t('在末尾添加一行')">+ {{ t('添加行') }}</button>
-      <button v-if="data.rows.length" class="btn btn-sm" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">{{ t('导出') }}</button>
-      <button v-if="data.headers.length || data.rows.length" class="btn btn-sm" @click="clearAll">{{ t('清空') }}</button>
-      <div class="sample-wrap" v-if="!data.headers.length">
-        <button
-          class="btn btn-sm"
-          type="button"
-          :aria-label="t('加载示例')"
-          :aria-expanded="sampleOpen"
-          aria-haspopup="menu"
-          @click="sampleOpen = !sampleOpen"
-        >{{ t('加载示例') }}</button>
-        <div v-if="sampleOpen" class="sample-menu" role="menu">
-          <button
-            v-for="s in samples"
-            :key="s.id"
-            class="sample-item"
-            type="button"
-            role="menuitem"
-            @click="pickSample(s.id)"
-          >{{ t(s.name) }}</button>
-        </div>
-        <div v-if="sampleOpen" class="sample-mask" @click="sampleOpen = false"></div>
+    <div
+      class="data-toolbar"
+      role="toolbar"
+      :aria-label="t('数据')"
+      :class="{ 'menu-open': sampleOpen && !data.headers.length }"
+    >
+      <!-- 左：身份 + 筛选 + 统计 -->
+      <div class="tb-meta">
+        <span class="title">{{ t('数据') }}</span>
+        <label class="filter-wrap" v-if="data.headers.length">
+          <span class="sr-only">{{ t('筛选...') }}</span>
+          <input
+            class="filter-input"
+            type="search"
+            :placeholder="t('筛选...')"
+            :value="data.filter"
+            @input="data.setFilter($event.target.value)"
+          />
+        </label>
+        <span
+          class="count"
+          :title="metaTitle"
+        >{{ data.filteredRows.length }} / {{ data.rows.length }} {{ t('行') }} · {{ data.headers.length }} {{ t('列') }}</span>
+        <span v-if="data.embedded && data.headers.length" class="badge embedded" :title="data.sourcePath || t('内嵌快照')">{{ t('内嵌') }}</span>
       </div>
-      <button class="btn btn-sm btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
+
+      <span class="spacer" aria-hidden="true"></span>
+
+      <!-- 中：编辑类（有表结构时） -->
+      <div v-if="data.headers.length" class="tb-cluster">
+        <button type="button" class="tool" @click="addEmpty" :title="t('在末尾添加一行')" :aria-label="t('添加行')">+ {{ t('添加行') }}</button>
+        <div v-if="data.rows.length" class="sample-wrap" :class="{ open: exportOpen }">
+          <button
+            type="button"
+            class="tool"
+            :aria-expanded="exportOpen"
+            aria-haspopup="menu"
+            @click="openExport"
+            :title="t('导出当前数据为 Excel 或 CSV')"
+          >{{ t('导出') }} ▾</button>
+          <div v-if="exportOpen" class="pop-menu" role="menu" @click.stop>
+            <button type="button" class="pop-item" role="menuitem" @click="doExport('xlsx')">{{ t('导出为 Excel (.xlsx)') }}</button>
+            <button type="button" class="pop-item" role="menuitem" @click="doExport('csv')">{{ t('导出为 CSV (.csv)') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：空态入口 / 有数据时清空 + 导入 -->
+      <div class="tb-actions">
+        <template v-if="!data.headers.length">
+          <div class="sample-wrap">
+            <button
+              type="button"
+              class="tool"
+              :aria-expanded="sampleOpen"
+              aria-haspopup="menu"
+              @click.stop="sampleOpen = !sampleOpen"
+            >{{ t('加载示例') }} ▾</button>
+            <div v-if="sampleOpen" class="pop-menu" role="menu" @click.stop>
+              <button
+                v-for="s in samples"
+                :key="s.id"
+                class="pop-item"
+                type="button"
+                role="menuitem"
+                @click="pickSample(s.id)"
+              >{{ t(s.name) }}</button>
+            </div>
+          </div>
+          <button type="button" class="tool quiet" @click="addCol('名称')" :title="t('手动建表')">+ {{ t('建表') }}</button>
+        </template>
+        <button
+          v-if="data.headers.length || data.rows.length"
+          type="button"
+          class="tool danger"
+          @click="clearAll"
+          :title="t('清空所有数据？')"
+        >{{ t('清空') }}</button>
+        <button type="button" class="tool primary" @click="$emit('import')" :title="t('导入 Excel/CSV')">{{ t('导入') }}</button>
+      </div>
     </div>
 
     <div class="data-grid" v-if="data.headers.length" ref="gridEl" @scroll="onGridScroll">
@@ -120,12 +165,10 @@
           <tr v-if="!data.rows.length" class="empty-row">
             <td :colspan="colSpan">
               <div class="empty-inline">
-                <div class="empty-title">{{ t('表头已就绪，还没有数据行') }}</div>
-                <div class="empty-sub">{{ t('添加一行开始填写，或继续导入更多数据') }}</div>
-                <div class="empty-actions">
-                  <button class="btn btn-sm" @click="addEmpty">+ {{ t('添加行') }}</button>
-                  <button class="btn btn-sm btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
-                </div>
+                <span class="empty-inline-text">{{ t('表头已就绪，还没有数据行') }}</span>
+                <button type="button" class="linkish" @click="addEmpty">+ {{ t('添加行') }}</button>
+                <span class="empty-sep" aria-hidden="true">·</span>
+                <button type="button" class="linkish" @click="$emit('import')">{{ t('导入') }}</button>
               </div>
             </td>
           </tr>
@@ -134,33 +177,18 @@
       </table>
     </div>
 
-    <!-- 空状态：没有任何字段 → 引导建表 / 导入 -->
+    <!-- 空状态：动作全在工具栏，这里只留安静引导 -->
     <div v-else class="empty">
-      <div class="empty-glyph" aria-hidden="true"></div>
-      <div class="empty-title">{{ t('还没有数据') }}</div>
-      <div class="empty-sub">{{ t('从这里开始：') }}</div>
-      <div class="empty-actions">
-        <button class="btn" @click="addCol('名称')">+ {{ t('手动建表（添加字段）') }}</button>
-        <button class="btn" type="button" @click="pickSample('retail')">{{ t('加载示例') }}</button>
-        <button class="btn btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
+      <div class="empty-sheet" aria-hidden="true">
+        <span class="empty-rule"></span>
+        <span class="empty-rule short"></span>
+        <span class="empty-rule"></span>
       </div>
-      <div class="sample-hints">
-        <button
-          v-for="s in samples"
-          :key="'hint-' + s.id"
-          class="sample-chip"
-          type="button"
-          @click="pickSample(s.id)"
-        >{{ t(s.name) }}</button>
-      </div>
+      <p class="empty-copy">{{ t('还没有数据') }}</p>
+      <p class="empty-hint">{{ t('右上角导入表格，或加载示例 / 建表') }}</p>
     </div>
-
-    <!-- 导出菜单（点击外部关闭） -->
-    <div v-if="exportOpen" class="export-menu" @click.stop>
-      <button class="export-item" @click="doExport('xlsx')">{{ t('导出为 Excel (.xlsx)') }}</button>
-      <button class="export-item" @click="doExport('csv')">{{ t('导出为 CSV (.csv)') }}</button>
-    </div>
-    <div v-if="exportOpen" class="export-mask" @click="exportOpen = false"></div>
+    <div v-if="sampleOpen" class="pop-mask" @click="sampleOpen = false"></div>
+    <div v-if="exportOpen" class="pop-mask" @click="exportOpen = false"></div>
   </div>
 </template>
 
@@ -221,6 +249,13 @@ onMounted(() => {
 const emit = defineEmits(['import', 'load-sample'])
 const sampleOpen = ref(false)
 const samples = SAMPLE_DATASETS
+
+const metaTitle = computed(() => {
+  const parts = []
+  if (data.sourcePath) parts.push(data.sourcePath)
+  if (data.embedded) parts.push(t('内嵌快照'))
+  return parts.join(' · ') || t('数据')
+})
 
 function pickSample(id) {
   sampleOpen.value = false
@@ -412,21 +447,183 @@ async function doExport(fmt) {
   height: 100%;
   position: relative;
 }
+
+/* —— 工具栏：左 meta | 中编辑簇 | 右动作 —— */
 .data-toolbar {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  min-height: 40px;
+  padding: 4px 10px;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 92%, var(--primary) 6%), var(--bg-panel));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--bg) 60%, transparent);
 }
-.title { font-weight: 600; margin-right: 4px; }
-.src { font-size: 12px; color: var(--text-secondary); }
-.badge { padding: 1px 6px; border-radius: 10px; font-size: 11px; }
-.badge.embedded { background: #fef3c7; color: #92400e; }
-.badge.external { background: #dbeafe; color: #1e40af; }
-.count { font-size: 12px; color: var(--text-muted); }
-.spacer { flex: 1; }
+.tb-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+.title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.filter-wrap { display: inline-flex; min-width: 0; }
+.filter-input {
+  width: 140px;
+  max-width: 22vw;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-soft, var(--bg));
+  color: var(--text);
+  font-size: 12px;
+  outline: none;
+}
+.filter-input:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.count {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.badge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.badge.embedded {
+  background: color-mix(in srgb, var(--warning, #f59e0b) 18%, transparent);
+  color: color-mix(in srgb, var(--warning, #b45309) 70%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 35%, transparent);
+}
+.spacer { flex: 1; min-width: 8px; }
+
+.tb-cluster,
+.tb-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg-soft, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  flex-shrink: 0;
+}
+.tb-actions { margin-left: 2px; }
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.tool:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tool:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.tool.primary {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+.tool.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  color: #fff;
+}
+.tool.danger {
+  color: var(--danger);
+}
+.tool.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.tool.quiet {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.tool.quiet:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.sample-wrap { position: relative; }
+/* 工具栏与遮罩是兄弟：打开菜单时整条抬高，子级 z-index 才点得着 */
+.data-toolbar.menu-open { z-index: 30; }
+.pop-mask { position: fixed; inset: 0; z-index: 20; }
+.pop-menu {
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 168px;
+  max-height: min(240px, 40vh);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+.pop-item {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.pop-item:hover { background: var(--bg-hover); }
+.pop-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .data-grid {
   flex: 1;
   overflow: auto;
@@ -544,114 +741,91 @@ tr.active td .cell-input { color: inherit; }
 }
 .add-col:hover { border-color: var(--primary); color: var(--primary); border-style: solid; }
 
-/* 空状态 */
+/* 空状态：安静工作台，动作只在工具栏 */
 .empty {
   flex: 1;
   min-height: 0;
-  overflow: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 12px 16px 20px;
   text-align: center;
-  gap: 6px;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 40%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%);
 }
-.empty-glyph {
-  width: 36px; height: 28px; border-radius: 6px;
-  border: 1.5px solid var(--border);
-  background: var(--bg-soft);
-  position: relative;
-  margin-bottom: 4px;
-}
-.empty-glyph::before,
-.empty-glyph::after {
-  content: '';
-  position: absolute; left: 6px; right: 6px; height: 2px;
-  background: var(--border); border-radius: 1px;
-}
-.empty-glyph::before { top: 9px; }
-.empty-glyph::after { top: 15px; width: 55%; right: auto; }
-.empty-title { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
-.empty-sub { font-size: 12px; color: var(--text-muted); }
-.empty-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
-.sample-hints {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-  margin-top: 4px;
-  max-width: 420px;
-}
-.sample-chip {
-  border: 1px solid var(--border);
-  background: var(--bg-soft, var(--bg));
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.sample-chip:hover { border-color: var(--primary); color: var(--primary); }
-.sample-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.sample-wrap { position: relative; }
-.sample-mask { position: fixed; inset: 0; z-index: 9; }
-.sample-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 10;
-  min-width: 160px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+.empty-sheet {
   display: flex;
   flex-direction: column;
-  overscroll-behavior: contain;
+  gap: 5px;
+  width: 44px;
+  padding: 10px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-panel) 80%, var(--bg));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 50%, transparent);
 }
-.sample-item {
-  border: none;
-  background: transparent;
-  text-align: left;
-  padding: 8px 12px;
+.empty-rule {
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--border) 85%, var(--text-muted));
+}
+.empty-rule.short { width: 58%; }
+.empty-copy {
+  margin: 0;
   font-size: 13px;
-  color: var(--text);
-  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
 }
-.sample-item:hover { background: var(--bg-hover); }
-.sample-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.empty-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 280px;
+  line-height: 1.45;
+}
 .empty-row td { background: var(--bg); }
 .empty-inline {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 6px; padding: 28px 12px; text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 18px 12px;
+  text-align: center;
 }
-
-/* 导出菜单 */
-.export-mask { position: fixed; inset: 0; z-index: 9; }
-.export-menu {
-  position: absolute;
-  right: 16px;
-  top: 40px;
-  z-index: 10;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  min-width: 200px;
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
+.empty-inline-text {
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
 }
-.export-item {
-  text-align: left;
+.empty-sep { color: var(--text-muted); opacity: 0.5; }
+.linkish {
   border: 0;
   background: transparent;
-  padding: 6px 10px;
-  cursor: pointer;
-  color: inherit;
-  border-radius: 3px;
+  padding: 0;
   font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
 }
-.export-item:hover { background: var(--bg-hover); }
+.linkish:hover { text-decoration: underline; }
+.linkish:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (max-width: 720px) {
+  .filter-input { width: 100px; }
+  .count { display: none; }
+  .badge { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tool { transition: none; }
+}
 </style>

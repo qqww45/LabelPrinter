@@ -8,14 +8,7 @@
     <div v-else-if="isMultiSelect" class="content content-multi">
       <div class="title">
         <span>{{ t('已选 {n} 个组件', { n: project.selectedIds.length }) }}</span>
-        <span class="title-actions">
-          <button class="btn btn-sm" @click="project.clearSelection()" :title="t('取消选择 (Esc)')">{{ t('取消选择') }}</button>
-          <button
-            class="btn btn-sm btn-danger"
-            @click="confirmRemoveSelected"
-            :title="t('删除选中的所有组件')"
-          >🗑 {{ t('删除 ({n})', { n: project.selectedIds.length }) }}</button>
-        </span>
+        <button class="btn btn-sm" type="button" @click="project.clearSelection()" :title="t('取消选择 (Esc)')">{{ t('取消选择') }}</button>
       </div>
 
       <!-- 对齐：6 个方向 -->
@@ -58,28 +51,6 @@
     <div v-else class="content">
       <div class="title">
         <span>{{ t(typeNames[selected.type] || selected.type) }} {{ t('属性') }}</span>
-        <span class="title-actions">
-          <button
-            class="btn btn-sm"
-            @click="copyStyle"
-            :title="t('复制当前组件的样式（不含位置/大小/文本/绑定）')"
-          >📋 {{ t('复制样式') }}</button>
-          <button
-            class="btn btn-sm"
-            :disabled="!canPasteStyle"
-            :title="canPasteStyle ? t('将样式粘贴到当前组件（Ctrl+Shift+V）') : t('剪贴板无匹配样式或类型不同')"
-            @click="pasteStyle"
-          >📥 {{ t('粘贴样式') }}</button>
-          <button
-            class="btn btn-sm btn-danger"
-            @click="confirmDeleteComponent"
-            :title="t('删除整个组件（可撤销 Ctrl+Z）')"
-          >🗑 {{ t('删除组件') }}</button>
-        </span>
-      </div>
-      <div v-if="styleClipboard" class="style-clipboard-hint" :title="clipboardHintDetail">
-        <span>📋 {{ t('已复制') }} <b>{{ styleClipboard.sourceName }}</b> {{ t('的样式') }}</span>
-        <button class="btn btn-sm btn-clear" @click="styleClipboard = null" :title="t('清空剪贴板')">×</button>
       </div>
 
       <!-- 通用：位置尺寸 -->
@@ -553,13 +524,12 @@
 
 <script setup>
 import { useI18n } from '../utils/i18n'
-import { toastInfo, toastSuccess } from '../utils/toast'
 const { t } = useI18n()
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { availableFields, componentFields, componentMissingFields } from '../utils/diagnose'
 import { placeholderNames, rewriteBindingText } from '../utils/render'
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -578,11 +548,6 @@ const missingInSelection = computed(() =>
 // 多选工具：直接代理 store
 function align(direction) { project.alignSelected(direction) }
 function distribute(axis) { project.distributeSelected(axis) }
-function confirmRemoveSelected() {
-  if (!project.selectedIds.length) return
-  if (!confirm(t('确定要删除选中的 {n} 个组件？\n此操作可通过 Ctrl+Z 撤销。').replace('{n}', project.selectedIds.length))) return
-  project.removeSelected()
-}
 const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' }
 
 // 单元格类型 tab：4 选 1（label 用中文原文作 i18n key）
@@ -609,98 +574,6 @@ function update(key, value) {
     project.updateComponent(selected.value.id, { [key]: value })
   }
 }
-
-// 删除组件：加二次确认，避免误点把"删字"理解成"删组件"
-function confirmDeleteComponent() {
-  const c = selected.value
-  if (!c) return
-  const name = c.name || typeNames[c.type] || c.type
-  if (!confirm(t('确定要删除「{name}」组件？\n此操作可通过 Ctrl+Z 撤销。').replace('{name}', name))) return
-  project.removeComponent(c.id)
-}
-
-// ============ 复制 / 粘贴样式 ============
-// 哪些键算"样式"（不含位置/尺寸/身份/数据绑定）
-// 注意：src/text/binding/tableData 等业务数据不在内
-const STYLE_KEYS = [
-  // 通用
-  'fill', 'stroke', 'strokeWidth', 'opacity',
-  // 矩形/形状
-  'rx', 'ry',
-  // 文本
-  'fontSize', 'fontFamily', 'fontWeight', 'fontStyle', 'textAlign',
-  'lineHeight', 'letterSpacing', 'textDecoration', 'underline',
-  // 表格
-  'cellBgColor', 'cellTextColor', 'headerBg', 'headerText', 'gridColor', 'gridWidth'
-]
-// 剪贴板：保存源类型 + 样式键值对 + 来源名（提示用）
-// 跨组件类型粘贴：仅贴两类型都有的键（避免 text 的 fontSize 误贴到 image）
-const styleClipboard = ref(null)
-
-function copyStyle() {
-  const c = selected.value
-  if (!c) return
-  const style = {}
-  for (const k of STYLE_KEYS) if (k in c) style[k] = c[k]
-  if (!Object.keys(style).length) {
-    toastInfo(t('当前组件没有可复制的样式属性'))
-    return
-  }
-  styleClipboard.value = {
-    type: c.type,
-    style,
-    sourceName: c.name || typeNames[c.type] || c.type
-  }
-  toastSuccess(t('样式已复制'))
-}
-
-const canPasteStyle = computed(() => {
-  const c = selected.value
-  return !!(c && styleClipboard.value && styleClipboard.value.type === c.type)
-})
-
-const clipboardHintDetail = computed(() => {
-  if (!styleClipboard.value) return ''
-  const keys = Object.keys(styleClipboard.value.style)
-  return t('共 {n} 个样式属性：{keys}', { n: keys.length, keys: keys.join(', ') })
-})
-
-function pasteStyle() {
-  const c = selected.value
-  if (!c || !canPasteStyle.value) return
-  // 防御：只贴源组件有的键（理论上 STYLE_KEYS 范围内已过滤，但 type 不匹配会被 canPasteStyle 拦）
-  project.updateComponent(c.id, { ...styleClipboard.value.style })
-}
-
-// 持久化剪贴板：刷新不丢（用户长时间编辑复制样式后页面会意外刷新）
-const CLIP_KEY = 'labelprint_style_clipboard_v1'
-try {
-  const raw = localStorage.getItem(CLIP_KEY)
-  if (raw) {
-    const saved = JSON.parse(raw)
-    if (saved && saved.type && saved.style) styleClipboard.value = saved
-  }
-} catch (e) { /* localStorage 不可用时忽略 */ }
-watch(styleClipboard, (v) => {
-  try {
-    if (v) localStorage.setItem(CLIP_KEY, JSON.stringify(v))
-    else localStorage.removeItem(CLIP_KEY)
-  } catch (e) { /* 忽略 */ }
-})
-
-// 全局快捷键：Ctrl+Shift+C 复制样式 / Ctrl+Shift+V 粘贴样式
-function onGlobalStyleKey(e) {
-  const mod = e.ctrlKey || e.metaKey
-  if (!mod || !e.shiftKey) return
-  // 忽略输入框内
-  const tag = (e.target.tagName || '').toLowerCase()
-  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return
-  const k = e.key.toLowerCase()
-  if (k === 'c') { e.preventDefault(); copyStyle() }
-  else if (k === 'v') { e.preventDefault(); pasteStyle() }
-}
-onMounted(() => window.addEventListener('keydown', onGlobalStyleKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalStyleKey))
 
 function dropUnusedFieldMapKeys(removedNames) {
   if (!removedNames.length) return
@@ -955,35 +828,7 @@ function onImgPreviewError() {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
-.title-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.style-clipboard-hint {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-soft, rgba(99,102,241,0.08));
-  border: 1px solid var(--primary);
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-bottom: 12px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.style-clipboard-hint b { color: var(--primary); }
-.btn-clear {
-  width: 20px; height: 20px; padding: 0;
-  border: 0; background: transparent;
-  color: var(--text-muted);
-  cursor: pointer; border-radius: 3px;
-  font-size: 14px; line-height: 1;
-}
-.btn-clear:hover { background: var(--bg-hover); color: var(--danger); }
 
 /* ============ 多选模式：排版工具栏 ============ */
 .content-multi .title { color: var(--primary); }
@@ -1010,11 +855,6 @@ function onImgPreviewError() {
   background: var(--bg);
   border-radius: 4px;
   margin-top: 8px;
-}
-.btn-danger {
-  background: var(--danger);
-  color: white;
-  border-color: var(--danger);
 }
 fieldset {
   border: 1px solid var(--border);
