@@ -3,13 +3,13 @@
     <div class="modal" @mousedown.stop>
       <div class="modal-head">
         <span class="title">⚙ {{ t('AI 设置') }}</span>
-        <button class="x" @click="$emit('close')">×</button>
+        <button class="x" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
       <div class="modal-body">
         <div class="hint">
           {{ t('本工具使用 OpenAI 兼容协议，支持 DeepSeek / 智谱 GLM / 阿里 Qwen / OpenAI / Ollama 等。') }}<br>
-          {{ t('API Key 仅保存在本浏览器 localStorage，不上传任何服务器。') }}
+          {{ t('API Key 默认只存在本标签页会话，不上传服务器。勾选「记住」才会写入本机。') }}
         </div>
 
         <fieldset>
@@ -23,8 +23,12 @@
               autocomplete="off"
               spellcheck="false"
             />
-            <button class="btn-mini" @click="showKey = !showKey">{{ showKey ? t('隐藏') : t('显示') }}</button>
+            <button class="btn-mini" type="button" @click="showKey = !showKey">{{ showKey ? t('隐藏') : t('显示') }}</button>
           </div>
+          <label class="remember">
+            <input type="checkbox" v-model="local.rememberKey" />
+            {{ t('记住 API Key（保存在本浏览器，共用电脑请勿勾选）') }}
+          </label>
         </fieldset>
 
         <fieldset>
@@ -100,7 +104,8 @@ const local = ref({
   baseUrl: ai.baseUrl,
   model: ai.model,
   temperature: ai.temperature,
-  maxTokens: ai.maxTokens
+  maxTokens: ai.maxTokens,
+  rememberKey: ai.rememberKey
 })
 
 const providers = [
@@ -144,6 +149,7 @@ function onSave() {
   ai.model = local.value.model
   ai.temperature = local.value.temperature
   ai.maxTokens = local.value.maxTokens
+  ai.rememberKey = !!local.value.rememberKey
   ai.persist()
   emit('close')
 }
@@ -159,6 +165,11 @@ function onSave() {
 .modal-foot { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
 .spacer { flex: 1; }
 .hint { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
+.remember {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 8px; font-size: 12px; color: var(--text-secondary); cursor: pointer; line-height: 1.4;
+}
+.remember input { margin-top: 2px; }
 fieldset { border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; margin: 0 0 12px; }
 legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
 .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }

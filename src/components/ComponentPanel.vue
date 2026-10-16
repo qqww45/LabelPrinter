@@ -388,7 +388,7 @@ function delField(name) {
   border: 1px solid var(--border);
   color: var(--text-muted);
   font-family: ui-monospace, SFMono-Regular, monospace;
-  transition: all 0.1s ease;
+  transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
 }
 .layer-tips .tip.active {
   background: var(--primary);
@@ -424,7 +424,7 @@ function delField(name) {
   text-align: center;
   cursor: grab;
   user-select: none;
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 .component-item:hover {
   border-color: var(--primary);

@@ -25,7 +25,12 @@
         @switch="switchToProject"
       />
       <ComponentPanel class="left" />
-      <DesignCanvas class="center" />
+      <Suspense>
+        <DesignCanvas class="center" />
+        <template #fallback>
+          <div class="center canvas-fallback" role="status">{{ t('正在加载画布…') }}</div>
+        </template>
+      </Suspense>
       <!-- 属性栏：支持拖拽调宽 / 收起。AI 调整跟属性共用这一栏，避免再挤掉画布。 -->
       <div class="right-panel" :class="{ resizing }" :style="rightPanelStyle">
         <div
@@ -91,7 +96,7 @@
       <div class="modal import-choice">
         <div class="modal-header">
           {{ t('导入新数据') }}
-          <button class="btn btn-icon" @click="importPrompt = null">×</button>
+          <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="importPrompt = null">×</button>
         </div>
         <div class="modal-body">
           <p>{{ t('当前 {cur} 条，新文件 {next} 条。', { cur: importPrompt.current, next: importPrompt.next }) }}</p>
@@ -108,38 +113,54 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, defineAsyncComponent, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from './utils/i18n'
 const { t } = useI18n()
 import { useProjectStore } from './stores/project'
 import { useDataStore } from './stores/data'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
-import { parseExcelFile } from './utils/excel'
 import { mergeDataAppend, headersFromRows } from './utils/dataMerge'
 import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
 import ProjectSidebar from './components/ProjectSidebar.vue'
 import ComponentPanel from './components/ComponentPanel.vue'
-import DesignCanvas from './components/DesignCanvas.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
 import { toastError, toastSuccess, toastInfo } from './utils/toast'
-import PaperConfig from './components/PaperConfig.vue'
-import TemplateDialog from './components/TemplateDialog.vue'
-import FieldMapDialog from './components/FieldMapDialog.vue'
-import PrintCenterDialog from './components/PrintCenterDialog.vue'
-import PrintConfig from './components/PrintConfig.vue'
-import LayoutEditor from './components/LayoutEditor.vue'
-import PreviewDialog from './components/PreviewDialog.vue'
 import AIDialog from './components/AIDialog.vue'
-import AISettingsDialog from './components/AISettingsDialog.vue'
-import PreflightCheckDialog from './components/PreflightCheckDialog.vue'
-import OnboardingGuide from './components/OnboardingGuide.vue'
 import { runDiagnostics } from './utils/diagnose'
+
+// 画布含 fabric，异步加载让工具栏/侧栏先出屏（改善 LCP）
+const DesignCanvas = defineAsyncComponent(() => import('./components/DesignCanvas.vue'))
+// 弹窗按需加载：缩短首包，打开时再拉 PDF/预览等重模块
+const PaperConfig = defineAsyncComponent(() => import('./components/PaperConfig.vue'))
+const TemplateDialog = defineAsyncComponent(() => import('./components/TemplateDialog.vue'))
+const FieldMapDialog = defineAsyncComponent(() => import('./components/FieldMapDialog.vue'))
+const PrintCenterDialog = defineAsyncComponent(() => import('./components/PrintCenterDialog.vue'))
+const PrintConfig = defineAsyncComponent(() => import('./components/PrintConfig.vue'))
+const LayoutEditor = defineAsyncComponent(() => import('./components/LayoutEditor.vue'))
+const PreviewDialog = defineAsyncComponent(() => import('./components/PreviewDialog.vue'))
+const AISettingsDialog = defineAsyncComponent(() => import('./components/AISettingsDialog.vue'))
+const PreflightCheckDialog = defineAsyncComponent(() => import('./components/PreflightCheckDialog.vue'))
+const OnboardingGuide = defineAsyncComponent(() => import('./components/OnboardingGuide.vue'))
 
 const project = useProjectStore()
 const data = useDataStore()
+
+// 未保存改动时关闭/刷新页面前警告（自动保存仍可能延迟）
+function onBeforeUnload(e) {
+  if (!project.dirty) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onMounted(() => {
+  window.addEventListener('beforeunload', onBeforeUnload)
+  // 空闲时预取画布 chunk，减少首次拖组件等待
+  const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 400))
+  ric(() => { import('./components/DesignCanvas.vue') })
+})
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 
 // 启动时从 localStorage 恢复项目列表（自动保存），没有则用默认项目
 project.loadFromStorage()
@@ -369,6 +390,7 @@ async function onOpen() {
       // 外置：尝试加载
       try {
         const df = await pickFile('.xlsx,.xls,.csv')
+        const { parseExcelFile } = await import('./utils/excel')
         const parsed = await parseExcelFile(df)
         data.setData({
           headers: parsed.headers,
@@ -475,6 +497,7 @@ function confirmImport(mode) {
 async function onImportData() {
   try {
     const file = await pickFile('.xlsx,.xls,.csv')
+    const { parseExcelFile } = await import('./utils/excel')
     const parsed = await parseExcelFile(file)
     const headers = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
     const rows = parsed.rows || []
@@ -727,6 +750,17 @@ window.addEventListener('keydown', onGlobalKey)
   flex: 1;
   background: var(--bg);
   overflow: auto;
+}
+.canvas-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  background:
+    radial-gradient(600px 280px at 30% 20%, rgba(37, 99, 235, 0.08), transparent 60%),
+    var(--bg);
 }
 .bottom {
   height: 220px;

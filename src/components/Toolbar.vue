@@ -68,17 +68,25 @@
     <div class="spacer" />
 
     <div class="group">
-      <button class="btn btn-icon" @click="project.undo()" :disabled="!project.canUndo" :title="t('撤销 (Ctrl+Z)')">↩</button>
-      <button class="btn btn-icon" @click="project.redo()" :disabled="!project.canRedo" :title="t('重做 (Ctrl+Y)')">↪</button>
+      <button class="btn btn-icon" type="button" @click="project.undo()" :disabled="!project.canUndo" :title="t('撤销 (Ctrl+Z)')" :aria-label="t('撤销 (Ctrl+Z)')">↩</button>
+      <button class="btn btn-icon" type="button" @click="project.redo()" :disabled="!project.canRedo" :title="t('重做 (Ctrl+Y)')" :aria-label="t('重做 (Ctrl+Y)')">↪</button>
       <span class="divider divider-hide-narrow" />
       <button
         class="btn btn-icon"
+        type="button"
         @click="settings.toggleTheme()"
         :title="settings.theme === 'dark' ? t('切换到亮色') : t('切换到暗色')"
+        :aria-label="settings.theme === 'dark' ? t('切换到亮色') : t('切换到暗色')"
       >
-        <span class="ico" v-html="settings.theme === 'dark' ? icons.sun : icons.moon"></span>
+        <span class="ico" aria-hidden="true" v-html="settings.theme === 'dark' ? icons.sun : icons.moon"></span>
       </button>
-      <button class="btn btn-icon" @click="settings.toggleLang()" :title="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')">
+      <button
+        class="btn btn-icon"
+        type="button"
+        @click="settings.toggleLang()"
+        :title="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')"
+        :aria-label="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')"
+      >
         {{ settings.lang === 'en' ? '中' : 'EN' }}
       </button>
     </div>

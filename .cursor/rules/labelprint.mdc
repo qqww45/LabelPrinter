@@ -1,0 +1,32 @@
+---
+description: 标签打印工具的架构约定与体验标准，改 UI/打印/数据时必读
+alwaysApply: true
+---
+
+# 标签打印项目约定
+
+## 架构
+
+- Vue 3.5 + Vite 6 + Pinia + Fabric.js；三层：`stores/` → `utils/` → `components/`
+- 数据跟着项目走：`project.dataSource.embedded=true` + `dataSource.data`；`data` store 只是渲染视图
+- 画布真理之源是 `project.components[]`；打印路径：components + 行 → `render.js` → PDF/打印
+- 新增纯逻辑优先抽到 `src/utils/`，并用 `node tests/<name>.test.mjs` 覆盖（无 jest/vitest）
+
+## UI / 主题
+
+- 颜色只用 CSS 变量（`--bg` / `--primary` / …）；禁止硬编码主题色（纸张/条码内容本身除外）
+- 暗色靠 `[data-theme="dark"]`；新增样式要同时看亮/暗
+- 用户反馈用 `toast`（`src/utils/toast.js`），不要用 `alert`；破坏性操作用 `confirm`
+- 图标优先 SVG，避免 emoji 当主交互图标；主 CTA 保持「打印」实心蓝，次要操作用描边/更多菜单
+- 空态要写清下一步（画布/数据/预览/模板库）
+
+## 无障碍与交互（对齐 web-design-guidelines）
+
+- 图标按钮必须有 `aria-label`（或可见文字）
+- 焦点用 `:focus-visible`；禁止裸 `outline: none`
+- 动画尊重 `prefers-reduced-motion`；不要写 `transition: all`
+- 弹层加 `overscroll-behavior: contain`
+
+## 部署
+
+- 修好后直接 `git push` main，不等 CI；push 失败重试 4–5 次

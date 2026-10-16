@@ -1,8 +1,7 @@
-import * as XLSX from 'xlsx'
-
 /**
  * 读取文件为文本，自动检测编码（UTF-8 / GBK / GB18030）
  * 优先用 UTF-8，失败后用 GB18030（向下兼容 GBK/GB2312）
+ * xlsx 库按需动态加载，避免拖慢首屏。
  */
 export async function readFileAsText(file) {
   const buf = await file.arrayBuffer()
@@ -48,6 +47,7 @@ export async function parseExcelFile(file) {
   }
 
   const buf = await file.arrayBuffer()
+  const XLSX = await import('xlsx')
   const wb = XLSX.read(buf, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const json = XLSX.utils.sheet_to_json(ws, { defval: '' })
@@ -140,7 +140,8 @@ export function dedupFieldNames(names) {
 /**
  * 导出数据到 Excel（过滤内部字段 __id）
  */
-export function exportToExcel(headers, rows, filename = 'data.xlsx') {
+export async function exportToExcel(headers, rows, filename = 'data.xlsx') {
+  const XLSX = await import('xlsx')
   const cleanHeaders = (headers || []).filter(h => h !== '__id')
   const cleanRows = (rows || []).map(r => {
     const o = {}

@@ -137,7 +137,6 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
-import { exportToExcel, exportToCSV } from '../utils/excel'
 import { toastError, toastSuccess } from '../utils/toast'
 const { t } = useI18n()
 const data = useDataStore()
@@ -351,14 +350,15 @@ function clearAll() {
 // ============ 导出 ============
 const exportOpen = ref(false)
 function openExport() { exportOpen.value = !exportOpen.value }
-function doExport(fmt) {
+async function doExport(fmt) {
   exportOpen.value = false
   const ts = new Date().toISOString().slice(0, 16).replace(/[:T-]/g, '')
   const base = data.sourcePath ? data.sourcePath.replace(/\.[^.]+$/, '') : 'data'
   const filename = `${base}_${ts}.${fmt}`
   try {
-    if (fmt === 'xlsx') exportToExcel(data.headers, data.rows, filename)
-    else exportToCSV(data.headers, data.rows, filename)
+    const excel = await import('../utils/excel')
+    if (fmt === 'xlsx') await excel.exportToExcel(data.headers, data.rows, filename)
+    else excel.exportToCSV(data.headers, data.rows, filename)
     toastSuccess(t('导出成功'))
   } catch (e) {
     toastError(t('导出失败：{msg}', { msg: e.message || e }))

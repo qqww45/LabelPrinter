@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal map-modal">
       <div class="modal-header">
         <span>🔀 {{ t('字段映射') }} <span class="sub">{{ t('模板字段 ← 数据源字段') }}</span></span>
-        <button class="btn btn-icon" @click="$emit('close')">×</button>
+        <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
       <div class="modal-body">

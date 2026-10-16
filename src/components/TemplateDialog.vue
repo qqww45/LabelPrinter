@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal tpl-modal">
       <div class="modal-header">
         <span>{{ t('模板库') }} <span class="sub">{{ t('应用模板只替换版式，保留数据源与字段映射') }}</span></span>
-        <button class="btn btn-icon" @click="$emit('close')">×</button>
+        <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
       <div class="tpl-body">

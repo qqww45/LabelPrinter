@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://label.s.ci64.com/sitemap.xml

@@ -23,6 +23,9 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function applyTheme() {
     document.documentElement.dataset.theme = theme.value
+    document.documentElement.style.colorScheme = theme.value
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme.value === 'dark' ? '#0f172a' : '#2563eb')
   }
 
   function toggleTheme() {

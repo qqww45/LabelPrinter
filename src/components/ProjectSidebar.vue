@@ -255,7 +255,7 @@ function onRemove(p) {
   cursor: pointer;
   font-size: 11px;
   color: var(--text-secondary);
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 .act:hover {
   border-color: var(--primary);

@@ -36,6 +36,7 @@ import { generateBarcode } from '../utils/barcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow } from '../utils/canvasFit'
 import { useI18n } from '../utils/i18n'
+import { safeImageSrc } from '../utils/escapeHtml'
 import dayjs from 'dayjs'
 
 // 1mm = 3.7795275591 px (按 96dpi)
@@ -532,7 +533,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       break
     }
     case 'image': {
-      const src = c.source === 'field' ? row[c.binding] : c.src
+      const src = safeImageSrc(c.source === 'field' ? row[c.binding] : c.src)
       if (src) {
         fabric.Image.fromURL(src, { crossOrigin: 'anonymous' }).then(img => {
           if (!img) return
@@ -914,7 +915,7 @@ function buildTable(c, row, baseOpts) {
           }))
         }
       } else if (cellType === 'image') {
-        const url = display || cell.src || ''
+        const url = safeImageSrc(display || cell.src || '')
         const imgEl = url ? getDecodedImageSync(url) : null
         if (imgEl) {
           const ratio = imgEl.width / imgEl.height

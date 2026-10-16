@@ -664,7 +664,10 @@ const EN = {
   '图片已导出': 'Image exported',
   '已应用模板「{n}」': 'Applied template "{n}"',
   '模板已保存': 'Template saved',
-  '样式已复制': 'Style copied'
+  '样式已复制': 'Style copied',
+  '正在加载画布…': 'Loading canvas…',
+  'API Key 默认只存在本标签页会话，不上传服务器。勾选「记住」才会写入本机。': 'API Key stays in this tab session by default and is never uploaded. Check “Remember” to store it on this device.',
+  '记住 API Key（保存在本浏览器，共用电脑请勿勾选）': 'Remember API Key (stored in this browser — skip on shared PCs)'
 }
 
 export function useI18n() {

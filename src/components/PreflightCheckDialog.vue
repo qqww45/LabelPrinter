@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal preflight-modal">
       <div class="modal-header">
         <span>🩺 {{ t('打印前检查') }}<span class="sub">{{ t('动手前先看一眼，避免打出来才发现问题') }}</span></span>
-        <button class="btn btn-icon" @click="$emit('close')">×</button>
+        <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
       <div class="modal-body">

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
@@ -32,7 +32,7 @@
                 <button class="more-item" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
               </div>
             </div>
-            <button class="btn btn-icon" @click="$emit('close')">×</button>
+            <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
           </div>
         </div>
       </div>
@@ -93,6 +93,7 @@ import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineCo
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
+import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, componentHidden } from '../utils/printModel'
 import { exportVectorPDF } from '../utils/vectorPdf'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -486,7 +487,7 @@ function tableCellNode(c, r, col, row) {
   }
 
   if (type === 'image') {
-    const src = value || cell.src || ''
+    const src = safeImageSrc(value || cell.src || '')
     if (!src) return ''
     return h('img', { src, style: cellImageStyle(c) })
   }
@@ -512,13 +513,13 @@ function cellImageStyle(c) {
 
 function renderTextHtml(text, row) {
   if (!text) return ''
-  const rendered = renderText(text, row)
-  return rendered.replace(/\n/g, '<br/>')
+  // 先渲染占位符，再 HTML 转义，避免导入数据注入脚本
+  return escapeHtmlWithBreaks(renderText(text, row))
 }
 
 function imageSrc(c, row) {
-  if (c.source === 'field') return row[c.binding] || ''
-  return c.src || ''
+  const raw = c.source === 'field' ? (row[c.binding] || '') : (c.src || '')
+  return safeImageSrc(raw)
 }
 
 function codePlaceholderStyle() {
