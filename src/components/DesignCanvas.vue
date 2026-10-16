@@ -1,6 +1,6 @@
 <template>
   <div class="design-canvas-root">
-    <div class="design-canvas-wrap" ref="wrapRef">
+    <div class="design-canvas-wrap" ref="wrapRef" :class="{ 'is-dark': settings.theme === 'dark' }">
       <!-- 标签画布：只显示一个标签（数据单元） -->
       <div class="label-canvas-wrapper" :style="canvasWrapperStyle">
         <canvas ref="canvasRef"></canvas>
@@ -34,6 +34,7 @@ fabric.FabricObject.ownDefaults.originX = 'left'
 fabric.FabricObject.ownDefaults.originY = 'top'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
+import { useSettingsStore } from '../stores/settings'
 import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
 import { formatCheckboxText, formatSerialText } from '../utils/controls'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
@@ -54,6 +55,7 @@ let fabricCanvas = null
 
 const pj = useProjectStore()
 const data = useDataStore()
+const settings = useSettingsStore()
 const { t } = useI18n()
 
 const labelsPerPage = computed(() => {
@@ -1147,15 +1149,18 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   flex-direction: column;
 }
 .design-canvas-wrap {
+  /* 仅周围棋盘格；标签纸白底不跟主题（见 .label-canvas-wrapper） */
+  --canvas-desk: #e2e8f0;
+  --canvas-checker: #cbd5e1;
   position: relative;
   flex: 1;
   overflow: auto;
-  background: #e2e8f0;
+  background-color: var(--canvas-desk);
   background-image:
-    linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
-    linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
-    linear-gradient(-45deg, transparent 75%, #cbd5e1 75%);
+    linear-gradient(45deg, var(--canvas-checker) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--canvas-checker) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--canvas-checker) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--canvas-checker) 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
   display: flex;
@@ -1164,10 +1169,17 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   padding: 32px 16px;
   min-height: 100%;
 }
+/* 用 class 切换，避免 scoped 浅色变量压过 :global(html) 规则 */
+.design-canvas-wrap.is-dark {
+  --canvas-desk: #1e293b;
+  --canvas-checker: #334155;
+}
 .label-canvas-wrapper {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   position: relative;
+  /* 标签纸必须白底，保证所见即所得 */
+  background: #fff;
 }
 .canvas-empty {
   position: absolute;
