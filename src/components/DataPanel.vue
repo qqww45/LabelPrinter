@@ -111,9 +111,10 @@
         <button
           v-if="!collapsed && (data.headers.length || data.rows.length)"
           type="button"
-          class="tool danger"
+          class="tool quiet"
           @click="clearAll"
           :title="t('清空所有数据？')"
+          :aria-label="t('清空所有数据？')"
         >{{ t('清空') }}</button>
         <button type="button" class="tool primary" @click="$emit('import')" :title="t('导入 Excel/CSV')">{{ t('导入') }}</button>
       </div>
@@ -641,13 +642,6 @@ async function doExport(fmt) {
 .tool.primary:hover:not(:disabled) {
   background: var(--primary-hover);
   color: #fff;
-}
-.tool.danger {
-  color: var(--danger);
-}
-.tool.danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 14%, transparent);
-  color: var(--danger);
 }
 .tool.quiet {
   color: var(--text-muted);
