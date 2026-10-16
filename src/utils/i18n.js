@@ -708,7 +708,7 @@ const EN = {
   '拖拽调整宽度': 'Drag to resize',
   '在画布上拖动可移动，拖角点可放大缩小。': 'Drag on the canvas to move. Drag a corner to resize.',
   '隐藏（画布和打印都不显示）': 'Hide (off the canvas and off the print)',
-  '已改到画布上，旁边就能看到。布局和打印可以用 Ctrl+Z 撤回。': 'Applied on the canvas beside this panel. Ctrl+Z undoes layout and project print settings. Local thermal calibration is not undone by Ctrl+Z.',
+  '已改到画布上，旁边就能看到。布局、打印设置和本机热敏校准可以用 Ctrl+Z 撤回。': 'Applied on the canvas beside this panel. Ctrl+Z undoes layout, project print settings, and local thermal calibration.',
   '已生成 {n} 个组件，点「应用到画布」就能在旁边看到。': 'Generated {n} components. Choose Apply to canvas to see them beside this panel.',
   '没有可应用的改动': 'Nothing to apply',
   '这个放大': 'Enlarge this',
@@ -772,7 +772,7 @@ const EN = {
   '让 AI 调整': 'Adjust with AI',
   '应用调整': 'Apply changes',
   '先写要改什么': 'Describe the change first.',
-  '数据改动不能用 Ctrl+Z 撤回。布局和打印设置可以。': 'Data edits cannot be undone with Ctrl+Z. Layout and project print settings can. Local thermal calibration is saved on this computer and is not undone by Ctrl+Z.',
+  '数据改动不能用 Ctrl+Z 撤回。布局、打印设置和本机热敏校准可以。': 'Data edits cannot be undone with Ctrl+Z. Layout, project print settings, and local thermal calibration can.',
   // 体验优化：toast / 空态 / 预览
   '已保存': 'Saved',
   '已应用 {n} 个组件': 'Applied {n} components',

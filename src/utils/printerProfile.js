@@ -25,6 +25,9 @@ export function savePrinterProfile(patch = {}) {
     if (typeof localStorage === 'undefined') return getPrinterProfile()
     const next = normalizeCalibrate({ ...getPrinterProfile(), ...patch })
     localStorage.setItem(KEY, JSON.stringify(next))
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('labelprint-printer-profile'))
+    }
     return next
   } catch (e) {
     console.warn('保存打印机校准失败:', e)

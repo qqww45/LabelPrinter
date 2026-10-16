@@ -242,7 +242,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref, nextTick } from 'vue'
+import { reactive, computed, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { saveAs } from 'file-saver'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
@@ -251,9 +251,9 @@ import { expandPrintLabels } from '../utils/printModel'
 import { resolveRow } from '../utils/render'
 import { buildTSPL, buildZPL } from '../utils/printerCmd'
 import { normalizeCalibrate } from '../utils/thermalCalibrate'
-import { applyMediaLook, normalizeMedia } from '../utils/thermalMedia'
+import { applyMediaLook, normalizeMedia, clampGapMm } from '../utils/thermalMedia'
 import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
-import { toast } from '../utils/toast'
+import { toast, toastError } from '../utils/toast'
 
 const props = defineProps({
   embedded: { type: Boolean, default: false }
@@ -355,6 +355,16 @@ const form = reactive({
   scalePercent: profile.scalePercent
 })
 
+function syncProfileToForm() {
+  const next = getPrinterProfile()
+  form.offsetXMm = next.offsetXMm
+  form.offsetYMm = next.offsetYMm
+  form.scalePercent = next.scalePercent
+}
+
+onMounted(() => window.addEventListener('labelprint-printer-profile', syncProfileToForm))
+onBeforeUnmount(() => window.removeEventListener('labelprint-printer-profile', syncProfileToForm))
+
 const labelW = computed(() => Number(project.project.label?.width) || 0)
 const labelH = computed(() => Number(project.project.label?.height) || 0)
 
@@ -409,6 +419,7 @@ function persistPrintAndProfile() {
   form.offsetXMm = cal.offsetXMm
   form.offsetYMm = cal.offsetYMm
   form.scalePercent = cal.scalePercent
+  form.gapMm = clampGapMm(form.gapMm, 2)
   savePrinterProfile(cal)
   Object.assign(project.project.printConfig, {
     printer: form.printer,
@@ -456,34 +467,42 @@ function baseJob(cal, extra = {}) {
 }
 
 function downloadCmd(kind) {
-  const cal = persistPrintAndProfile()
-  const p = project.project
-  const labels = expandPrintLabels(data.displayRows, p.printConfig).map(item => ({
-    ...item,
-    row: resolveRow(item.row, p.dataSource?.fieldMap)
-  }))
-  const job = baseJob(cal, { components: p.components, labels })
-  const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
-  const ext = kind === 'zpl' ? '.zpl' : '.tspl'
-  saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), (p.meta?.name || 'label') + ext)
-  toast(t('已下载指令文件'))
+  try {
+    const cal = persistPrintAndProfile()
+    const p = project.project
+    const labels = expandPrintLabels(data.displayRows, p.printConfig).map(item => ({
+      ...item,
+      row: resolveRow(item.row, p.dataSource?.fieldMap)
+    }))
+    const job = baseJob(cal, { components: p.components, labels })
+    const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
+    const ext = kind === 'zpl' ? '.zpl' : '.tspl'
+    saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), (p.meta?.name || 'label') + ext)
+    toast(t('已下载指令文件'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+  }
 }
 
 function downloadCalibration(kind) {
-  const cal = persistPrintAndProfile()
-  const p = project.project
-  const job = baseJob(cal, {
-    calibrationOnly: true,
-    components: [],
-    labels: [{ row: {} }]
-  })
-  const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
-  const ext = kind === 'zpl' ? '.zpl' : '.tspl'
-  saveAs(
-    new Blob([text], { type: 'text/plain;charset=utf-8' }),
-    (p.meta?.name || 'label') + '-calibrate' + ext
-  )
-  toast(t('已下载校准签'))
+  try {
+    const cal = persistPrintAndProfile()
+    const p = project.project
+    const job = baseJob(cal, {
+      calibrationOnly: true,
+      components: [],
+      labels: [{ row: {} }]
+    })
+    const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
+    const ext = kind === 'zpl' ? '.zpl' : '.tspl'
+    saveAs(
+      new Blob([text], { type: 'text/plain;charset=utf-8' }),
+      (p.meta?.name || 'label') + '-calibrate' + ext
+    )
+    toast(t('已下载校准签'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+  }
 }
 </script>
 

@@ -178,6 +178,8 @@ import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText 
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
+import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
+import { MM_TO_PX } from '../utils/canvasFit'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
@@ -195,7 +197,6 @@ const project = useProjectStore()
 const data = useDataStore()
 const printStore = usePrintStore()
 
-const MM_TO_PX = 96 / 25.4
 const currentPage = ref(1)
 // 默认用设计画布的 zoom，保证"预览所见 = 设计所见"（否则预览比例跟设计画布对不上，用户会以为尺寸错了）
 // 预览缩放独立于设计画布，默认 100% 便于看整页
@@ -407,15 +408,21 @@ const CompRenderer = defineComponent({
           break
         }
         case 'table': {
+          const tableH = (Number(c.height) || 0) * S()
+          const colW = tableColumnWidths(c, 100)
+          const rowH = tableRowHeights(c, tableH)
           const rowsArr = []
-          for (let r = 0; r < (c.rows || 3); r++) {
+          for (let r = 0; r < rowH.length; r++) {
             const tds = []
-            for (let col = 0; col < (c.cols || 3); col++) {
-              tds.push(h('td', { style: tableCellStyle(c, r, col) }, tableCellNode(c, r, col, row)))
+            for (let col = 0; col < colW.length; col++) {
+              tds.push(h('td', { style: tableCellStyle(c, r, col, rowH[r]) }, tableCellNode(c, r, col, row)))
             }
-            rowsArr.push(h('tr', { style: { height: (100 / Math.max(1, c.rows || 3)) + '%' } }, tds))
+            rowsArr.push(h('tr', { style: { height: rowH[r] + 'px' } }, tds))
           }
-          inner = h('table', { style: tableBaseStyle(c), class: 'pv-table' }, [
+          inner = h('table', {
+            style: { ...tableBaseStyle(c), height: tableH + 'px' },
+            class: 'pv-table'
+          }, [
             tableColgroup(c),
             rowsArr
           ])
@@ -548,20 +555,15 @@ function tableBaseStyle(c) {
 
 // 列宽比例 → <colgroup>；数量与列数不符时等宽
 function tableColgroup(c) {
-  const cols = Math.max(1, c.cols || 3)
-  const weights = (Array.isArray(c.colWidths) && c.colWidths.length === cols)
-    ? c.colWidths.map(w => Math.max(0.05, Number(w) || 0))
-    : Array(cols).fill(1)
-  const sum = weights.reduce((a, b) => a + b, 0)
-  return h('colgroup', weights.map((w, i) =>
-    h('col', { key: 'col' + i, style: { width: (w / sum * 100).toFixed(3) + '%' } })
+  const widths = tableColumnWidths(c, 100)
+  return h('colgroup', widths.map((w, i) =>
+    h('col', { key: 'col' + i, style: { width: w + '%' } })
   ))
 }
 
-function tableCellStyle(c, r = 0, col = 0) {
+function tableCellStyle(c, r = 0, col = 0, rowPx = 0) {
   const bw = (c.borderWidth || 0.2) * S()
   const edge = `${bw}px solid ${c.borderColor || '#333'}`
-  const rows = Math.max(1, c.rows || 3)
   const isHeader = r === 0 && !!c.headerRow
   // 每条内边线只归一个格子。collapse 时相邻格子各画一条，html2canvas 会把中间线叠粗。
   return {
@@ -571,7 +573,8 @@ function tableCellStyle(c, r = 0, col = 0) {
     borderBottom: edge,
     boxSizing: 'border-box',
     position: 'relative',
-    height: (100 / rows) + '%',
+    height: rowPx + 'px',
+    maxHeight: rowPx + 'px',
     overflow: 'hidden',
     padding: ((c.cellPadding || 1) * S()) + 'px',
     verticalAlign: c.vAlign || 'middle',
@@ -622,7 +625,24 @@ function tableCellNode(c, r, col, row) {
     return h('img', { src, style: cellImageStyle(c) })
   }
 
-  return value
+  const align = (r === 0 && c.headerRow) ? 'center' : (c.textAlign || 'left')
+  const vAlign = c.vAlign || 'middle'
+  return h('div', {
+    style: {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      padding: ((c.cellPadding || 1) * S()) + 'px',
+      display: 'flex',
+      alignItems: vAlign === 'top' ? 'flex-start' : vAlign === 'bottom' ? 'flex-end' : 'center',
+      justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+      lineHeight: '1.2',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-all',
+      textAlign: align
+    }
+  }, value)
 }
 
 function cellImageStyle(c) {

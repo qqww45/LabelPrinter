@@ -5,6 +5,7 @@
 import dayjs from 'dayjs'
 import { codePayload, renderText, rowIsEmpty } from './render.js'
 import { formatCheckboxText, formatSerialText } from './controls.js'
+import { normalizeMargin } from './pageBox.js'
 
 const MAX_COPIES = 999
 
@@ -150,14 +151,14 @@ export function componentPlainText(c, row) {
 
 /** 第 index 个标签在纸上的左上角（毫米），和预览的分栏一致。 */
 export function slotOffsetMm(index, { label, margin, layout } = {}) {
-  const m = margin || {}
+  const m = normalizeMargin(margin)
   const lw = Number(label?.width) || 0
   const lh = Number(label?.height) || 0
   const L = layout || {}
   const cols = L.cols || 1
   const rows = L.rows || 1
-  const left = Number(m.left) || 0
-  const top = Number(m.top) || 0
+  const left = m.left
+  const top = m.top
   if (L.mode !== 'auto' || (cols <= 1 && rows <= 1)) {
     return { x: left, y: top, w: lw, h: lh }
   }

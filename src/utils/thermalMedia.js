@@ -17,6 +17,14 @@ export function normalizeMedia(media) {
   return 'gap'
 }
 
+/** 间隙毫米：空值用 fallback，负数收成 0，超过 50 收成 50 */
+export function clampGapMm(v, fallback = 2) {
+  if (v == null || v === '') return fallback
+  const n = Number(v)
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(50, Math.max(0, Math.round(n * 10) / 10))
+}
+
 export function mediaLookPreset(media) {
   const id = normalizeMedia(media)
   return MEDIA_LOOKS.find((x) => x.id === id) || MEDIA_LOOKS[0]

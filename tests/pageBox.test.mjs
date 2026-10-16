@@ -33,6 +33,11 @@ check('标签区宽高扣掉边距', label.width === (200 * s) + 'px' && label.h
 const zero = normalizeMargin({})
 check('缺省边距为 0', zero.top === 0 && zero.left === 0)
 
+const negMargin = normalizeMargin({ top: -3, right: -1, bottom: 2, left: -8 })
+check('负边距收成 0', negMargin.top === 0 && negMargin.right === 0 && negMargin.bottom === 2 && negMargin.left === 0)
+const negPage = pageBoxStyle(paper, { top: -4, right: 0, bottom: 0, left: 0 }, s)
+check('负上边距的 padding 为 0', negPage.paddingTop === '0px')
+
 const filled = pageBoxStyle(paper, margin, s)
 const contentW = 210 * s - 5 * s - 5 * s
 const contentH = 297 * s - 5 * s - 5 * s

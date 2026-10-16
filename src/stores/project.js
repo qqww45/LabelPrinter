@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed, toRaw, watch } from 'vue'
 import { getUserDefaults, saveUserDefaults } from './userDefaults'
 import { idbGet, idbSet } from '../utils/idb'
+import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
+import { normalizeMargin } from '../utils/pageBox'
 
 // 纸张预设（打印介质：决定打印机走纸的纸张）
 export const PAPER_PRESETS = [
@@ -213,6 +215,7 @@ export const useProjectStore = defineStore('project', () => {
     merged.printConfig = { ...def.printConfig, ...(p.printConfig || {}) }
     if (!p.layout) merged.layout = { ...def.layout }
     if (!p.margin) merged.margin = { ...def.margin }
+    merged.margin = normalizeMargin(merged.margin)
     if (!p.paper) merged.paper = { ...def.paper }
     // 兼容老项目：老项目 paper.width/height 其实是标签尺寸
     // 注意 version 在 meta 里；顶层 version 仅存在于更老的文件格式
@@ -490,7 +493,7 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   function updateMargin(patch) {
-    project.value.margin = { ...project.value.margin, ...patch }
+    project.value.margin = normalizeMargin({ ...project.value.margin, ...patch })
     if (project.value.layout.sizingMode === 'auto') {
       const lr = calcGrid()
       project.value.layout.cols = lr.cols
@@ -706,6 +709,7 @@ export const useProjectStore = defineStore('project', () => {
       components: p.components,
       fieldMap: ds.fieldMap,
       printConfig: p.printConfig,
+      printerProfile: getPrinterProfile(),
       selectedId: selectedId.value,
       selectedIds: selectedIds.value
     })
@@ -715,7 +719,8 @@ export const useProjectStore = defineStore('project', () => {
     return {
       project: historyProject(),
       selectedId: selectedId.value,
-      selectedIds: [...selectedIds.value]
+      selectedIds: [...selectedIds.value],
+      printerProfile: getPrinterProfile()
     }
   }
 
@@ -772,6 +777,7 @@ export const useProjectStore = defineStore('project', () => {
     restored.dataSource.data = liveRows
     if (liveHeaders) restored.dataSource.headers = liveHeaders
     project.value = restored
+    if (snap.printerProfile) savePrinterProfile(snap.printerProfile)
     if (project.value.layout.sizingMode === 'auto') {
       const lr = calcGrid()
       project.value.layout.cols = lr.cols

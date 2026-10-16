@@ -155,15 +155,24 @@ export async function exportToExcel(headers, rows, filename = 'data.xlsx') {
 }
 
 /**
+ * CSV 单元格。以 = + - @ 开头时，Excel 会当成公式。
+ * 普通负数（-12、-3.5）保持原样。其余危险开头前面加单引号，Excel 按文本打开。
+ */
+export function escapeCsvCell(v) {
+  let s = v == null ? '' : String(v)
+  const core = s.replace(/^[\t\r\n ]+/, '')
+  const plainNegative = /^-(\d+(\.\d+)?|\.\d+)$/.test(core)
+  if (!plainNegative && /^[\t\r\n ]*[=+\-@]/.test(s)) s = "'" + s
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'
+  return s
+}
+
+/**
  * 导出数据到 CSV（带 BOM 让 Excel 正确识别 UTF-8）
  */
 export function exportToCSV(headers, rows, filename = 'data.csv') {
   const cleanHeaders = (headers || []).filter(h => h !== '__id')
-  const esc = (v) => {
-    const s = v == null ? '' : String(v)
-    // 包含逗号/引号/换行 → 用引号包裹，内部引号转义
-    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
-  }
+  const esc = escapeCsvCell
   const lines = [cleanHeaders.map(esc).join(',')]
   ;(rows || []).forEach(r => {
     lines.push(cleanHeaders.map(h => esc(r[h])).join(','))

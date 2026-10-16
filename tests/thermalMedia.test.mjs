@@ -3,6 +3,7 @@ import {
   mediaLookPreset,
   applyMediaLook,
   isThermalTrouble,
+  clampGapMm,
   MEDIA_LOOKS
 } from '../src/utils/thermalMedia.js'
 
@@ -33,6 +34,9 @@ const keep = applyMediaLook('mark', { media: 'gap', gapMm: 2.5 })
 check('间隙改黑标保留已调间隙', keep.media === 'mark' && keep.gapMm === 2.5)
 
 check('症状 id 白名单', isThermalTrouble('blank') && !isThermalTrouble('other'))
+check('负间隙收成 0', clampGapMm(-1) === 0)
+check('过大间隙收成 50', clampGapMm(999) === 50)
+check('空间隙用默认 2，0 保持 0', clampGapMm('') === 2 && clampGapMm(0) === 0)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

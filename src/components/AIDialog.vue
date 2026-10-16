@@ -341,6 +341,10 @@ async function onAdjust() {
     const sys = buildAdjustPrompt(packed)
     const defaultVision = t('根据附图估计热敏偏移与缩放，使内容对齐纸边')
     let userText = said || (imageDataUrl ? defaultVision : '')
+    if (imageDataUrl && !currentModelVision.value) {
+      error.value = t('已附图。当前模型不能看图，请换成带「可看图」的模型')
+      return
+    }
     if (imageDataUrl) userText += '\n\n' + visionCalibrateHint(project.project.label)
     const { content } = await callChat({
       baseUrl: ai.baseUrl,
@@ -373,7 +377,7 @@ async function onAdjust() {
       chat.value.push({ role: 'ai', text: next.summary || describeAdjustPlan(next).join('；') })
       if (!planTouchesData(next)) {
         applyPlan({ quiet: true })
-        chat.value.push({ role: 'ai', text: t('已改到画布上，旁边就能看到。布局和打印可以用 Ctrl+Z 撤回。') })
+        chat.value.push({ role: 'ai', text: t('已改到画布上，旁边就能看到。布局、打印设置和本机热敏校准可以用 Ctrl+Z 撤回。') })
       }
     }
     scrollChat()
@@ -413,7 +417,7 @@ function applyPlan(opts = {}) {
   const next = plan.value
   if (!next || adjustPlanIsEmpty(next)) return
   if (planTouchesData(next) && !opts.quiet) {
-    const ask = describeAdjustPlan(next).join('\n') + '\n\n' + t('数据改动不能用 Ctrl+Z 撤回。布局和打印设置可以。')
+    const ask = describeAdjustPlan(next).join('\n') + '\n\n' + t('数据改动不能用 Ctrl+Z 撤回。布局、打印设置和本机热敏校准可以。')
     if (!confirm(ask)) return
   }
   const notes = applyDataOps(next.data || {})

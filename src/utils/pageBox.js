@@ -11,13 +11,18 @@ function num(v) {
   return Number.isFinite(n) ? n : 0
 }
 
+/** 负边距收成 0。CSS 会丢掉负 padding，PDF 若仍按负数平移，预览和 PDF 就会错位。 */
+function side(v) {
+  return Math.max(0, num(v))
+}
+
 /** @returns {{ top:number, right:number, bottom:number, left:number }} */
 export function normalizeMargin(margin = {}) {
   return {
-    top: num(margin.top),
-    right: num(margin.right),
-    bottom: num(margin.bottom),
-    left: num(margin.left)
+    top: side(margin.top),
+    right: side(margin.right),
+    bottom: side(margin.bottom),
+    left: side(margin.left)
   }
 }
 

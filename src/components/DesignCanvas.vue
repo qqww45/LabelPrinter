@@ -41,13 +41,11 @@ import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { generateBarcode } from '../utils/barcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
-import { fitZoomToWindow } from '../utils/canvasFit'
+import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
+import { sizeOffsets, tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { useI18n } from '../utils/i18n'
 import { safeImageSrc } from '../utils/escapeHtml'
 import dayjs from 'dayjs'
-
-// 1mm = 3.7795275591 px (按 96dpi)
-const MM_TO_PX = 96 / 25.4
 
 const wrapRef = ref(null)
 const canvasRef = ref(null)
@@ -534,16 +532,39 @@ function designRow() {
 // 文本和表格按组件框裁切，和预览的 overflow:hidden 对齐。
 // Fabric 的 clipPath 相对对象中心，所以要把裁切框的中心挪到「从左上角量出的盒子中心」。
 function clipToBox(obj, boxW, boxH) {
+  const w = obj.width || boxW
+  const h = obj.height || boxH
+  const originX = obj.originX || 'left'
+  const originY = obj.originY || 'top'
+  let left = obj.left || 0
+  let top = obj.top || 0
+  if (originX === 'center') left -= w / 2
+  else if (originX === 'right') left -= w
+  if (originY === 'center') top -= h / 2
+  else if (originY === 'bottom') top -= h
+  clipObjectToRect(obj, left, top, boxW, boxH)
+}
+
+// 把对象裁进父坐标里的矩形。Fabric 的 clipPath 相对对象中心。
+function clipObjectToRect(obj, rectLeft, rectTop, rectW, rectH) {
   try {
-    const w = obj.width || boxW
-    const h = obj.height || boxH
+    const w = obj.width || rectW
+    const h = obj.height || rectH
+    const originX = obj.originX || 'left'
+    const originY = obj.originY || 'top'
+    let boxLeft = obj.left || 0
+    let boxTop = obj.top || 0
+    if (originX === 'center') boxLeft -= w / 2
+    else if (originX === 'right') boxLeft -= w
+    if (originY === 'center') boxTop -= h / 2
+    else if (originY === 'bottom') boxTop -= h
     obj.clipPath = new fabric.Rect({
-      width: Math.max(1, boxW),
-      height: Math.max(1, boxH),
+      width: Math.max(1, rectW),
+      height: Math.max(1, rectH),
       originX: 'center',
       originY: 'center',
-      left: -w / 2 + boxW / 2,
-      top: -h / 2 + boxH / 2
+      left: rectLeft + rectW / 2 - (boxLeft + w / 2),
+      top: rectTop + rectH / 2 - (boxTop + h / 2)
     })
   } catch (e) { /* 裁切失败就保持原样，避免整张画布空白 */ }
 }
@@ -833,21 +854,16 @@ function makeCellImage(el, left, top, w, h) {
   })
 }
 
-// 估算按字符断行（splitByGrapheme）后的行数：全角≈1em，半角≈0.6em
-function estimateTextLines(text, maxW, fontSize) {
-  if (!text) return 1
-  let w = 0
-  for (const ch of text) w += ch.charCodeAt(0) > 255 ? fontSize : fontSize * 0.6
-  return Math.max(1, Math.ceil(w / Math.max(1, maxW)))
-}
-
-
 function buildTable(c, row, baseOpts) {
-  const rows = Math.max(1, c.rows || 3)
-  const cols = Math.max(1, c.cols || 3)
   const totalW = c.width * MM_TO_PX
   const totalH = c.height * MM_TO_PX
-  const baseRowH = totalH / rows
+  // 行高、列宽与 PDF / 预览共用 tableGeom，不按文字撑行
+  const colW = tableColumnWidths(c, totalW)
+  const rowH = tableRowHeights(c, totalH)
+  const colX = sizeOffsets(colW)
+  const rowY = sizeOffsets(rowH)
+  const cols = colW.length
+  const rows = rowH.length
   const pad = (c.cellPadding || 1) * MM_TO_PX
   const borderColor = c.borderColor || '#333'
   const borderWidthPx = Math.max(0.5, (c.borderWidth || 0.2) * MM_TO_PX)
@@ -857,16 +873,6 @@ function buildTable(c, row, baseOpts) {
   const textAlign = c.textAlign || 'left'
   const headerRow = !!c.headerRow
   const headerBg = c.headerBg || '#f1f5f9'
-
-  // 列宽比例（colWidths）：数量与列数不符时退回等宽
-  const weights = (Array.isArray(c.colWidths) && c.colWidths.length === cols)
-    ? c.colWidths.map(w => Math.max(0.05, Number(w) || 0))
-    : Array(cols).fill(1)
-  const weightSum = weights.reduce((a, b) => a + b, 0)
-  const colW = weights.map(w => totalW * w / weightSum)
-  const colX = []
-  let acc = 0
-  for (let i = 0; i < cols; i++) { colX.push(acc); acc += colW[i] }
 
   // 先算每个单元格的最终显示文本（{{}} 模板 / 绑定字段）
   const cellDisplays = []
@@ -902,30 +908,13 @@ function buildTable(c, row, baseOpts) {
     }
   }
 
-  // 行高自适应内容（与打印预览 HTML td 撑开行为一致）：
-  // 每行实际高度 = max(基准行高, 该行最高内容所需高度)
-  const rowH = Array(rows).fill(baseRowH)
-  for (let r = 0; r < rows; r++) {
-    let need = 0
-    for (let col = 0; col < cols; col++) {
-      if (cellTypes[r][col] !== 'text') continue
-      const innerW = colW[col] - pad * 2
-      const lines = estimateTextLines(cellDisplays[r][col], innerW, fontSize)
-      need = Math.max(need, lines * fontSize * 1.2 + pad * 2)
-    }
-    rowH[r] = Math.max(baseRowH, need)
-  }
-  const rowsTotalH = rowH.reduce((a, b) => a + b, 0)
-  const rowY = []
-  { let accY = 0; for (let r = 0; r < rows; r++) { rowY.push(accY); accY += rowH[r] } }
-
   const items = []
 
   // strokeWidth 必须为 0。Fabric 默认是 1，就算不画描边也会把包围盒向外撑一圈，
   // 组件框从左上角裁切时，右边和下边的线会整段消失。
   const bg = new fabric.Rect({
     left: 0, top: 0,
-    width: totalW, height: rowsTotalH,
+    width: totalW, height: totalH,
     fill, strokeWidth: 0
   })
   items.push(bg)
@@ -1027,13 +1016,15 @@ function buildTable(c, row, baseOpts) {
           splitByGrapheme: true,
           strokeWidth: 0, selectable: false, evented: false
         })
+        // 多出来的行裁在格子里，和预览 td 的 overflow:hidden、PDF 的格子裁切一致
+        clipObjectToRect(t, x, y, cellW, cellH)
         items.push(t)
       }
     }
   }
 
   // 外框用填色细条，不用描边。描边画在边缘中线上，右边和下边会画出组件框，被裁切掉。
-  const frameH = Math.max(borderWidthPx, Math.min(rowsTotalH, totalH))
+  const frameH = Math.max(borderWidthPx, totalH)
   const bar = (left, top, width, height) => new fabric.Rect({
     left, top, width: Math.max(borderWidthPx, width), height: Math.max(borderWidthPx, height),
     fill: borderColor, strokeWidth: 0, selectable: false, evented: false

@@ -6,6 +6,7 @@
 import { renderText } from './render.js'
 import { componentHidden, componentPlainText } from './printModel.js'
 import { calibrationPieces, normalizeCalibrate, transformPiece } from './thermalCalibrate.js'
+import { clampGapMm } from './thermalMedia.js'
 
 function dpiOf(job) {
   return Number(job?.dpi) === 300 ? 300 : 203
@@ -145,7 +146,7 @@ export function buildTSPL(job = {}) {
   const label = job.label || {}
   const w = label.width || 40
   const h = label.height || 30
-  const gap = job.gapMm ?? 2
+  const gap = clampGapMm(job.gapMm, 2)
   const media = job.media || 'gap'
   const dir = job.direction ? 1 : 0
   const lines = [

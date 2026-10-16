@@ -8,6 +8,7 @@
 
 import { normalizeCalibrate } from './thermalCalibrate.js'
 import { getPrinterProfile } from './printerProfile.js'
+import { clampGapMm } from './thermalMedia.js'
 
 const FONT = 'Microsoft YaHei'
 
@@ -731,7 +732,7 @@ function normalizePrintPatch(raw, fields, warnings) {
   else if (raw.media != null) warnings.push('走纸方式只能是间隙、黑标或连续纸')
   if (raw.gapMm != null) {
     const n = Number(raw.gapMm)
-    if (Number.isFinite(n)) out.gapMm = Math.min(50, Math.max(0, Math.round(n * 10) / 10))
+    if (Number.isFinite(n)) out.gapMm = clampGapMm(n, 0)
   }
   if (raw.dpi != null) {
     const n = Number(raw.dpi)

@@ -6,8 +6,15 @@
 export function normalizeCalibrate(raw = {}) {
   const offsetXMm = clampNum(raw.offsetXMm, -50, 50, 0)
   const offsetYMm = clampNum(raw.offsetYMm, -50, 50, 0)
-  const scalePercent = clampNum(raw.scalePercent, 50, 150, 100)
+  const scalePercent = scaleOrFallback(raw.scalePercent)
   return { offsetXMm, offsetYMm, scalePercent }
+}
+
+/** 空、0、负数视为没填，回到 100；过小或过大再夹到 50–150 */
+function scaleOrFallback(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n <= 0) return 100
+  return Math.min(150, Math.max(50, Math.round(n * 100) / 100))
 }
 
 function clampNum(v, min, max, fallback) {

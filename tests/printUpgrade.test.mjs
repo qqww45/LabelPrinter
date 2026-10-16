@@ -40,6 +40,12 @@ const origin = slotOffsetMm(1, {
   layout: { mode: 'auto', cols: 2, rows: 2, hGap: 2, vGap: 3 }
 })
 check('第二格水平错开一个标签加间隙', origin.x === 47 && origin.y === 8)
+const negSlot = slotOffsetMm(0, {
+  label: { width: 40, height: 30 },
+  margin: { left: -5, top: -2 },
+  layout: { mode: 'single' }
+})
+check('负边距的 PDF 槽位收成 0', negSlot.x === 0 && negSlot.y === 0)
 
 check('没数据不隐藏', componentHidden({ hideIfEmpty: true, type: 'text', binding: '名称' }, {}) === false)
 check('绑定为空就隐藏', componentHidden({ hideIfEmpty: true, type: 'text', binding: '名称' }, { 名称: '  ' }) === true)

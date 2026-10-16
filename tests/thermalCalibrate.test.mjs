@@ -20,6 +20,13 @@ check('默认校准为零偏百分百', def.offsetXMm === 0 && def.offsetYMm ===
 const clamped = normalizeCalibrate({ offsetXMm: 99, offsetYMm: -99, scalePercent: 200 })
 check('偏移与缩放有上下限', clamped.offsetXMm === 50 && clamped.offsetYMm === -50 && clamped.scalePercent === 150)
 
+const emptyScale = normalizeCalibrate({ scalePercent: '' })
+const zeroScale = normalizeCalibrate({ scalePercent: 0 })
+const negScale = normalizeCalibrate({ scalePercent: -10 })
+check('空缩放回到 100', emptyScale.scalePercent === 100)
+check('0 和负缩放回到 100，不落到 50', zeroScale.scalePercent === 100 && negScale.scalePercent === 100)
+check('过小的正缩放仍夹到 50', normalizeCalibrate({ scalePercent: 40 }).scalePercent === 50)
+
 const p = transformPoint(10, 20, { offsetXMm: 2, offsetYMm: -1, scalePercent: 100 })
 check('仅偏移时点平移', p.x === 12 && p.y === 19)
 
@@ -86,6 +93,23 @@ const scaled = buildTSPL({
   calibrate: { offsetXMm: 0, offsetYMm: 0, scalePercent: 110 }
 })
 check('缩放后矩形终点大于原尺寸点阵', scaled.includes('BOX') && scaled.includes('PRINT 1,1'))
+
+const negGap = buildTSPL({
+  label: { width: 40, height: 30 },
+  dpi: 203,
+  gapMm: -5,
+  components: [],
+  labels: [{ row: {} }]
+})
+check('负间隙收成 0', negGap.includes('GAP 0 mm,0 mm'))
+const hugeGap = buildTSPL({
+  label: { width: 40, height: 30 },
+  dpi: 203,
+  gapMm: 999,
+  components: [],
+  labels: [{ row: {} }]
+})
+check('过大间隙收成 50', hugeGap.includes('GAP 50 mm,0 mm'))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) process.exit(1)

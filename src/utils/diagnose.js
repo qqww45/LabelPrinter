@@ -9,6 +9,7 @@
  * 纯函数、无副作用，方便单测。
  */
 import { expandPrintLabels } from './printModel.js'
+import { normalizeMargin } from './pageBox.js'
 
 /**
  * 单个组件引用到的所有字段名：
@@ -215,10 +216,11 @@ export function runDiagnostics({
 export function layoutFitsPaper({ paper = {}, margin = {}, label = {}, layout = {} } = {}) {
   const pw = Number(paper.width) || 0
   const ph = Number(paper.height) || 0
-  const ml = Number(margin.left) || 0
-  const mr = Number(margin.right) || 0
-  const mt = Number(margin.top) || 0
-  const mb = Number(margin.bottom) || 0
+  const m = normalizeMargin(margin)
+  const ml = m.left
+  const mr = m.right
+  const mt = m.top
+  const mb = m.bottom
   const lw = Number(label.width) || 0
   const lh = Number(label.height) || 0
   const contentW = Math.max(0, pw - ml - mr)

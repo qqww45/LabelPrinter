@@ -9,6 +9,9 @@ import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } fro
 import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
 import { safeImageSrc } from './escapeHtml.js'
+import { sizeOffsets, tableColumnWidths, tableRowHeights } from './tableGeom.js'
+
+export { tableColumnWidths, tableRowHeights }
 
 const PX_TO_MM = 25.4 / 96
 
@@ -248,23 +251,6 @@ function drawText(pdf, text, x, y, w, h, c) {
   else drawLatinText(pdf, value, x, y, w, h, fontPx, align, weight, color, vAlign)
 }
 
-/** 列宽按 colWidths 比例分，数量对不上时等分。 */
-export function tableColumnWidths(c, totalW) {
-  const cols = Math.max(1, c?.cols || 1)
-  const weights = (Array.isArray(c?.colWidths) && c.colWidths.length === cols)
-    ? c.colWidths.map(w => Math.max(0.05, Number(w) || 0))
-    : Array(cols).fill(1)
-  const sum = weights.reduce((a, b) => a + b, 0) || 1
-  return weights.map(w => totalW * w / sum)
-}
-
-/** 行高按表格高度均分。二维码和条码缩在格子里，不把某一行撑高。 */
-export function tableRowHeights(c, totalH) {
-  const rows = Math.max(1, c?.rows || 1)
-  const each = totalH / rows
-  return Array(rows).fill(each)
-}
-
 function drawContainedImage(pdf, src, nw, nh, x, y, w, h) {
   if (!src || nw <= 0 || nh <= 0 || w <= 0 || h <= 0) return
   const ratio = nw / nh
@@ -314,13 +300,6 @@ function drawImage(pdf, c, row, x, y, w, h) {
   try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 跨域或坏图就跳过 */ }
 }
 
-function prefixes(sizes) {
-  const out = []
-  let acc = 0
-  for (const n of sizes) { out.push(acc); acc += n }
-  return out
-}
-
 function drawCellVisual(pdf, cell, text, x, y, w, h) {
   const type = cell?.type || 'text'
   if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
@@ -348,12 +327,12 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
 }
 
 function drawTable(pdf, c, row, x, y, w, h) {
-  const rows = Math.max(1, c.rows || 1)
-  const cols = Math.max(1, c.cols || 1)
   const colW = tableColumnWidths(c, w)
   const rowH = tableRowHeights(c, h)
-  const colX = prefixes(colW)
-  const rowY = prefixes(rowH)
+  const cols = colW.length
+  const rows = rowH.length
+  const colX = sizeOffsets(colW)
+  const rowY = sizeOffsets(rowH)
   const sw = Math.max(0.05, Number(c.borderWidth) || 0.2)
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
