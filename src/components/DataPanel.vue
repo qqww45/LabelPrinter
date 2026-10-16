@@ -1,19 +1,19 @@
 <template>
   <div class="data-panel">
     <div class="data-toolbar">
-      <span class="title">📊 {{ t('数据') }}</span>
+      <span class="title">{{ t('数据') }}</span>
       <input class="input" style="width:160px" :placeholder="t('筛选...')" :value="data.filter"
         @input="data.setFilter($event.target.value)" />
-      <span v-if="data.sourcePath" class="src">📎 {{ data.sourcePath }}</span>
+      <span v-if="data.sourcePath" class="src">{{ data.sourcePath }}</span>
       <span v-if="data.embedded" class="badge embedded">{{ t('内嵌快照') }}</span>
       <span class="count">{{ data.filteredRows.length }} / {{ data.rows.length }} {{ t('行') }} · {{ data.headers.length }} {{ t('列') }}</span>
 
       <span class="spacer"></span>
 
       <button v-if="data.headers.length" class="btn btn-sm" @click="addEmpty" :title="t('在末尾添加一行')">+ {{ t('添加行') }}</button>
-      <button v-if="data.rows.length" class="btn btn-sm" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">📤 {{ t('导出') }}</button>
+      <button v-if="data.rows.length" class="btn btn-sm" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">{{ t('导出') }}</button>
       <button v-if="data.headers.length || data.rows.length" class="btn btn-sm" @click="clearAll">{{ t('清空') }}</button>
-      <button class="btn btn-sm btn-primary" @click="$emit('import')">📥 {{ t('导入 Excel/CSV') }}</button>
+      <button class="btn btn-sm btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
     </div>
 
     <div class="data-grid" v-if="data.headers.length" ref="gridEl" @scroll="onGridScroll">
@@ -96,26 +96,38 @@
               <button class="btn btn-sm" @click.stop="data.removeRow(item.row.__id)" :title="t('删除该行')">×</button>
             </td>
           </tr>
+          <tr v-if="!data.rows.length" class="empty-row">
+            <td :colspan="colSpan">
+              <div class="empty-inline">
+                <div class="empty-title">{{ t('表头已就绪，还没有数据行') }}</div>
+                <div class="empty-sub">{{ t('添加一行开始填写，或继续导入更多数据') }}</div>
+                <div class="empty-actions">
+                  <button class="btn btn-sm" @click="addEmpty">+ {{ t('添加行') }}</button>
+                  <button class="btn btn-sm btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
+                </div>
+              </div>
+            </td>
+          </tr>
           <tr v-if="padBottom" class="vpad" :style="{ height: padBottom + 'px' }"><td :colspan="colSpan"></td></tr>
         </tbody>
       </table>
     </div>
 
-    <!-- 空状态分两档：没有任何字段 → 引导建表；有字段没行 → 引导加行 -->
+    <!-- 空状态：没有任何字段 → 引导建表 / 导入 -->
     <div v-else class="empty">
-      <div class="empty-icon">📋</div>
+      <div class="empty-glyph" aria-hidden="true"></div>
       <div class="empty-title">{{ t('还没有数据') }}</div>
       <div class="empty-sub">{{ t('从这里开始：') }}</div>
       <div class="empty-actions">
         <button class="btn" @click="addCol('名称')">+ {{ t('手动建表（添加字段）') }}</button>
-        <button class="btn btn-primary" @click="$emit('import')">📥 {{ t('导入 Excel/CSV') }}</button>
+        <button class="btn btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
       </div>
     </div>
 
     <!-- 导出菜单（点击外部关闭） -->
     <div v-if="exportOpen" class="export-menu" @click.stop>
-      <button class="export-item" @click="doExport('xlsx')">📊 {{ t('导出为 Excel (.xlsx)') }}</button>
-      <button class="export-item" @click="doExport('csv')">📄 {{ t('导出为 CSV (.csv)') }}</button>
+      <button class="export-item" @click="doExport('xlsx')">{{ t('导出为 Excel (.xlsx)') }}</button>
+      <button class="export-item" @click="doExport('csv')">{{ t('导出为 CSV (.csv)') }}</button>
     </div>
     <div v-if="exportOpen" class="export-mask" @click="exportOpen = false"></div>
   </div>
@@ -126,6 +138,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
 import { exportToExcel, exportToCSV } from '../utils/excel'
+import { toastError, toastSuccess } from '../utils/toast'
 const { t } = useI18n()
 const data = useDataStore()
 
@@ -282,7 +295,7 @@ function commitRename(oldName) {
       }
       if (data.sortKey === oldName) data.setSort(v)  // 触发重新计算（保留方向）
     } catch (e) {
-      alert(e.message || t('重命名失败'))
+      toastError(e.message || t('重命名失败'))
     }
   }
   editingCol.value = ''
@@ -314,7 +327,7 @@ function delCol(name) {
     if (data.sortKey === name) { data.sortKey = ''; data.sortDir = '' }
     dropColWidth(name); saveColWidths()
   } catch (e) {
-    alert(e.message || t('删除失败'))
+    toastError(e.message || t('删除失败'))
   }
 }
 
@@ -332,6 +345,7 @@ function addEmpty() {
 function clearAll() {
   if (!confirm(t('清空所有数据？'))) return
   data.clear()
+  toastSuccess(t('已清空数据'))
 }
 
 // ============ 导出 ============
@@ -345,8 +359,9 @@ function doExport(fmt) {
   try {
     if (fmt === 'xlsx') exportToExcel(data.headers, data.rows, filename)
     else exportToCSV(data.headers, data.rows, filename)
+    toastSuccess(t('导出成功'))
   } catch (e) {
-    alert(t('导出失败：{msg}', { msg: e.message || e }))
+    toastError(t('导出失败：{msg}', { msg: e.message || e }))
   }
 }
 </script>
@@ -503,10 +518,29 @@ tr.active td .cell-input { color: inherit; }
   text-align: center;
   gap: 6px;
 }
-.empty-icon { font-size: 28px; opacity: 0.4; line-height: 1; }
+.empty-glyph {
+  width: 36px; height: 28px; border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-soft);
+  position: relative;
+  margin-bottom: 4px;
+}
+.empty-glyph::before,
+.empty-glyph::after {
+  content: '';
+  position: absolute; left: 6px; right: 6px; height: 2px;
+  background: var(--border); border-radius: 1px;
+}
+.empty-glyph::before { top: 9px; }
+.empty-glyph::after { top: 15px; width: 55%; right: auto; }
 .empty-title { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
 .empty-sub { font-size: 12px; color: var(--text-muted); }
-.empty-actions { display: flex; gap: 8px; margin-top: 12px; }
+.empty-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.empty-row td { background: var(--bg); }
+.empty-inline {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 28px 12px; text-align: center;
+}
 
 /* 导出菜单 */
 .export-mask { position: fixed; inset: 0; z-index: 9; }

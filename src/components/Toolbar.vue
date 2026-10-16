@@ -1,7 +1,16 @@
 <template>
   <div class="toolbar" :class="{ compact: isCompact }">
     <div class="group group-brand">
-      <div class="logo">🏷️ <span class="logo-text">{{ t('标签打印工具') }}</span></div>
+      <div class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="4" y="6" width="16" height="12" rx="2" />
+            <path d="M4 9h16" />
+            <path d="M8 13v3M10.5 12v4M13 13.5v2.5M15.5 12v4" stroke-linecap="round" />
+          </svg>
+        </span>
+        <span class="logo-text">{{ t('标签打印工具') }}</span>
+      </div>
       <span class="filename" v-if="project.project.meta">
         <span class="filename-text">{{ project.project.meta.name }}</span>
         <span v-if="project.dirty" class="dirty">●</span>
@@ -10,31 +19,50 @@
 
     <div class="divider divider-hide-narrow" />
 
-    <!-- 配置：数据/模板/页面/排版（5 个） -->
     <div class="group group-config">
-      <button class="btn" @click="$emit('template-library')" :title="t('内置模板与我的模板')"><span class="ico">📚</span><span class="txt">{{ t('模板库') }}</span></button>
-      <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 调整：对着当前标签说话，画布上马上能看到')"><span class="ico">🤖</span><span class="txt">{{ t('AI 调整') }}</span></button>
-      <button class="btn" @click="$emit('field-map')" :title="t('模板字段与数据列的对应关系')"><span class="ico">🔀</span><span class="txt">{{ t('字段映射') }}</span></button>
-      <button class="btn" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')"><span class="ico">⚙</span><span class="txt">{{ t('纸张设置') }}</span></button>
-      <button class="btn" @click="$emit('layout-editor')" :title="t('排版与边距')"><span class="ico">📐</span><span class="txt">{{ t('排版') }}</span></button>
+      <button class="btn" @click="$emit('template-library')" :title="t('内置模板与我的模板')">
+        <span class="ico" v-html="icons.library"></span><span class="txt">{{ t('模板库') }}</span>
+      </button>
+      <button class="btn btn-ai" @click="$emit('ai')" :title="t('AI 调整：对着当前标签说话，画布上马上能看到')">
+        <span class="ico" v-html="icons.ai"></span><span class="txt">{{ t('AI 调整') }}</span>
+      </button>
+      <button class="btn" @click="$emit('field-map')" :title="t('模板字段与数据列的对应关系')">
+        <span class="ico" v-html="icons.map"></span><span class="txt">{{ t('字段映射') }}</span>
+      </button>
+      <button class="btn" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')">
+        <span class="ico" v-html="icons.paper"></span><span class="txt">{{ t('纸张设置') }}</span>
+      </button>
+      <button class="btn" @click="$emit('layout-editor')" :title="t('排版与边距')">
+        <span class="ico" v-html="icons.layout"></span><span class="txt">{{ t('排版') }}</span>
+      </button>
     </div>
 
     <div class="divider divider-hide-narrow" />
 
-    <!-- 打印：设置/队列/预览（3 个） -->
     <div class="group group-ops">
-      <button class="btn keep-label" @click="$emit('print-config')" :title="t('打印设置')"><span class="ico">🖨️</span><span class="txt">{{ t('打印设置') }}</span></button>
-      <button class="btn" @click="$emit('print-center')" :title="t('打印队列与历史记录')"><span class="ico">🗂</span><span class="txt">{{ t('打印中心') }}</span></button>
-      <button class="btn" @click="$emit('preview')" :title="t('预览')"><span class="ico">👁️</span><span class="txt">{{ t('预览') }}</span></button>
+      <button class="btn keep-label" @click="$emit('print-config')" :title="t('打印设置')">
+        <span class="ico" v-html="icons.printSetup"></span><span class="txt">{{ t('打印设置') }}</span>
+      </button>
+      <button class="btn" @click="$emit('print-center')" :title="t('打印队列与历史记录')">
+        <span class="ico" v-html="icons.queue"></span><span class="txt">{{ t('打印中心') }}</span>
+      </button>
+      <button class="btn" @click="$emit('preview')" :title="t('预览')">
+        <span class="ico" v-html="icons.preview"></span><span class="txt">{{ t('预览') }}</span>
+      </button>
     </div>
 
     <div class="divider divider-hide-narrow" />
 
-    <!-- 输出：执行（3 个） -->
     <div class="group group-output">
-      <button class="btn btn-primary keep-label" @click="$emit('print')" :title="t('打印')"><span class="ico">🖨️</span><span class="txt">{{ t('打印') }}</span></button>
-      <button class="btn" @click="$emit('export-pdf')" :title="t('导出 PDF')"><span class="ico">📄</span><span class="txt">PDF</span></button>
-      <button class="btn" @click="$emit('export-image')" :title="t('导出图片')"><span class="ico">🖼️</span><span class="txt">{{ t('图片') }}</span></button>
+      <button class="btn btn-primary keep-label" @click="$emit('print')" :title="t('打印')">
+        <span class="ico" v-html="icons.print"></span><span class="txt">{{ t('打印') }}</span>
+      </button>
+      <button class="btn" @click="$emit('export-pdf')" :title="t('导出 PDF')">
+        <span class="ico" v-html="icons.pdf"></span><span class="txt">PDF</span>
+      </button>
+      <button class="btn" @click="$emit('export-image')" :title="t('导出图片')">
+        <span class="ico" v-html="icons.image"></span><span class="txt">{{ t('图片') }}</span>
+      </button>
     </div>
 
     <div class="spacer" />
@@ -47,21 +75,23 @@
         class="btn btn-icon"
         @click="settings.toggleTheme()"
         :title="settings.theme === 'dark' ? t('切换到亮色') : t('切换到暗色')"
-      >{{ settings.theme === 'dark' ? '☀️' : '🌙' }}</button>
+      >
+        <span class="ico" v-html="settings.theme === 'dark' ? icons.sun : icons.moon"></span>
+      </button>
       <button class="btn btn-icon" @click="settings.toggleLang()" :title="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')">
         {{ settings.lang === 'en' ? '中' : 'EN' }}
       </button>
     </div>
 
     <div class="group zoom-group">
-      <button class="btn btn-icon" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" aria-label="缩小">➖</button>
+      <button class="btn btn-icon" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" aria-label="缩小">−</button>
       <div class="zoom-select" :title="t('缩放比例（点击选常用档位）')">
         <select :value="zoomPercent" @change="onZoomPreset($event.target.value)">
           <option v-for="p in zoomOptions" :key="p" :value="p">{{ p }}%</option>
         </select>
       </div>
-      <button class="btn btn-icon" @click="zoomIn" :title="t('放大 (Ctrl++)')" aria-label="放大">➕</button>
-      <button class="btn btn-icon" @click="zoomReset" :title="t('实际大小 (Ctrl+0)')" aria-label="实际大小 100%">⊙</button>
+      <button class="btn btn-icon" @click="zoomIn" :title="t('放大 (Ctrl++)')" aria-label="放大">+</button>
+      <button class="btn btn-icon" @click="zoomReset" :title="t('实际大小 (Ctrl+0)')" aria-label="实际大小 100%">1:1</button>
       <button class="btn btn-icon" @click="zoomFit" :title="t('适合窗口 (F)')" aria-label="适合窗口">⛶</button>
       <button
         class="btn btn-icon"
@@ -80,6 +110,7 @@ import { useProjectStore } from '../stores/project'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../utils/i18n'
 import { fitZoomToWindow } from '../utils/canvasFit'
+
 const project = useProjectStore()
 const settings = useSettingsStore()
 const { t } = useI18n()
@@ -88,12 +119,27 @@ defineEmits(['import-data',
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
   'template-library', 'field-map', 'print-center', 'ai'])
 
-// ============ 窄屏自适应：宽 < 1180px 进入 compact（隐藏按钮文字只剩图标）============
+const S = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+const icons = {
+  library: S('<path d="M4 5h5v14H4zM10 5h5v14h-5zM16 7h4v12h-4z"/><path d="M6.5 8h1M6.5 11h1M12.5 8h1M12.5 11h1"/>'),
+  ai: S('<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4.5"/><path d="M9.5 12h5"/>'),
+  map: S('<path d="M4 7h7l2 3h7"/><path d="M7 17h10"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>'),
+  paper: S('<rect x="5" y="3.5" width="14" height="17" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
+  layout: S('<rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M3.5 9h17M10 9v11"/>'),
+  printSetup: S('<path d="M7 9V4.5h10V9"/><rect x="5" y="9" width="14" height="8" rx="1.5"/><path d="M8 17v2.5h8V17M8 12h3"/>'),
+  queue: S('<path d="M5 6h10v12H5z"/><path d="M9 6V4.5h10V16.5H15"/><path d="M7.5 10h5M7.5 13h5"/>'),
+  preview: S('<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'),
+  print: S('<path d="M7 9V4.5h10V9"/><rect x="5" y="9" width="14" height="8" rx="1.5"/><path d="M8 17v2.5h8V17"/>'),
+  pdf: S('<path d="M8 3.5h6l4 4V20.5H8z"/><path d="M14 3.5V8h4"/><path d="M10 13h4M10 16h6"/>'),
+  image: S('<rect x="4" y="5" width="16" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 16.5l4.5-4.5 3 3 3-4 4.5 5.5"/>'),
+  sun: S('<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6 6 18"/>'),
+  moon: S('<path d="M16.5 14.2A6.2 6.2 0 0 1 9.8 7.5 6.5 6.5 0 1 0 16.5 14.2z"/>')
+}
+
 const COMPACT_THRESHOLD = 1180
 const isCompact = ref(typeof window !== 'undefined' && window.innerWidth < COMPACT_THRESHOLD)
 function onResize() { isCompact.value = window.innerWidth < COMPACT_THRESHOLD }
 
-// 常用缩放档位（设计工具标配：50/75/100/150/200/400）
 const zoomPresets = [25, 50, 75, 100, 125, 150, 200, 300, 400]
 const zoomPercent = computed(() => Math.round(project.zoom * 100))
 const zoomOptions = computed(() => {
@@ -102,7 +148,6 @@ const zoomOptions = computed(() => {
   return [...zoomPresets, current].sort((a, b) => a - b)
 })
 
-// 步长：100% 附近用 5%，远区用 10%
 function step() {
   const z = project.zoom
   if (z < 0.5) return 0.1
@@ -113,7 +158,6 @@ function zoomIn() { project.zoom = Math.min(4, +(project.zoom + step()).toFixed(
 function zoomOut() { project.zoom = Math.max(0.2, +(project.zoom - step()).toFixed(2)); project.autoFit = false }
 function zoomReset() { project.zoom = 1; project.autoFit = false }
 function onZoomPreset(p) { project.zoom = Number(p) / 100; project.autoFit = false }
-// 适合窗口：按画布可视区自动算缩放（设计工具标配）；开启后窗口 resize 自动重新适配
 function zoomFit() {
   const wrap = document.querySelector('.design-canvas-wrap')
   const z = fitZoomToWindow(wrap, project.project.label.width || 50, project.project.label.height || 30)
@@ -122,9 +166,7 @@ function zoomFit() {
 }
 function toggleGrid() { project.showGrid = !project.showGrid }
 
-// 全局快捷键：缩放、网格
 function onKeydown(e) {
-  // 忽略输入框内
   const tag = (e.target.tagName || '').toLowerCase()
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return
   if (!(e.ctrlKey || e.metaKey) && !['+', '-', '0', 'f', 'g'].includes(e.key.toLowerCase())) return
@@ -137,10 +179,8 @@ function onKeydown(e) {
     if (e.key.toLowerCase() === 'g' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); toggleGrid() }
   }
 }
-// Ctrl+滚轮缩放（画布上）
 function onWheel(e) {
   if (!e.ctrlKey && !e.metaKey) return
-  // 只在画布区域内
   const canvas = e.target.closest('.design-canvas-wrap')
   if (!canvas) return
   e.preventDefault()
@@ -176,28 +216,19 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
 }
-/* 分组背景：让「配置 / 打印 / 输出」在视觉上分组（设计工具常见：VSCode、Sketch 风格） */
-.group-config { background: var(--bg-soft, rgba(99,102,241,0.06)); padding: 2px 6px; border-radius: 6px; }
-.group-ops { background: var(--bg-soft, rgba(99,102,241,0.06)); padding: 2px 6px; border-radius: 6px; }
-.group-output { background: var(--bg-soft, rgba(16,185,129,0.06)); padding: 2px 6px; border-radius: 6px; }
+.group-config,
+.group-ops { background: var(--bg-soft); padding: 2px 6px; border-radius: 6px; }
+.group-output { background: rgba(16, 185, 129, 0.08); padding: 2px 6px; border-radius: 6px; }
 
-/* AI 按钮：渐变紫 + 微动效突出 */
 .btn-ai {
-  background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
-  color: white !important;
-  border: none !important;
-  position: relative;
-  overflow: hidden;
+  color: var(--primary) !important;
+  border-color: rgba(37, 99, 235, 0.45) !important;
+  background: rgba(37, 99, 235, 0.08) !important;
 }
-.btn-ai::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.2), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.4s;
+.btn-ai:hover {
+  background: rgba(37, 99, 235, 0.14) !important;
+  border-color: var(--primary) !important;
 }
-.btn-ai:hover::before { transform: translateX(100%); }
-.btn-ai:hover { box-shadow: 0 2px 8px rgba(139,92,246,0.4); }
 
 .logo {
   font-weight: 600;
@@ -205,7 +236,17 @@ onBeforeUnmount(() => {
   color: var(--primary);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+}
+.logo-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
 }
 .logo-text { white-space: nowrap; }
 .filename {
@@ -221,17 +262,22 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.dirty {
-  color: var(--warning);
-}
+.dirty { color: var(--warning); }
 .spacer { flex: 1; }
 
-/* 按钮统一：内嵌 icon + text 标签 */
-.btn { display: inline-flex; align-items: center; gap: 4px; }
-.btn .ico { font-size: 14px; line-height: 1; }
+.btn { display: inline-flex; align-items: center; gap: 5px; }
+.btn .ico {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+  opacity: 0.92;
+}
+.btn .ico :deep(svg) { display: block; }
 .btn .txt { white-space: nowrap; }
 
-/* 缩放组：按钮更紧凑 + 下拉百分比替代纯文字 */
 .zoom-group { gap: 2px; }
 .zoom-select {
   position: relative;
@@ -263,7 +309,6 @@ onBeforeUnmount(() => {
   border-color: var(--primary);
 }
 
-/* ============ 窄屏 compact：只显示图标、隐藏文字 + 隐藏文件名/Logo 文字 ============ */
 .toolbar.compact .logo-text,
 .toolbar.compact .filename-text { display: none; }
 .toolbar.compact .btn .txt { display: none; }
@@ -272,7 +317,6 @@ onBeforeUnmount(() => {
 .toolbar.compact .group { background: transparent; padding: 0; }
 .toolbar.compact .btn { padding: 4px 6px; }
 
-/* 极窄屏：缩放百分比也隐藏（只剩 + - 按钮） */
 @media (max-width: 720px) {
   .toolbar.compact .zoom-select { display: none; }
 }

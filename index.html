@@ -50,41 +50,154 @@
 
   <!-- 首屏加载：内联样式，不依赖 JS/CSS 包，避免白屏 -->
   <style>
-    html, body { margin: 0; height: 100%; background: #f5f7fa; }
-    html[data-theme="dark"], html[data-theme="dark"] body { background: #0f172a; }
+    html, body { margin: 0; height: 100%; background: #eef2f7; }
+    html[data-theme="dark"], html[data-theme="dark"] body { background: #0b1220; }
+
     #boot-splash {
+      --boot-ink: #2563eb;
+      --boot-ink-soft: rgba(37, 99, 235, 0.14);
+      --boot-surface: rgba(255, 255, 255, 0.72);
+      --boot-line: rgba(15, 23, 42, 0.08);
+      --boot-title: #0f172a;
+      --boot-muted: #64748b;
       position: fixed; inset: 0; z-index: 99999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 16px;
-      background: #f5f7fa; color: #64748b;
-      font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-      transition: opacity 0.28s ease, visibility 0.28s ease;
+      display: grid; place-items: center;
+      overflow: hidden;
+      color: var(--boot-muted);
+      font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      background:
+        radial-gradient(900px 520px at 18% 12%, rgba(37, 99, 235, 0.14), transparent 58%),
+        radial-gradient(720px 480px at 88% 78%, rgba(14, 165, 233, 0.1), transparent 55%),
+        linear-gradient(165deg, #f7f9fc 0%, #eef2f7 48%, #e8eef6 100%);
+      transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                  visibility 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    html[data-theme="dark"] #boot-splash { background: #0f172a; color: #94a3b8; }
-    #boot-splash.is-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+    html[data-theme="dark"] #boot-splash {
+      --boot-ink: #60a5fa;
+      --boot-ink-soft: rgba(96, 165, 250, 0.18);
+      --boot-surface: rgba(30, 41, 59, 0.72);
+      --boot-line: rgba(148, 163, 184, 0.12);
+      --boot-title: #f1f5f9;
+      --boot-muted: #94a3b8;
+      background:
+        radial-gradient(900px 520px at 18% 12%, rgba(37, 99, 235, 0.22), transparent 58%),
+        radial-gradient(720px 480px at 88% 78%, rgba(56, 189, 248, 0.12), transparent 55%),
+        linear-gradient(165deg, #0b1220 0%, #0f172a 52%, #111827 100%);
+    }
+    #boot-splash.is-hide {
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transform: scale(1.02);
+    }
+    #boot-splash::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(var(--boot-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--boot-line) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at center, #000 28%, transparent 72%);
+      -webkit-mask-image: radial-gradient(ellipse at center, #000 28%, transparent 72%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    #boot-splash .boot-core {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 22px; padding: 28px 32px;
+      min-width: 220px;
+      animation: boot-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
     #boot-splash .boot-mark {
-      width: 48px; height: 48px; border-radius: 12px;
-      background: #2563eb; color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
-      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.28);
+      width: 72px; height: 72px; border-radius: 20px;
+      display: grid; place-items: center;
+      background: var(--boot-surface);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.65) inset,
+        0 18px 40px rgba(15, 23, 42, 0.1),
+        0 4px 12px rgba(37, 99, 235, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
-    html[data-theme="dark"] #boot-splash .boot-mark { background: #3b82f6; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.28); }
-    #boot-splash .boot-title { font-size: 15px; font-weight: 600; color: #1e293b; }
-    html[data-theme="dark"] #boot-splash .boot-title { color: #e2e8f0; }
-    #boot-splash .boot-spinner {
-      width: 28px; height: 28px;
-      border: 2.5px solid rgba(37, 99, 235, 0.18);
-      border-top-color: #2563eb;
-      border-radius: 50%;
-      animation: boot-spin 0.7s linear infinite;
+    html[data-theme="dark"] #boot-splash .boot-mark {
+      border-color: rgba(148, 163, 184, 0.16);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.04) inset,
+        0 18px 40px rgba(0, 0, 0, 0.35),
+        0 4px 12px rgba(37, 99, 235, 0.18);
     }
-    html[data-theme="dark"] #boot-splash .boot-spinner {
-      border-color: rgba(59, 130, 246, 0.2);
-      border-top-color: #3b82f6;
+    #boot-splash .boot-label {
+      width: 38px; height: 28px;
+      border: 1.5px solid var(--boot-ink);
+      border-radius: 5px;
+      display: flex; align-items: flex-end; justify-content: center;
+      gap: 2px; padding: 0 5px 5px;
+      position: relative;
+      overflow: hidden;
     }
-    #boot-splash .boot-hint { font-size: 12px; letter-spacing: 0.02em; }
-    @keyframes boot-spin { to { transform: rotate(360deg); } }
+    #boot-splash .boot-label::after {
+      content: "";
+      position: absolute; left: 0; right: 0; top: 0; height: 4px;
+      background: var(--boot-ink);
+      opacity: 0.85;
+    }
+    #boot-splash .boot-bar-line {
+      width: 2px; height: 12px; border-radius: 1px;
+      background: var(--boot-ink);
+      transform-origin: bottom;
+      animation: boot-print 1.35s ease-in-out infinite;
+    }
+    #boot-splash .boot-bar-line:nth-child(1) { height: 8px; animation-delay: 0s; }
+    #boot-splash .boot-bar-line:nth-child(2) { height: 13px; animation-delay: 0.08s; }
+    #boot-splash .boot-bar-line:nth-child(3) { height: 6px; animation-delay: 0.16s; }
+    #boot-splash .boot-bar-line:nth-child(4) { height: 14px; animation-delay: 0.24s; }
+    #boot-splash .boot-bar-line:nth-child(5) { height: 9px; animation-delay: 0.32s; }
+    #boot-splash .boot-bar-line:nth-child(6) { height: 12px; animation-delay: 0.4s; }
+    #boot-splash .boot-bar-line:nth-child(7) { height: 7px; animation-delay: 0.48s; }
+    #boot-splash .boot-copy { text-align: center; }
+    #boot-splash .boot-title {
+      font-size: 17px; font-weight: 600; letter-spacing: 0.04em;
+      color: var(--boot-title); line-height: 1.2;
+    }
+    #boot-splash .boot-sub {
+      margin-top: 6px;
+      font-size: 10px; font-weight: 500; letter-spacing: 0.28em;
+      text-transform: uppercase; color: var(--boot-muted);
+    }
+    #boot-splash .boot-track {
+      width: 128px; height: 2px; border-radius: 999px;
+      background: var(--boot-ink-soft);
+      overflow: hidden; position: relative;
+    }
+    #boot-splash .boot-progress {
+      position: absolute; inset: 0 auto 0 0; width: 40%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, transparent, var(--boot-ink), transparent);
+      animation: boot-sweep 1.25s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    #boot-splash .boot-hint {
+      font-size: 12px; letter-spacing: 0.08em; color: var(--boot-muted);
+      opacity: 0.9;
+    }
+    @keyframes boot-rise {
+      from { opacity: 0; transform: translateY(10px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes boot-print {
+      0%, 100% { transform: scaleY(0.55); opacity: 0.45; }
+      50% { transform: scaleY(1); opacity: 1; }
+    }
+    @keyframes boot-sweep {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(320%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #boot-splash .boot-core,
+      #boot-splash .boot-bar-line,
+      #boot-splash .boot-progress { animation: none; }
+      #boot-splash .boot-progress { width: 55%; left: 22.5%; background: var(--boot-ink); }
+    }
   </style>
   <script>
     // 在 Vue / CSS 包加载前同步主题，避免加载屏闪白
@@ -96,10 +209,25 @@
 </head>
 <body>
   <div id="boot-splash" aria-busy="true" aria-live="polite">
-    <div class="boot-mark" aria-hidden="true">标</div>
-    <div class="boot-title">标签打印工具</div>
-    <div class="boot-spinner" aria-hidden="true"></div>
-    <div class="boot-hint">加载中…</div>
+    <div class="boot-core">
+      <div class="boot-mark" aria-hidden="true">
+        <div class="boot-label">
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+          <span class="boot-bar-line"></span>
+        </div>
+      </div>
+      <div class="boot-copy">
+        <div class="boot-title">标签打印</div>
+        <div class="boot-sub">Label Printer</div>
+      </div>
+      <div class="boot-track" aria-hidden="true"><div class="boot-progress"></div></div>
+      <div class="boot-hint">正在准备工作台…</div>
+    </div>
   </div>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>

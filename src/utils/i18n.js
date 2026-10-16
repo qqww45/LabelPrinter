@@ -643,7 +643,28 @@ const EN = {
   '让 AI 调整': 'Adjust with AI',
   '应用调整': 'Apply changes',
   '先写要改什么': 'Describe the change first.',
-  '数据改动不能用 Ctrl+Z 撤回。布局和打印设置可以。': 'Data edits cannot be undone with Ctrl+Z. Layout and print settings can.'
+  '数据改动不能用 Ctrl+Z 撤回。布局和打印设置可以。': 'Data edits cannot be undone with Ctrl+Z. Layout and print settings can.',
+  // 体验优化：toast / 空态 / 预览
+  '已保存': 'Saved',
+  '已应用 {n} 个组件': 'Applied {n} components',
+  '已导入 {n} 条数据': 'Imported {n} rows',
+  '数据源未加载：{msg}\n可在数据面板手动导入。': 'Data source not loaded: {msg}\nImport manually in the data panel.',
+  '从左侧拖入组件': 'Drag components from the left',
+  '文字、条码、二维码都可以直接拖到这里': 'Text, barcodes, and QR codes can be dropped here',
+  '表头已就绪，还没有数据行': 'Columns ready — no rows yet',
+  '添加一行开始填写，或继续导入更多数据': 'Add a row to start typing, or import more data',
+  '已清空数据': 'Data cleared',
+  '导出成功': 'Export successful',
+  '更多': 'More',
+  '还没有可预览的数据': 'Nothing to preview yet',
+  '去底部数据面板导入 Excel/CSV，再回来预览打印': 'Import Excel/CSV in the data panel below, then come back to preview',
+  '去数据面板导入': 'Go import data',
+  '已加入打印队列': 'Added to print queue',
+  'PDF 已导出': 'PDF exported',
+  '图片已导出': 'Image exported',
+  '已应用模板「{n}」': 'Applied template "{n}"',
+  '模板已保存': 'Template saved',
+  '样式已复制': 'Style copied'
 }
 
 export function useI18n() {

@@ -6,15 +6,20 @@
       <!-- 标签边框 overlay：不能用 wrapper border（fabric canvas 会盖住右/下边） -->
       <div v-if="pj.project.label.showBorder" class="label-border-overlay"
            :style="labelBorderOverlayStyle"></div>
+      <!-- 空画布引导：首拖即消失；pointer-events:none 不挡拖放 -->
+      <div v-if="!pj.project.components.length" class="canvas-empty" aria-hidden="true">
+        <div class="canvas-empty-title">{{ t('从左侧拖入组件') }}</div>
+        <div class="canvas-empty-sub">{{ t('文字、条码、二维码都可以直接拖到这里') }}</div>
+      </div>
     </div>
 
     <!-- 尺寸说明常驻：这是画布上唯一写明「标签 / 纸张 / 每页几个」的地方 -->
     <div class="info-bar">
-      <span>🏷 {{ t('标签') }} {{ pj.project.label.width }}×{{ pj.project.label.height }} mm</span>
-      <span>📄 {{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
-      <span>🖨 {{ layoutSummary }}</span>
-      <span>🔍 {{ Math.round(pj.zoom * 100) }}%</span>
-      <span v-if="data.rows.length">📊 {{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
+      <span>{{ t('标签') }} {{ pj.project.label.width }}×{{ pj.project.label.height }} mm</span>
+      <span>{{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
+      <span>{{ layoutSummary }}</span>
+      <span>{{ Math.round(pj.zoom * 100) }}%</span>
+      <span v-if="data.rows.length">{{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
     </div>
   </div>
 </template>
@@ -1085,6 +1090,37 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   flex-shrink: 0;
   position: relative;
 }
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.2), rgba(241, 245, 249, 0.55));
+}
+.canvas-empty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.02em;
+}
+.canvas-empty-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  max-width: 180px;
+  line-height: 1.45;
+}
+:global([data-theme='dark']) .canvas-empty {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0.35));
+}
+:global([data-theme='dark']) .canvas-empty-title { color: #cbd5e1; }
+:global([data-theme='dark']) .canvas-empty-sub { color: #64748b; }
 .info-bar {
   position: absolute;
   left: 12px;            /* 左下角，不挡组件 / 缩放控件 */

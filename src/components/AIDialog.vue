@@ -70,6 +70,7 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useAIStore } from '../stores/ai'
 import { useI18n } from '../utils/i18n'
+import { toastInfo } from '../utils/toast'
 import { buildSystemPrompt, buildAdjustPrompt, buildAdjustMessages, packAdjustContext, callChat, parseAIResponse, parseAIPlan, validateAndNormalize, normalizeAdjustPlan, adjustPlanIsEmpty, describeAdjustPlan } from '../utils/ai'
 
 const { t } = useI18n()
@@ -333,7 +334,7 @@ function applyPlan(opts = {}) {
     }
   })
   plan.value = null
-  if (notes.length) alert(notes.join('\n'))
+  if (notes.length) toastInfo(notes.join('\n'), 5200)
   emit('applied', next.componentAdds.length + next.componentUpdates.length)
 }
 </script>

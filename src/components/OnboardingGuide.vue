@@ -13,7 +13,7 @@
       </ol>
 
       <!-- Step 1: 选类型 -->
-      <section v-if="step === 1" class="body">
+      <section v-if="step === 1" class="body step-enter">
         <p class="tip">{{ t('选一个最像的开始 —— 后面所有元素、尺寸、文字都能改。') }}</p>
         <div class="grid">
           <button
@@ -38,7 +38,7 @@
       </section>
 
       <!-- Step 2: 确认尺寸 -->
-      <section v-else-if="step === 2" class="body">
+      <section v-else-if="step === 2" class="body step-enter">
         <p class="tip">
           {{ t('两套尺寸是不同概念：') }}<b>{{ t('标签') }}</b>{{ t('=每条数据一个，') }}<b>{{ t('纸张') }}</b>{{ t('=实际打印的纸。') }}
         </p>
@@ -115,17 +115,17 @@
 
         <div class="actions">
           <button class="btn" @click="step = 1">← {{ t('上一步') }}</button>
-          <button class="btn primary" :disabled="tooBig" @click="goImportStep">{{ t('下一步') }} →</button>
+          <button class="btn btn-primary" :disabled="tooBig" @click="goImportStep">{{ t('下一步') }} →</button>
         </div>
       </section>
 
       <!-- Step 3: 导入数据 -->
-      <section v-else class="body">
+      <section v-else class="body step-enter">
         <p class="tip">{{ t('有数据才能批量打。Excel 或 CSV 的第一行是列名，和模板里的字段同名会自动对上。') }}</p>
         <div class="actions">
           <button class="btn" @click="step = 2">← {{ t('上一步') }}</button>
           <button class="btn" @click="dismiss">{{ t('先跳过，稍后在底部导入') }}</button>
-          <button class="btn primary" @click="emit('import')">{{ t('现在导入') }}</button>
+          <button class="btn btn-primary" @click="emit('import')">{{ t('现在导入') }}</button>
         </div>
       </section>
     </div>
@@ -489,11 +489,27 @@ function dismiss() {
   font-size: 13px;
   color: var(--text);
 }
-.btn:hover { background: var(--bg-hover); }
-.btn.primary {
+.btn:hover:not(:disabled) { background: var(--bg-hover); }
+.btn-primary {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
 }
-.btn.primary:hover { background: var(--primary-hover); }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn:disabled,
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.step-enter {
+  animation: onboard-in 0.28s ease both;
+}
+@keyframes onboard-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-enter { animation: none; }
+}
 </style>

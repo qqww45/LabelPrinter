@@ -480,6 +480,7 @@
 
 <script setup>
 import { useI18n } from '../utils/i18n'
+import { toastInfo, toastSuccess } from '../utils/toast'
 const { t } = useI18n()
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
@@ -569,7 +570,7 @@ function copyStyle() {
   const style = {}
   for (const k of STYLE_KEYS) if (k in c) style[k] = c[k]
   if (!Object.keys(style).length) {
-    alert(t('当前组件没有可复制的样式属性'))
+    toastInfo(t('当前组件没有可复制的样式属性'))
     return
   }
   styleClipboard.value = {
@@ -577,6 +578,7 @@ function copyStyle() {
     style,
     sourceName: c.name || typeNames[c.type] || c.type
   }
+  toastSuccess(t('样式已复制'))
 }
 
 const canPasteStyle = computed(() => {

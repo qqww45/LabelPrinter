@@ -9,8 +9,10 @@
   --bg-panel: #ffffff;
   --bg-toolbar: #ffffff;
   --bg-hover: #f1f5f9;
+  --bg-soft: rgba(37, 99, 235, 0.06);
   --border: #e2e8f0;
   --text: #1e293b;
+  --text-primary: #1e293b;
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
@@ -29,8 +31,10 @@
   --bg-panel: #1e293b;
   --bg-toolbar: #16213a;
   --bg-hover: #27364f;
+  --bg-soft: rgba(59, 130, 246, 0.12);
   --border: #334155;
   --text: #e2e8f0;
+  --text-primary: #e2e8f0;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   /* 暗色行高亮：深蓝底+浅蓝字（与 #0f172a 背景形成足够对比，文字清晰可读） */

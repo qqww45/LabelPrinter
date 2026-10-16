@@ -2,7 +2,7 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal tpl-modal">
       <div class="modal-header">
-        <span>📚 {{ t('模板库') }} <span class="sub">{{ t('应用模板只替换版式，保留数据源与字段映射') }}</span></span>
+        <span>{{ t('模板库') }} <span class="sub">{{ t('应用模板只替换版式，保留数据源与字段映射') }}</span></span>
         <button class="btn btn-icon" @click="$emit('close')">×</button>
       </div>
 
@@ -15,13 +15,27 @@
             class="tpl-item"
             :class="{ active: current && current.id === item.id }"
             @click="current = item"
-          >{{ item.name }}</div>
+          >
+            <div class="tpl-thumb" :style="thumbStyle(item)" aria-hidden="true">
+              <div
+                v-for="c in thumbComps(item)"
+                :key="c.id"
+                class="tpl-thumb-comp"
+                :class="'pv-' + c.type"
+                :style="thumbBox(item, c)"
+              ></div>
+            </div>
+            <span class="ellipsis">{{ item.name }}</span>
+          </div>
 
           <div class="group-title">
             {{ t('我的模板') }}
             <span class="count">{{ tplStore.userTemplates.length }}</span>
           </div>
-          <div v-if="!tplStore.userTemplates.length" class="empty-hint">{{ t('还没有保存过模板') }}</div>
+          <div v-if="!tplStore.userTemplates.length" class="empty-user">
+            <div class="empty-hint">{{ t('还没有保存过模板') }}</div>
+            <button class="btn btn-sm" @click="saveCurrent">{{ t('把当前设计另存为模板') }}</button>
+          </div>
           <div
             v-for="item in tplStore.userTemplates"
             :key="item.id"
@@ -29,6 +43,15 @@
             :class="{ active: current && current.id === item.id }"
             @click="current = item"
           >
+            <div class="tpl-thumb" :style="thumbStyle(item)" aria-hidden="true">
+              <div
+                v-for="c in thumbComps(item)"
+                :key="c.id"
+                class="tpl-thumb-comp"
+                :class="'pv-' + c.type"
+                :style="thumbBox(item, c)"
+              ></div>
+            </div>
             <span class="ellipsis">{{ item.name }}</span>
             <button class="del" :title="t('删除模板')" @click.stop="remove(item)">×</button>
           </div>
@@ -61,7 +84,7 @@
           </div>
 
           <div class="btns">
-            <button class="btn btn-primary" @click="apply(current)">{{ t('应用此模板') }}</button>
+            <button class="btn btn-primary btn-apply" @click="apply(current)">{{ t('应用此模板') }}</button>
             <button class="btn" @click="saveCurrent">{{ t('把当前设计另存为模板') }}</button>
             <button v-if="current.custom" class="btn" @click="remove(current)">{{ t('删除模板') }}</button>
           </div>
@@ -69,6 +92,7 @@
 
         <div class="tpl-detail empty" v-else>
           <div class="empty-hint">{{ t('请选择左侧的模板') }}</div>
+          <button class="btn btn-sm" @click="saveCurrent">{{ t('把当前设计另存为模板') }}</button>
         </div>
       </div>
     </div>
@@ -81,6 +105,7 @@ import { useProjectStore } from '../stores/project'
 import { useTemplateStore } from '../stores/templates'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
+import { toastSuccess } from '../utils/toast'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
 import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
 
@@ -105,6 +130,8 @@ const tplFields = computed(() => {
 // ============ 缩略示意图 ============
 const PREVIEW_MAX_W = 300
 const PREVIEW_MAX_H = 220
+const THUMB_W = 44
+const THUMB_H = 30
 
 const previewScale = computed(() => {
   const c = current.value
@@ -122,6 +149,31 @@ const previewStyle = computed(() => {
     border: c.label.showBorder ? `1px solid ${c.label.borderColor || '#000'}` : '1px solid #e2e8f0'
   }
 })
+
+function thumbScale(item) {
+  if (!item?.label?.width) return 1
+  return Math.min(THUMB_W / item.label.width, THUMB_H / item.label.height)
+}
+function thumbStyle(item) {
+  const s = thumbScale(item)
+  return {
+    width: Math.max(28, Math.round((item.label?.width || 40) * s)) + 'px',
+    height: Math.max(18, Math.round((item.label?.height || 30) * s)) + 'px',
+    background: item.label?.backgroundColor || '#fff'
+  }
+}
+function thumbComps(item) {
+  return (item.components || []).slice(0, 8)
+}
+function thumbBox(item, c) {
+  const s = thumbScale(item)
+  return {
+    left: (c.left * s) + 'px',
+    top: (c.top * s) + 'px',
+    width: Math.max(2, c.width * s) + 'px',
+    height: Math.max(2, c.height * s) + 'px'
+  }
+}
 
 function compBox(c) {
   const s = previewScale.value
@@ -154,6 +206,7 @@ function apply(tpl) {
     const used = tplFields.value
     project.updateFieldMap(autoMatchFieldMap(used, data.fields, project.project.dataSource.fieldMap))
   }
+  toastSuccess(t('已应用模板「{n}」', { n: tpl.name }))
   emit('close')
 }
 
@@ -163,6 +216,7 @@ function saveCurrent() {
   if (!name) return
   const tpl = tplStore.saveAsTemplate(project.getExportData(), name.trim())
   current.value = tpl
+  toastSuccess(t('模板已保存'))
 }
 
 function remove(item) {
@@ -208,13 +262,13 @@ function remove(item) {
 }
 .count { color: var(--text-secondary); }
 .tpl-item {
-  padding: 8px 10px;
+  padding: 7px 8px;
   border-radius: var(--radius);
   font-size: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 .tpl-item:hover { background: var(--bg-hover); }
 .tpl-item.active {
@@ -222,11 +276,39 @@ function remove(item) {
   color: var(--primary);
   font-weight: 600;
 }
+.tpl-thumb {
+  position: relative;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.tpl-thumb-comp {
+  position: absolute;
+  background: rgba(37, 99, 235, 0.28);
+  border-radius: 1px;
+}
+.tpl-thumb-comp.pv-qrcode,
+.tpl-thumb-comp.pv-barcode { background: rgba(15, 23, 42, 0.35); }
+.tpl-thumb-comp.pv-table { background: rgba(16, 185, 129, 0.4); }
 .tpl-item .ellipsis {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.empty-user {
+  padding: 10px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.btn-apply {
+  min-width: 120px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
 }
 .tpl-item .del {
   width: 16px;
@@ -312,5 +394,6 @@ function remove(item) {
 .tpl-detail.empty {
   align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 </style>

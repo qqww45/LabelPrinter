@@ -2,24 +2,38 @@
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
-        👁️ {{ t('打印预览') }} ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
+        <div class="header-title">
+          {{ t('打印预览') }}
+          <span class="header-meta">
+            ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
+          </span>
+        </div>
         <div class="header-tools">
-          <input class="input" style="width:80px" type="number" :value="currentPage"
-            min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
-          / {{ totalPages }}
-          <button class="btn btn-sm" @click="prevPage">←</button>
-          <button class="btn btn-sm" @click="nextPage">→</button>
-          <span class="divider-v"></span>
-          <button class="btn btn-sm" @click="zoomOut">-</button>
-          <span style="font-size:12px;min-width:42px;text-align:center">{{ Math.round(scale*100) }}%</span>
-          <button class="btn btn-sm" @click="zoomIn">+</button>
-          <button class="btn btn-sm" @click="scale = 1" :title="t('真实物理尺寸（1:1）')">1:1</button>
-          <span class="divider-v"></span>
-          <button class="btn btn-primary" @click="onPrint">🖨️ {{ t('打印') }}</button>
-          <button class="btn" @click="onExportPDF">{{ t('导出 PDF') }}</button>
-          <button class="btn" @click="onExportImage">{{ t('导出图片') }}</button>
-          <button class="btn" @click="addQueue" :title="t('按当前打印设置加入队列，稍后依次打印')">🗂 {{ t('加入队列') }}</button>
-          <button class="btn btn-icon" @click="$emit('close')">×</button>
+          <div class="tool-group">
+            <input class="input page-input" type="number" :value="currentPage"
+              min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
+            <span class="page-total">/ {{ totalPages }}</span>
+            <button class="btn btn-sm" @click="prevPage">←</button>
+            <button class="btn btn-sm" @click="nextPage">→</button>
+          </div>
+          <div class="tool-group">
+            <button class="btn btn-sm" @click="zoomOut">−</button>
+            <span class="zoom-label">{{ Math.round(scale*100) }}%</span>
+            <button class="btn btn-sm" @click="zoomIn">+</button>
+            <button class="btn btn-sm" @click="scale = 1" :title="t('真实物理尺寸（1:1）')">1:1</button>
+          </div>
+          <div class="tool-group tool-actions">
+            <button class="btn btn-primary" @click="onPrint">{{ t('打印') }}</button>
+            <div class="more-wrap">
+              <button class="btn" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
+              <div v-if="moreOpen" class="more-menu" @click.stop>
+                <button class="more-item" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
+                <button class="more-item" @click="runMore('image')">{{ t('导出图片') }}</button>
+                <button class="more-item" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
+              </div>
+            </div>
+            <button class="btn btn-icon" @click="$emit('close')">×</button>
+          </div>
         </div>
       </div>
 
@@ -40,7 +54,11 @@
               </div>
             </div>
           </div>
-          <div v-else class="empty-page">{{ t('无数据') }}</div>
+          <div v-else class="empty-page">
+            <div class="empty-title">{{ t('还没有可预览的数据') }}</div>
+            <div class="empty-sub">{{ t('去底部数据面板导入 Excel/CSV，再回来预览打印') }}</div>
+            <button class="btn btn-primary" @click="$emit('close')">{{ t('去数据面板导入') }}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -81,6 +99,7 @@ import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage
 import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
 import { useI18n } from '../utils/i18n'
+import { toastError, toastSuccess } from '../utils/toast'
 import dayjs from 'dayjs'
 
 const { t } = useI18n()
@@ -98,6 +117,19 @@ const currentPage = ref(1)
 // 默认用设计画布的 zoom，保证"预览所见 = 设计所见"（否则预览比例跟设计画布对不上，用户会以为尺寸错了）
 const scale = ref(project.zoom || 1.5)
 const pageRefs = ref([])
+const moreOpen = ref(false)
+
+function runMore(kind) {
+  moreOpen.value = false
+  if (kind === 'pdf') onExportPDF()
+  else if (kind === 'image') onExportImage()
+  else if (kind === 'queue') addQueue()
+}
+
+function onDocClick(e) {
+  if (!moreOpen.value) return
+  if (!e.target.closest?.('.more-wrap')) moreOpen.value = false
+}
 
 // 预览缩放因子：1mm 对应多少 px（与用户缩放联动）
 function S() { return MM_TO_PX * scale.value }
@@ -525,6 +557,7 @@ watch(totalPages, v => {
 })
 
 onMounted(async () => {
+  document.addEventListener('click', onDocClick)
   window.__labelPrinterExport = async (type) => {
     await nextTick()
     if (type === 'pdf') onExportPDF()
@@ -540,6 +573,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
   delete window.__labelPrinterExport
 })
 
@@ -588,7 +622,7 @@ function rangeLabel(o = {}) {
 async function printPages(opts = {}) {
   await settleImages()
   const els = pagesForTask(opts)
-  if (!els.length) { alert(t('没有可打印的内容')); return false }
+  if (!els.length) { toastError(t('没有可打印的内容')); return false }
   // 等二维码/条形码 data:URL 生成完（生成是异步的，且 await 链可达）
   await waitForImages(els, 3000)
 
@@ -689,6 +723,7 @@ function addQueue() {
     pages: pagesForTask(opts).length,
     label: rangeLabel(opts)
   })
+  toastSuccess(t('已加入打印队列'))
 }
 
 // 依次执行当前项目的排队任务（每个任务弹一次系统打印对话框）
@@ -748,8 +783,9 @@ async function onExportPDF() {
       type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
       pages: n, copies: 1, detail: '矢量'
     })
+    toastSuccess(t('PDF 已导出'))
   } catch (e) {
-    alert(t('导出失败：{msg}', { msg: e?.message || e }))
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
   }
 }
 
@@ -758,13 +794,16 @@ async function onExportImage() {
   scale.value = 1
   try {
     const els = await settleImages()
-    if (!els.length) return alert(t('没有可导出的内容'))
+    if (!els.length) { toastError(t('没有可导出的内容')); return }
     const fname = (project.project.meta.name || 'label') + '.png'
     await exportElementToImage(els[0], fname)
     printStore.addHistory({
       type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
       pages: 1, copies: 1, detail: '第 1 页'
     })
+    toastSuccess(t('图片已导出'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
   } finally {
     scale.value = prev
   }
@@ -774,7 +813,7 @@ async function onExportImage() {
 <style scoped>
 .preview-overlay { background: rgba(0,0,0,0.6); }
 .preview-modal {
-  background: #f1f5f9;
+  background: var(--bg);
   border-radius: 8px;
   width: 92vw;
   height: 92vh;
@@ -784,21 +823,74 @@ async function onExportImage() {
 }
 .preview-modal .modal-header {
   padding: 10px 16px;
-  background: white;
+  background: var(--bg-panel);
   border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.header-title {
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.header-meta {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 .header-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   font-size: 13px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
-.divider-v {
-  width: 1px;
-  height: 16px;
-  background: var(--border);
-  margin: 0 4px;
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: var(--bg-soft);
 }
+.tool-actions { background: transparent; padding: 0; }
+.page-input { width: 64px; }
+.page-total { color: var(--text-muted); font-size: 12px; }
+.zoom-label { font-size: 12px; min-width: 42px; text-align: center; color: var(--text-secondary); }
+.more-wrap { position: relative; }
+.more-wrap .btn.active { border-color: var(--primary); color: var(--primary); }
+.more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+}
+.more-item {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.more-item:hover { background: var(--bg-hover); }
 .preview-body {
   flex: 1;
   overflow: auto;
@@ -818,8 +910,26 @@ async function onExportImage() {
   font-size: 10px; color: #cbd5e1; border: 1px dashed #e2e8f0;
   box-sizing: border-box;
 }
-.empty-page { text-align: center; color: var(--text-muted); padding: 60px; }
-/* 打印/导出专用隐藏容器（保持在渲染树中，html2canvas 可抓取） */
+.empty-page {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 72px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty-page .empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.empty-page .empty-sub {
+  font-size: 12px;
+  max-width: 280px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
 .export-hidden {
   position: fixed;
   left: -100000px;

@@ -85,6 +85,7 @@
       @fix="preflightFix"
     />
     <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" @import="onOnboardingImport" />
+    <ToastHost />
 
     <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
       <div class="modal import-choice">
@@ -122,6 +123,8 @@ import ComponentPanel from './components/ComponentPanel.vue'
 import DesignCanvas from './components/DesignCanvas.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
+import ToastHost from './components/ToastHost.vue'
+import { toastError, toastSuccess, toastInfo } from './utils/toast'
 import PaperConfig from './components/PaperConfig.vue'
 import TemplateDialog from './components/TemplateDialog.vue'
 import FieldMapDialog from './components/FieldMapDialog.vue'
@@ -374,7 +377,7 @@ async function onOpen() {
           embedded: false
         })
       } catch (e) {
-        alert('数据源未加载：' + e.message + '\n可在数据面板手动导入。')
+        toastError(t('数据源未加载：{msg}\n可在数据面板手动导入。', { msg: e.message }))
       }
     }
     project.setFilePath(file.name)
@@ -394,6 +397,7 @@ function onSave() {
   const name = project.project.meta.name || '未命名'
   saveJSON(data2save, `${name}.json`)
   project.dirty = false
+  toastSuccess(t('已保存'))
 }
 
 async function onSaveAs() {
@@ -408,11 +412,11 @@ async function onSaveAs() {
   project.project.meta.name = name
   saveJSON(data2save, `${name}.json`)
   project.dirty = false
+  toastSuccess(t('已保存'))
 }
 
 function onAIApplied(n) {
-  // 给一个轻提示：项目被修改但还没保存
-  console.log(`[AI] 已应用 ${n} 个组件`)
+  toastInfo(t('已应用 {n} 个组件', { n }))
 }
 function headersDiffer(a, b) {
   const aa = a || []
@@ -457,6 +461,7 @@ function applyImported(mode, payload) {
   healBoundText()
   embedCurrentData()
   project.markDirty()
+  toastSuccess(t('已导入 {n} 条数据', { n: data.rows.length }))
 }
 
 function confirmImport(mode) {
@@ -474,7 +479,7 @@ async function onImportData() {
     const headers = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
     const rows = parsed.rows || []
     if (!rows.length && !data.rows.length) {
-      alert(t('新文件没有数据。'))
+      toastInfo(t('新文件没有数据。'))
       return
     }
     const payload = { headers, rows, fileName: file.name, current: data.rows.length, next: rows.length }
@@ -484,7 +489,7 @@ async function onImportData() {
     }
     applyImported('replace', payload)
   } catch (e) {
-    if (e.message !== '未选择文件') alert(t('导入失败：{msg}', { msg: e.message }))
+    if (e.message !== '未选择文件') toastError(t('导入失败：{msg}', { msg: e.message }))
   }
 }
 

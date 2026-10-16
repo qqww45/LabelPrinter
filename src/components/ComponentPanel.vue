@@ -97,6 +97,7 @@
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
+import { toastError } from '../utils/toast'
 const { t } = useI18n()
 import { ref, nextTick } from 'vue'
 
@@ -314,7 +315,7 @@ function commitFieldRename(oldName) {
     try {
       data.renameColumn(oldName, v)
     } catch (e) {
-      alert(e.message || t('重命名失败'))
+      toastError(e.message || t('重命名失败'))
     }
   }
   editingField.value = ''
@@ -332,7 +333,7 @@ function addFieldPrompt() {
   try {
     data.addColumn(name || '')
   } catch (e) {
-    alert(e.message || t('添加失败'))
+    toastError(e.message || t('添加失败'))
   }
 }
 
@@ -342,7 +343,7 @@ function delField(name) {
     data.removeColumn(name)
     if (editingField.value === name) cancelFieldEdit()
   } catch (e) {
-    alert(e.message || t('删除失败'))
+    toastError(e.message || t('删除失败'))
   }
 }
 </script>
