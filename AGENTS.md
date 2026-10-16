@@ -47,7 +47,7 @@ Vue 3.5 + Vite 6 + Pinia + Fabric.js 6 的单页标签设计与打印工具。�
 
 2. **Utils** (`src/utils/*.js`, 13 个纯函数模块)
    - 业务核心：`excel.js`（xlsx 解析）、`pdf.js`（jsPDF + html2canvas）、`barcode.js`（jsbarcode）、`qrcode.js`、`render.js`（**项目核心：把 components 配置 + 数据行渲染成 Fabric 对象**）、`canvasFit.js`（画布缩放/居中）、`cellImage.js`
-   - 辅助：`dataMerge.js`（导入追加/替换按列名合并，纯函数已加 15 单测）、`templates.js`、`i18n.js`（简易 t()）、`file.js`（pickFile/saveJSON）、`diagnose.js`（打印前体检）、`ai.js`
+   - 辅助：`dataMerge.js`（导入追加/替换按列名合并，纯函数已加 15 单测）、`templates.js`、`i18n.js`（简易 t()）、`file.js`（pickFile/saveJSON）、`diagnose.js`（打印前体检）、`ai.js`、`idb.js`（项目快照的 IndexedDB）
 
 3. **Components** (`src/components/*.vue`, 17 个)
    - 三栏布局：左 `ProjectSidebar` + `ComponentPanel` / 中 `DesignCanvas`（Fabric 画布）/ 右 `PropertyPanel`
@@ -82,4 +82,10 @@ Vue 3.5 + Vite 6 + Pinia + Fabric.js 6 的单页标签设计与打印工具。�
 ### 测试与持久化
 
 - **测试**：纯函数 + `node` 直接跑（无 jest/vitest）。新功能若有可独立纯函数，**优先抽出到 `src/utils/` 并写 `tests/<name>.test.mjs`**
-- **持久化**：`stores/project.js` 用 `watch(() => project, schedulePersist, { deep: true, flush: 'sync' })` + 600ms debounce 写 localStorage（key 前缀 `labelprint_*`）
+- **持久化**（项目列表，会随数据变大）：`stores/project.js` 里 `watch([project, selectedIds])` 防抖 600ms 后 `persistNow()`。同一份 `{ v: 2, currentId, list }` 写两处，键都是 `labelprint_projects_v1`：
+  - `localStorage`：读得快，有配额上限
+  - IndexedDB：库名 `labelprint`，对象仓库 `kv`（`src/utils/idb.js` 的 `idbGet` / `idbSet`）。`localStorage` 满了仍写这里
+- 启动先 `loadFromStorage()` 读 `localStorage`。`hydrateFromIdb()` 结束前 `persistReady` 为 false，避免空项目盖掉库里的副本。库里 `updatedAt` 更新，或本地还没有项目时，改用 IndexedDB 那份
+- 两处都失败才提示自动保存失败。只有 `localStorage` 满、IndexedDB 成功时，提示已改存到本地数据库
+- 主题、模板、打印历史、AI Key、面板宽度等小项仍只写 `localStorage`（前缀 `labelprint_*`）。数据表不单独落盘，编辑后同步回当前项目
+- 撤销快照去掉 `dataSource.data` 和表头，改单元格不进历史
