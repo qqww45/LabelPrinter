@@ -77,9 +77,7 @@ import { useDataStore } from '../stores/data'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { expandPrintLabels, paginateLabels, componentHidden } from '../utils/printModel'
 import { exportVectorPDF } from '../utils/vectorPdf'
-import { generateQRCode } from '../utils/qrcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
-import { generateBarcode } from '../utils/barcode'
 import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
 import { useI18n } from '../utils/i18n'
@@ -229,7 +227,10 @@ const CompRenderer = defineComponent({
             inner = h('div', { style: codePlaceholderStyle() }, c.binding || (c.type === 'barcode' ? t('条码') : t('二维码')))
             break
           }
-          const url = c.type === 'barcode' ? barcodeUrl(c, row) : qrUrl(c, row)
+          const cv = c.type === 'barcode'
+            ? barcodeToCanvas(String(txt), { format: c.format || 'CODE128' })
+            : qrToCanvas(String(txt), 240)
+          const url = cv ? canvasToDataURL(cv) : ''
           if (!url) return null
           inner = h('img', { src: url, style: imgStyle(c) })
           break
@@ -361,9 +362,8 @@ function rectStyle(c) {
 function lineStyle(c) {
   return {
     width: '100%',
-    height: ((c.strokeWidth || 1) * scale.value) + 'px',
-    background: c.stroke,
-    marginTop: '50%'
+    height: Math.max(1, (c.strokeWidth || 1) * scale.value) + 'px',
+    background: c.stroke || '#000'
   }
 }
 
@@ -489,8 +489,6 @@ function imageSrc(c, row) {
   return c.src || ''
 }
 
-const qrCache = ref({})
-const qrPending = new Set()
 function codePlaceholderStyle() {
   return {
     width: '100%',
@@ -506,37 +504,6 @@ function codePlaceholderStyle() {
     textAlign: 'center',
     padding: '2px'
   }
-}
-
-function qrUrl(c, row) {
-  const txt = codePayload(c, row)
-  if (!txt) return ''
-  const key = c.id + '|' + txt
-  if (Object.prototype.hasOwnProperty.call(qrCache.value, key)) {
-    const hit = qrCache.value[key]
-    return hit && hit !== 'data:,' ? hit : ''
-  }
-  if (!qrPending.has(key)) {
-    qrPending.add(key)
-    generateQRCode(String(txt), { width: 300 }).then(url => {
-      qrCache.value[key] = url || 'data:,'
-    }).catch(() => {
-      qrCache.value[key] = 'data:,'
-    }).finally(() => {
-      qrPending.delete(key)
-    })
-  }
-  return ''
-}
-
-const barCache = ref({})
-function barcodeUrl(c, row) {
-  const txt = codePayload(c, row)
-  if (!txt) return ''
-  const key = c.id + '|' + txt + '|' + (c.format || 'CODE128')
-  if (Object.prototype.hasOwnProperty.call(barCache.value, key)) return barCache.value[key]
-  barCache.value[key] = generateBarcode(String(txt), { format: c.format }) || ''
-  return barCache.value[key]
 }
 
 function formatDate(c, row) {
@@ -580,18 +547,17 @@ onBeforeUnmount(() => {
 // 等二维码请求结束，再等 img 解码。先让本轮渲染把请求发出去。
 async function settleImages(timeout = 4000) {
   const start = Date.now()
+  let els = []
   while (Date.now() - start < timeout) {
     await nextTick()
-    if (qrPending.size === 0) {
-      const els = pageRefs.value.filter(Boolean)
-      await waitForImages(els, 1500)
-      await nextTick()
-      if (qrPending.size === 0) return els
+    els = pageRefs.value.filter(Boolean)
+    if (els.length) {
+      await waitForImages(els, 800)
+      return pageRefs.value.filter(Boolean)
     }
     await new Promise(r => setTimeout(r, 40))
   }
-  await nextTick()
-  return pageRefs.value.filter(Boolean)
+  return els
 }
 
 // 按任务参数筛页：all=全部 / current=当前页 / range=区间

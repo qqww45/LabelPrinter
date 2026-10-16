@@ -386,10 +386,20 @@ function drawComponent(pdf, c, row, ox, oy) {
     drawText(pdf, text, x, y, w, h, c)
   } else if (c.type === 'qrcode') {
     const text = componentPlainText(c, row)
-    if (text) drawQr(pdf, text, x, y, w, h)
+    if (!text) return
+    if (typeof document === 'undefined') { drawQr(pdf, text, x, y, w, h); return }
+    const cv = qrToCanvas(String(text), 240)
+    if (cv) {
+      try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
+    }
   } else if (c.type === 'barcode') {
     const text = componentPlainText(c, row)
-    if (text) drawBarcode(pdf, text, c.format, x, y, w, h)
+    if (!text) return
+    if (typeof document === 'undefined') { drawBarcode(pdf, text, c.format, x, y, w, h); return }
+    const cv = barcodeToCanvas(String(text), { format: c.format || 'CODE128' })
+    if (cv) {
+      try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
+    }
   } else if (c.type === 'rect') {
     drawRect(pdf, c, x, y, w, h)
   } else if (c.type === 'line') {
