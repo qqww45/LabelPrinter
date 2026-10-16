@@ -2,34 +2,56 @@
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
-        <div class="header-title">
-          {{ t('打印预览') }}
-          <span class="header-meta">
-            ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
-          </span>
+        <div class="header-left">
+          <div class="header-title">
+            {{ t('打印预览') }}
+            <span class="header-meta">
+              ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
+            </span>
+          </div>
+          <div class="preview-tabs" role="tablist" :aria-label="t('预览与排版')">
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              :class="{ active: activeTab === 'preview' }"
+              :aria-selected="activeTab === 'preview'"
+              @click="activeTab = 'preview'"
+            >{{ t('预览') }}</button>
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              :class="{ active: activeTab === 'layout' }"
+              :aria-selected="activeTab === 'layout'"
+              @click="activeTab = 'layout'"
+            >{{ t('排版') }}</button>
+          </div>
         </div>
         <div class="header-tools">
-          <div class="tool-group">
-            <input class="input page-input" type="number" :value="currentPage"
-              min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
-            <span class="page-total">/ {{ totalPages }}</span>
-            <button class="btn btn-sm" @click="prevPage">←</button>
-            <button class="btn btn-sm" @click="nextPage">→</button>
-          </div>
-          <div class="tool-group">
-            <button class="btn btn-sm" @click="zoomOut">−</button>
-            <span class="zoom-label">{{ Math.round(scale*100) }}%</span>
-            <button class="btn btn-sm" @click="zoomIn">+</button>
-            <button class="btn btn-sm" @click="scale = 1" :title="t('真实物理尺寸（1:1）')">1:1</button>
-          </div>
+          <template v-if="activeTab === 'preview'">
+            <div class="tool-group">
+              <input class="input page-input" type="number" :value="currentPage"
+                min="1" :max="totalPages" @input="goToPage(+$event.target.value)" />
+              <span class="page-total">/ {{ totalPages }}</span>
+              <button class="btn btn-sm" type="button" @click="prevPage">←</button>
+              <button class="btn btn-sm" type="button" @click="nextPage">→</button>
+            </div>
+            <div class="tool-group">
+              <button class="btn btn-sm" type="button" @click="zoomOut">−</button>
+              <span class="zoom-label">{{ Math.round(scale*100) }}%</span>
+              <button class="btn btn-sm" type="button" @click="zoomIn">+</button>
+              <button class="btn btn-sm" type="button" @click="scale = 1" :title="t('真实物理尺寸（1:1）')">1:1</button>
+            </div>
+          </template>
           <div class="tool-group tool-actions">
-            <button class="btn btn-primary" @click="onPrint">{{ t('打印') }}</button>
+            <button class="btn btn-primary" type="button" @click="onPrint">{{ t('打印') }}</button>
             <div class="more-wrap">
-              <button class="btn" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
+              <button class="btn" type="button" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
               <div v-if="moreOpen" class="more-menu" @click.stop>
-                <button class="more-item" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
-                <button class="more-item" @click="runMore('image')">{{ t('导出图片') }}</button>
-                <button class="more-item" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
+                <button class="more-item" type="button" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
+                <button class="more-item" type="button" @click="runMore('image')">{{ t('导出图片') }}</button>
+                <button class="more-item" type="button" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
               </div>
             </div>
             <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
@@ -37,29 +59,69 @@
         </div>
       </div>
 
-      <!-- 预览区：仅当前页 -->
-      <div class="preview-body">
-        <div class="pages">
-          <div v-if="currentPageData" class="page" :style="pageStyle">
-            <div class="label" :style="labelStyle">
-              <div
-                v-for="(slot, si) in currentPageData.slots"
-                :key="si"
-                class="label-slot"
-                :style="slotStyle(si)"
-              >
-                <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
-                <div v-if="labelBorderStyle" :style="labelBorderStyle"></div>
-                <div v-if="slot.empty && !labelBorderStyle" class="slot-placeholder">{{ t('无数据') }}</div>
+      <div v-show="activeTab === 'preview'" class="tab-panel preview-panel">
+        <div class="preview-brief" role="region" :aria-label="t('打印摘要')">
+          <div class="brief-facts">
+            <div v-for="f in previewBrief.facts" :key="f.key" class="fact">
+              <span class="fact-k">{{ t(f.label) }}</span>
+              <span class="fact-v" :class="{ accent: f.key === 'pages' || f.key === 'labels' }">{{ f.value }}</span>
+            </div>
+          </div>
+          <div v-if="previewBrief.alerts.length" class="brief-alerts">
+            <div
+              v-for="(a, i) in previewBrief.alerts"
+              :key="a.code + i"
+              class="brief-alert"
+              :class="a.level"
+              role="status"
+            >
+              <span class="alert-mark" aria-hidden="true">{{ a.level === 'error' ? '!' : '·' }}</span>
+              <div class="alert-body">
+                <div class="alert-title">{{ t(a.title) }}</div>
+                <div class="alert-detail">{{ t(a.detail) }}</div>
               </div>
             </div>
           </div>
-          <div v-else class="empty-page">
-            <div class="empty-title">{{ t('还没有可预览的数据') }}</div>
-            <div class="empty-sub">{{ t('去底部数据面板导入 Excel/CSV，再回来预览打印') }}</div>
-            <button class="btn btn-primary" @click="$emit('close')">{{ t('去数据面板导入') }}</button>
+          <p v-else class="brief-ok">{{ t('摘要正常：纸张与份数如下，预览比例可用 1:1 对照实物') }}</p>
+        </div>
+
+        <div class="preview-body">
+          <div class="pages">
+            <template v-if="currentPageData">
+              <div class="page-meta">
+                {{ t('第 {n}/{m} 页', { n: currentPage, m: totalPages }) }}
+                · {{ previewBrief.summary.paperText }}
+              </div>
+              <div class="page" :style="pageStyle">
+                <div class="label" :style="labelStyle">
+                  <div
+                    v-for="(slot, si) in currentPageData.slots"
+                    :key="si"
+                    class="label-slot"
+                    :style="slotStyle(si)"
+                  >
+                    <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
+                    <div v-if="labelBorderStyle" :style="labelBorderStyle"></div>
+                    <div v-if="slot.empty && !labelBorderStyle" class="slot-placeholder">{{ t('无数据') }}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div v-else class="empty-page">
+              <div class="empty-title">{{ t('还没有可预览的数据') }}</div>
+              <div class="empty-sub">{{ t('去底部数据面板导入 Excel/CSV，再回来预览打印') }}</div>
+              <button class="btn btn-primary" type="button" @click="$emit('close')">{{ t('去数据面板导入') }}</button>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div v-show="activeTab === 'layout'" class="tab-panel layout-panel" role="tabpanel">
+        <LayoutEditor
+          :key="'layout-' + layoutEditorKey"
+          embedded
+          @applied="onLayoutApplied"
+        />
       </div>
     </div>
 
@@ -92,9 +154,11 @@
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineComponent } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
+import LayoutEditor from './LayoutEditor.vue'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText } from '../utils/printModel'
+import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { exportElementToImage } from '../utils/pdf'
@@ -116,9 +180,22 @@ const printStore = usePrintStore()
 const MM_TO_PX = 96 / 25.4
 const currentPage = ref(1)
 // 默认用设计画布的 zoom，保证"预览所见 = 设计所见"（否则预览比例跟设计画布对不上，用户会以为尺寸错了）
-const scale = ref(project.zoom || 1.5)
+// 预览缩放独立于设计画布，默认 100% 便于看整页
+const scale = ref(1)
 const pageRefs = ref([])
 const moreOpen = ref(false)
+const activeTab = ref('preview')
+const layoutEditorKey = ref(0)
+
+watch(activeTab, (tab) => {
+  if (tab === 'layout') layoutEditorKey.value += 1
+})
+
+function onLayoutApplied() {
+  toastSuccess(t('排版已应用到预览'))
+  activeTab.value = 'preview'
+  currentPage.value = 1
+}
 
 function runMore(kind) {
   moreOpen.value = false
@@ -182,6 +259,24 @@ const currentPageData = computed(() => {
   // 允许临时超出范围（导出时 currentPage 被设为 1）
   const idx = Math.min(Math.max(0, currentPage.value - 1), pages.value.length - 1)
   return pages.value[idx]
+})
+
+const previewBrief = computed(() => {
+  const p = project.project
+  return buildPreviewBrief({
+    components: p.components || [],
+    dataFields: data.fields || [],
+    fieldMap: p.dataSource?.fieldMap || {},
+    rows: data.displayRows || [],
+    label: p.label || {},
+    paper: p.paper || {},
+    margin: p.margin || {},
+    layout: p.layout || {},
+    printConfig: p.printConfig || {},
+    perPage: labelsPerPage.value,
+    labelCount: labelCount.value,
+    pageCount: totalPages.value
+  })
 })
 
 // 字段映射：数据行 → 模板字段行（预览/打印/导出统一生效）
@@ -852,12 +947,59 @@ async function onExportImage() {
   gap: 12px;
   flex-wrap: wrap;
 }
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
 .header-title {
   font-weight: 600;
   display: flex;
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+}
+.preview-tabs {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.preview-tabs .tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.preview-tabs .tab + .tab { border-left: 1px solid var(--border); }
+.preview-tabs .tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+.preview-tabs .tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-panel { min-height: 0; }
+.layout-panel {
+  min-height: 0;
+  overflow: hidden;
 }
 .header-meta {
   font-weight: 400;
@@ -911,6 +1053,100 @@ async function onExportImage() {
   cursor: pointer;
 }
 .more-item:hover { background: var(--bg-hover); }
+.preview-brief {
+  flex-shrink: 0;
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg));
+  overscroll-behavior: contain;
+  max-height: 38vh;
+  overflow: auto;
+}
+.brief-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.fact-k {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.fact-v {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.fact-v.accent { color: var(--primary); }
+.brief-ok {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.brief-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.brief-alert {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.brief-alert.error {
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger, #dc2626) 10%, var(--bg));
+}
+.brief-alert.warn {
+  border-color: color-mix(in srgb, var(--warning, #b45309) 40%, var(--border));
+  background: color-mix(in srgb, var(--warning, #b45309) 10%, var(--bg));
+}
+.alert-mark {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: 1px;
+}
+.brief-alert.error .alert-mark {
+  background: var(--danger, #dc2626);
+  color: #fff;
+}
+.brief-alert.warn .alert-mark {
+  background: var(--warning, #b45309);
+  color: #fff;
+}
+.alert-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+.alert-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
 .preview-body {
   flex: 1;
   overflow: auto;
@@ -921,7 +1157,21 @@ async function onExportImage() {
   flex-direction: column;
   align-items: center;
 }
-.page { background: white; }
+.page {
+  position: relative;
+  background: white;
+}
+.page-meta {
+  align-self: center;
+  margin: 0 0 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
 .label { background: white; }
 .label-slot { background: transparent; }
 .slot-placeholder {

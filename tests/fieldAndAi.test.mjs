@@ -1,5 +1,5 @@
 import { replaceFieldToken, rewriteFieldMap } from '../src/utils/fieldCascade.js'
-import { parseAIResponse, parseAIPlan, normalizeAdjustPlan, validateAndNormalize, packAdjustContext, buildAdjustPrompt, buildAdjustMessages } from '../src/utils/ai.js'
+import { parseAIResponse, parseAIPlan, normalizeAdjustPlan, validateAndNormalize, packAdjustContext, buildAdjustPrompt, buildAdjustMessages, splitPrintPatch, describeAdjustPlan } from '../src/utils/ai.js'
 
 let pass = 0, fail = 0
 function check(name, cond) {
@@ -130,6 +130,38 @@ const picked = normalizeAdjustPlan({
   componentUpdates: [{ id: '选中', type: 'barcode' }]
 }, { fields: [], components: [qr], selectedIds: ['q1'], labelWidth: 60, labelHeight: 40, rowCount: 0 })
 check('说选中就改当前这一个', picked.plan.componentUpdates[0].id === 'q1' && picked.plan.componentUpdates[0].patch.type === 'barcode')
+
+const withCal = packAdjustContext({
+  project: {
+    label: { width: 40, height: 30 },
+    paper: { width: 40, height: 30 },
+    margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    layout: { mode: 'single', cols: 1, rows: 1 },
+    printConfig: { media: 'gap', dpi: 203 },
+    components: []
+  },
+  fields: [],
+  rows: [],
+  calibrate: { offsetXMm: 1.5, offsetYMm: -0.5, scalePercent: 98 }
+})
+check('微调上下文带本机校准', withCal.print.offsetXMm === 1.5 && withCal.print.scalePercent === 98)
+check('微调提示说明热敏偏移', buildAdjustPrompt(withCal).includes('offsetXMm') && buildAdjustPrompt(withCal).includes('再往右'))
+
+const calPlan = normalizeAdjustPlan({
+  summary: '纠偏',
+  print: { offsetXMm: -2, scalePercent: 97, dpi: 203 }
+}, { fields: [], components: [], rowCount: 0 })
+check('AI 可写热敏偏移与缩放', calPlan.plan.print.offsetXMm === -2 && calPlan.plan.print.scalePercent === 97 && calPlan.plan.print.dpi === 203)
+check('只改 X 时不强行带上 Y', calPlan.plan.print.offsetYMm == null)
+
+const split = splitPrintPatch(calPlan.plan.print)
+check('校准与项目打印设置拆开', split.calibrate.offsetXMm === -2 && split.calibrate.scalePercent === 97 && split.printConfig.dpi === 203 && split.printConfig.offsetXMm == null)
+check('描述里能看见校准', describeAdjustPlan(calPlan.plan).some(s => s.includes('缩放') || s.includes('偏移')))
+
+const badScale = normalizeAdjustPlan({
+  print: { scalePercent: 999 }
+}, { fields: [], components: [], rowCount: 0 })
+check('非法缩放被夹到上限', badScale.plan.print.scalePercent === 150)
 
 console.log(`\n${pass} passed, ${fail} failed`)
 if (fail) process.exit(1)

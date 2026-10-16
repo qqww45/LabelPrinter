@@ -207,3 +207,178 @@ export function runDiagnostics({
     }
   }
 }
+
+/**
+ * 当前排版在纸张可印区域内是否放得下（mm）。
+ * auto 网格：cols×rows 标签 + 间隙；single：单枚标签。
+ */
+export function layoutFitsPaper({ paper = {}, margin = {}, label = {}, layout = {} } = {}) {
+  const pw = Number(paper.width) || 0
+  const ph = Number(paper.height) || 0
+  const ml = Number(margin.left) || 0
+  const mr = Number(margin.right) || 0
+  const mt = Number(margin.top) || 0
+  const mb = Number(margin.bottom) || 0
+  const lw = Number(label.width) || 0
+  const lh = Number(label.height) || 0
+  const contentW = Math.max(0, pw - ml - mr)
+  const contentH = Math.max(0, ph - mt - mb)
+  const mode = layout.mode || 'single'
+  const cols = Math.max(1, Number(layout.cols) || 1)
+  const rows = Math.max(1, Number(layout.rows) || 1)
+  const hGap = Number(layout.hGap) || 0
+  const vGap = Number(layout.vGap) || 0
+  let neededW = lw
+  let neededH = lh
+  if (mode === 'auto' && (cols > 1 || rows > 1)) {
+    neededW = cols * lw + (cols - 1) * hGap
+    neededH = rows * lh + (rows - 1) * vGap
+  }
+  const overflowW = Math.max(0, Math.round((neededW - contentW) * 10) / 10)
+  const overflowH = Math.max(0, Math.round((neededH - contentH) * 10) / 10)
+  return {
+    contentW: Math.round(contentW * 10) / 10,
+    contentH: Math.round(contentH * 10) / 10,
+    neededW: Math.round(neededW * 10) / 10,
+    neededH: Math.round(neededH * 10) / 10,
+    overflowW,
+    overflowH,
+    fits: overflowW <= 0.05 && overflowH <= 0.05
+  }
+}
+
+function mediaLabel(media) {
+  if (media === 'mark') return '黑标'
+  if (media === 'continuous') return '连续纸'
+  if (media === 'gap') return '间隙纸'
+  return ''
+}
+
+/**
+ * 打印预览顶栏摘要：纸张/标签/份数/页数 + 警报（含排版能否放进纸张）。
+ */
+export function buildPreviewBrief({
+  components = [],
+  dataFields = [],
+  fieldMap = {},
+  rows = [],
+  label = {},
+  paper = {},
+  margin = {},
+  layout = {},
+  printConfig = {},
+  perPage = 1,
+  labelCount = 0,
+  pageCount = 0
+} = {}) {
+  const rowCount = Array.isArray(rows) ? rows.length : 0
+  const safePerPage = Math.max(1, Number(perPage) || 1)
+  const cfg = printConfig || {}
+  const copies = Math.max(1, Number(cfg.copies) || 1)
+  const copiesColumn = String(cfg.copiesColumn || '').trim()
+  const diag = runDiagnostics({
+    components,
+    dataFields,
+    fieldMap,
+    rowCount,
+    label,
+    paper,
+    perPage: safePerPage,
+    printConfig: cfg,
+    rows
+  })
+  const fit = layoutFitsPaper({ paper, margin, label, layout })
+  const alerts = [...diag.issues]
+
+  if (!fit.fits) {
+    const bits = []
+    if (fit.overflowW > 0) bits.push(`横向超出约 ${fit.overflowW} mm`)
+    if (fit.overflowH > 0) bits.push(`纵向超出约 ${fit.overflowH} mm`)
+    alerts.unshift({
+      level: 'error',
+      code: 'layout-overflow',
+      title: '排版放不进当前纸张',
+      detail: `可印区域 ${fit.contentW}×${fit.contentH} mm，当前排版需要 ${fit.neededW}×${fit.neededH} mm。${bits.join('，')}。超出部分会被裁切。`,
+      fix: 'none'
+    })
+  }
+
+  const pages = Math.max(1, Number(pageCount) || diag.summary.pages || 1)
+  const labels = Math.max(0, Number(labelCount) || 0)
+  if (pages >= 80) {
+    alerts.push({
+      level: 'warn',
+      code: 'many-pages',
+      title: '将输出较多页',
+      detail: `约 ${pages} 页。页数较多，建议先打 1～2 页核对位置，再整批打印。`,
+      fix: 'none'
+    })
+  }
+
+  if (copiesColumn && rowCount) {
+    alerts.push({
+      level: 'warn',
+      code: 'copies-column',
+      title: '按列决定份数',
+      detail: `按列「${copiesColumn}」已展开为 ${labels} 张标签、约 ${pages} 页。请确认该列数值正确，小于 1 的行会跳过。`,
+      fix: 'none'
+    })
+  } else if (copies > 1 && rowCount) {
+    alerts.push({
+      level: 'warn',
+      code: 'multi-copies',
+      title: '整单多份已计入张数',
+      detail: `整单 ${copies} 份：数据 ${rowCount} 条 → ${labels} 张标签、约 ${pages} 页（预览与打印按展开后的张数输出）。`,
+      fix: 'none'
+    })
+  }
+
+  const layoutMode = layout.mode || 'single'
+  const layoutText = layoutMode === 'auto'
+    ? `${Math.max(1, layout.cols || 1)}×${Math.max(1, layout.rows || 1)}`
+    : '单张'
+  const marginText = `${Number(margin.top) || 0}/${Number(margin.right) || 0}/${Number(margin.bottom) || 0}/${Number(margin.left) || 0}`
+  const media = mediaLabel(cfg.media)
+  const dpi = Number(cfg.dpi) === 300 ? 300 : (Number(cfg.dpi) === 203 ? 203 : 0)
+
+  const facts = [
+    { key: 'paper', label: '纸张', value: diag.summary.paperText },
+    { key: 'label', label: '标签', value: diag.summary.labelText },
+    { key: 'margin', label: '边距(上右下左)', value: `${marginText} mm` },
+    { key: 'layout', label: '排版', value: `${layoutText} · 每页 ${safePerPage} 枚` },
+    { key: 'data', label: '数据', value: `${rowCount} 条` },
+    { key: 'labels', label: '将打标签', value: `${labels} 张` },
+    { key: 'pages', label: '将出纸', value: `${pages} 页` },
+    {
+      key: 'copies',
+      label: '份数',
+      value: copiesColumn ? `按列「${copiesColumn}」` : `${copies}`
+    }
+  ]
+  if (media) {
+    facts.push({
+      key: 'media',
+      label: '热敏',
+      value: dpi ? `${media} · ${dpi} dpi` : media
+    })
+  }
+
+  const errors = alerts.filter((i) => i.level === 'error')
+  const warnings = alerts.filter((i) => i.level === 'warn')
+  return {
+    facts,
+    alerts,
+    errors,
+    warnings,
+    hasError: errors.length > 0,
+    fit,
+    summary: {
+      ...diag.summary,
+      pages,
+      labelCount: labels,
+      layoutText,
+      marginText,
+      copiesText: copiesColumn ? `按列「${copiesColumn}」` : String(copies)
+    }
+  }
+}

@@ -1,22 +1,26 @@
 <template>
-  <div class="layout-editor-overlay" @click.self="$emit('close')">
-    <div class="layout-editor">
+  <div
+    class="layout-editor-shell"
+    :class="{ overlay: !embedded, embed: embedded }"
+    @click.self="!embedded && $emit('close')"
+  >
+    <div class="layout-editor" :class="{ embedded }">
       <!-- 顶部工具条 -->
       <div class="editor-header">
-        <div class="title">📐 {{ t('排版编辑器') }}</div>
+        <div v-if="!embedded" class="title">{{ t('排版编辑器') }}</div>
         <div class="modes">
-          <div class="seg">
-            <button :class="{active: form.layout.mode === 'single'}" @click="form.layout.mode = 'single'">{{ t('单张') }}</button>
-            <button :class="{active: form.layout.mode === 'auto'}" @click="form.layout.mode = 'auto'">{{ t('自动排版') }}</button>
+          <div class="seg" role="group" :aria-label="t('排版模式')">
+            <button type="button" :class="{active: form.layout.mode === 'single'}" @click="form.layout.mode = 'single'">{{ t('单张') }}</button>
+            <button type="button" :class="{active: form.layout.mode === 'auto'}" @click="form.layout.mode = 'auto'">{{ t('自动排版') }}</button>
           </div>
-          <div v-if="form.layout.mode === 'auto'" class="seg">
-            <button :class="{active: form.layout.sizingMode === 'auto'}" @click="form.layout.sizingMode = 'auto'" :title="t('按标签尺寸自动算行列')">{{ t('按标签尺寸') }}</button>
-            <button :class="{active: form.layout.sizingMode === 'manual'}" @click="form.layout.sizingMode = 'manual'" :title="t('按行列反推标签尺寸')">{{ t('按行列') }}</button>
+          <div v-if="form.layout.mode === 'auto'" class="seg" role="group" :aria-label="t('尺寸算法')">
+            <button type="button" :class="{active: form.layout.sizingMode === 'auto'}" @click="form.layout.sizingMode = 'auto'" :title="t('按标签尺寸自动算行列')">{{ t('按标签尺寸') }}</button>
+            <button type="button" :class="{active: form.layout.sizingMode === 'manual'}" @click="form.layout.sizingMode = 'manual'" :title="t('按行列反推标签尺寸')">{{ t('按行列') }}</button>
           </div>
         </div>
         <div class="spacer"></div>
-        <button class="btn" @click="$emit('close')">{{ t('取消') }}</button>
-        <button class="btn btn-primary" @click="apply">{{ t('应用') }}</button>
+        <button v-if="!embedded" class="btn" type="button" @click="$emit('close')">{{ t('取消') }}</button>
+        <button class="btn btn-primary" type="button" @click="apply">{{ embedded ? t('应用到预览') : t('应用') }}</button>
       </div>
 
       <div class="editor-body">
@@ -217,10 +221,15 @@ import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
 
+const props = defineProps({
+  /** 嵌在打印预览等容器内：无遮罩、填满父级 */
+  embedded: { type: Boolean, default: false }
+})
+
 const project = useProjectStore()
 const paperPresets = PAPER_PRESETS
 const labelPresets = LABEL_PRESETS
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'applied'])
 
 const form = reactive(JSON.parse(JSON.stringify(project.project)))
 
@@ -473,16 +482,26 @@ function apply() {
     delete l.rows
   }
   project.updateLayout(l)
-  emit('close')
+  emit('applied')
+  if (!props.embedded) emit('close')
 }
 </script>
 
 <style scoped>
-.layout-editor-overlay {
+.layout-editor-shell.overlay {
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.7);
   z-index: 1000;
   display: flex; align-items: center; justify-content: center;
+  overscroll-behavior: contain;
+}
+.layout-editor-shell.embed {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: transparent;
 }
 .layout-editor {
   background: var(--bg);
@@ -493,6 +512,13 @@ function apply() {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   color: var(--text);
+}
+.layout-editor.embedded {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 .editor-header {
   display: flex; align-items: center; gap: 12px;
@@ -583,7 +609,10 @@ legend { padding: 0 6px; font-size: 12px; color: var(--text-secondary); font-wei
 }
 .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
-/* 暗色模式：遮罩加深，让弹窗在暗背景上更聚焦 */
-[data-theme='dark'] .layout-editor-overlay { background: rgba(0, 0, 0, 0.75); }
-/* 暗色下虚线/标签/手柄要更亮才看得见（变量在 main.css 全局定义） */
+[data-theme='dark'] .layout-editor-shell.overlay { background: rgba(0, 0, 0, 0.75); }
+.seg button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .handle, .gap-handle { transition: none; }
+}
 </style>

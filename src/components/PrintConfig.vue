@@ -94,10 +94,24 @@
             </select>
           </div>
           <div class="form-row">
-            <button class="btn btn-sm" @click="downloadCmd('tspl')">{{ t('下载 TSPL') }}</button>
-            <button class="btn btn-sm" @click="downloadCmd('zpl')">{{ t('下载 ZPL') }}</button>
+            <label>{{ t('水平偏移 (mm)') }}</label>
+            <input class="input" type="number" step="0.1" v-model.number="form.offsetXMm" style="width:80px" />
+            <label>{{ t('垂直偏移 (mm)') }}</label>
+            <input class="input" type="number" step="0.1" v-model.number="form.offsetYMm" style="width:80px" />
+          </div>
+          <div class="form-row">
+            <label>{{ t('缩放 (%)') }}</label>
+            <input class="input" type="number" min="50" max="150" step="0.5" v-model.number="form.scalePercent" style="width:80px" />
+          </div>
+          <p class="hint">{{ t('正数让内容向右/下移。整张偏大就略小于 100，偏小就略大于 100。校准记在本机，换项目仍有效。') }}</p>
+          <div class="form-row">
+            <button class="btn btn-sm" type="button" @click="downloadCmd('tspl')">{{ t('下载 TSPL') }}</button>
+            <button class="btn btn-sm" type="button" @click="downloadCmd('zpl')">{{ t('下载 ZPL') }}</button>
+            <button class="btn btn-sm" type="button" @click="downloadCalibration('tspl')">{{ t('下载校准签 TSPL') }}</button>
+            <button class="btn btn-sm" type="button" @click="downloadCalibration('zpl')">{{ t('下载校准签 ZPL') }}</button>
           </div>
           <p class="hint">{{ t('指令是 UTF-8 文本，中文能否打出取决于打印机字库。文件下载到本机，不经过服务器。图片不会写进指令。') }}</p>
+          <p class="hint">{{ t('校准：先偏移填 0、缩放 100，打校准签（外框+十字）。量出偏了多少再填偏移/缩放，点应用后重打业务标签。浏览器打印请关「适应页面」，热敏优先用指令文件。') }}</p>
         </fieldset>
       </div>
       <div class="modal-footer">
@@ -117,6 +131,9 @@ import { useI18n } from '../utils/i18n'
 import { expandPrintLabels } from '../utils/printModel'
 import { resolveRow } from '../utils/render'
 import { buildTSPL, buildZPL } from '../utils/printerCmd'
+import { normalizeCalibrate } from '../utils/thermalCalibrate'
+import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
+import { toast } from '../utils/toast'
 
 const { t } = useI18n()
 const serialHint = computed(() => t('模板里写 {{序号}}，每打一张加 1。'))
@@ -124,6 +141,7 @@ const emit = defineEmits(['close'])
 const project = useProjectStore()
 const data = useDataStore()
 const cfg = project.project.printConfig
+const profile = getPrinterProfile()
 const form = reactive({
   printer: cfg.printer || '',
   copies: cfg.copies || 1,
@@ -139,35 +157,95 @@ const form = reactive({
   media: cfg.media || 'gap',
   gapMm: cfg.gapMm ?? 2,
   dpi: cfg.dpi || 203,
-  direction: cfg.direction ?? 1
+  direction: cfg.direction ?? 1,
+  offsetXMm: profile.offsetXMm,
+  offsetYMm: profile.offsetYMm,
+  scalePercent: profile.scalePercent
 })
 
-function apply() {
-  Object.assign(project.project.printConfig, form)
+function calibrateFromForm() {
+  return normalizeCalibrate({
+    offsetXMm: form.offsetXMm,
+    offsetYMm: form.offsetYMm,
+    scalePercent: form.scalePercent
+  })
+}
+
+function persistPrintAndProfile() {
+  const cal = calibrateFromForm()
+  form.offsetXMm = cal.offsetXMm
+  form.offsetYMm = cal.offsetYMm
+  form.scalePercent = cal.scalePercent
+  savePrinterProfile(cal)
+  Object.assign(project.project.printConfig, {
+    printer: form.printer,
+    copies: form.copies,
+    copiesColumn: form.copiesColumn,
+    serialEnabled: form.serialEnabled,
+    serialStart: form.serialStart,
+    range: form.range,
+    rangeStart: form.rangeStart,
+    rangeEnd: form.rangeEnd,
+    collate: form.collate,
+    grayscale: form.grayscale,
+    quality: form.quality,
+    media: form.media,
+    gapMm: form.gapMm,
+    dpi: form.dpi,
+    direction: form.direction
+  })
   project.markDirty()
+  return cal
+}
+
+function apply() {
+  persistPrintAndProfile()
+  toast(t('已保存打印设置与本机校准'))
   emit('close')
 }
 
+function baseJob(cal, extra = {}) {
+  const p = project.project
+  return {
+    label: p.label,
+    media: form.media,
+    gapMm: form.gapMm,
+    dpi: form.dpi,
+    direction: form.direction,
+    calibrate: cal,
+    ...extra
+  }
+}
+
 function downloadCmd(kind) {
-  Object.assign(project.project.printConfig, form)
-  project.markDirty()
+  const cal = persistPrintAndProfile()
   const p = project.project
   const labels = expandPrintLabels(data.displayRows, p.printConfig).map(item => ({
     ...item,
     row: resolveRow(item.row, p.dataSource?.fieldMap)
   }))
-  const job = {
-    label: p.label,
-    components: p.components,
-    labels,
-    media: form.media,
-    gapMm: form.gapMm,
-    dpi: form.dpi,
-    direction: form.direction
-  }
+  const job = baseJob(cal, { components: p.components, labels })
   const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
   const ext = kind === 'zpl' ? '.zpl' : '.tspl'
   saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), (p.meta?.name || 'label') + ext)
+  toast(t('已下载指令文件'))
+}
+
+function downloadCalibration(kind) {
+  const cal = persistPrintAndProfile()
+  const p = project.project
+  const job = baseJob(cal, {
+    calibrationOnly: true,
+    components: [],
+    labels: [{ row: {} }]
+  })
+  const text = kind === 'zpl' ? buildZPL(job) : buildTSPL(job)
+  const ext = kind === 'zpl' ? '.zpl' : '.tspl'
+  saveAs(
+    new Blob([text], { type: 'text/plain;charset=utf-8' }),
+    (p.meta?.name || 'label') + '-calibrate' + ext
+  )
+  toast(t('已下载校准签'))
 }
 </script>
 

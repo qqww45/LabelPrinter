@@ -1,15 +1,22 @@
 /**
  * 热敏机指令。下载成文本，由用户自己发给打印机，不经过服务器。
  * 中文原样写 UTF-8，能不能打出来取决于打印机字库。
+ * job.calibrate：本机偏移/缩放（见 thermalCalibrate.js）。
  */
 import { renderText } from './render.js'
 import { componentHidden, componentPlainText } from './printModel.js'
+import { calibrationPieces, normalizeCalibrate, transformPiece } from './thermalCalibrate.js'
 
 function dpiOf(job) {
   return Number(job?.dpi) === 300 ? 300 : 203
 }
 
-function dots(mm, dpi) {
+/** 坐标可负（校准左/上偏）；尺寸不小于 0 */
+function dotsPos(mm, dpi) {
+  return Math.round((Number(mm) || 0) * dpi / 25.4)
+}
+
+function dotsSize(mm, dpi) {
   return Math.max(0, Math.round((Number(mm) || 0) * dpi / 25.4))
 }
 
@@ -125,6 +132,14 @@ function labelsOf(job) {
   return list.length ? list : [{ row: {} }]
 }
 
+function jobPieces(job, row) {
+  const cal = normalizeCalibrate(job.calibrate)
+  const raw = job.calibrationOnly
+    ? calibrationPieces(job.label || {})
+    : pieces(job.components, row || {})
+  return raw.map((p) => transformPiece(p, cal))
+}
+
 export function buildTSPL(job = {}) {
   const dpi = dpiOf(job)
   const label = job.label || {}
@@ -144,26 +159,26 @@ export function buildTSPL(job = {}) {
   ]
   labelsOf(job).forEach((item, i) => {
     if (i) lines.push('CLS')
-    for (const p of pieces(job.components, item.row || {})) {
-      const x = dots(p.x, dpi)
-      const y = dots(p.y, dpi)
+    for (const p of jobPieces(job, item.row || {})) {
+      const x = dotsPos(p.x, dpi)
+      const y = dotsPos(p.y, dpi)
       if (p.kind === 'text') {
         const mul = Math.max(1, Math.min(10, Math.round((p.fontSize || 14) * dpi / 96 / 24)))
         const font = hasCjk(p.text) ? 'TSS24.BF2' : '0'
         lines.push(`TEXT ${x},${y},"${font}",0,${mul},${mul},"${tsplString(p.text)}"`)
       } else if (p.kind === 'barcode') {
-        const bh = Math.max(16, dots(p.h, dpi))
+        const bh = Math.max(16, dotsSize(p.h, dpi))
         lines.push(`BARCODE ${x},${y},"128",${bh},1,0,2,4,"${tsplString(p.text)}"`)
       } else if (p.kind === 'qrcode') {
-        const cell = Math.max(2, Math.round(dots(Math.min(p.w, p.h), dpi) / 29))
+        const cell = Math.max(2, Math.round(dotsSize(Math.min(p.w, p.h), dpi) / 29))
         lines.push(`QRCODE ${x},${y},M,${cell},A,0,"${tsplString(p.text)}"`)
       } else if (p.kind === 'rect') {
-        const x2 = dots(p.x + p.w, dpi)
-        const y2 = dots(p.y + p.h, dpi)
-        const t = Math.max(1, dots((p.strokeWidth || 1) * 25.4 / 96, dpi))
+        const x2 = dotsPos(p.x + p.w, dpi)
+        const y2 = dotsPos(p.y + p.h, dpi)
+        const t = Math.max(1, dotsSize((p.strokeWidth || 1) * 25.4 / 96, dpi))
         lines.push(`BOX ${x},${y},${x2},${y2},${t}`)
       } else if (p.kind === 'line') {
-        lines.push(`BAR ${x},${y},${Math.max(1, dots(p.w, dpi))},${Math.max(1, dots(p.h, dpi))}`)
+        lines.push(`BAR ${x},${y},${Math.max(1, dotsSize(p.w, dpi))},${Math.max(1, dotsSize(p.h, dpi))}`)
       }
     }
     lines.push('PRINT 1,1')
@@ -174,8 +189,8 @@ export function buildTSPL(job = {}) {
 export function buildZPL(job = {}) {
   const dpi = dpiOf(job)
   const label = job.label || {}
-  const pw = dots(label.width || 40, dpi)
-  const ll = dots(label.height || 30, dpi)
+  const pw = dotsSize(label.width || 40, dpi)
+  const ll = dotsSize(label.height || 30, dpi)
   const media = job.media === 'mark' ? 'M' : job.media === 'continuous' ? 'N' : 'Y'
   const dir = job.direction ? 'N' : 'I'
   const blocks = []
@@ -189,25 +204,25 @@ export function buildZPL(job = {}) {
       `^PO${dir}`,
       '^LH0,0'
     ]
-    for (const p of pieces(job.components, item.row || {})) {
-      const x = dots(p.x, dpi)
-      const y = dots(p.y, dpi)
+    for (const p of jobPieces(job, item.row || {})) {
+      const x = dotsPos(p.x, dpi)
+      const y = dotsPos(p.y, dpi)
       if (p.kind === 'text') {
-        const h = Math.max(10, Math.round((p.fontSize || 14) * dpi / 96))
-        lines.push(`^FO${x},${y}^A0N,${h},${h}^FD${zplString(p.text)}^FS`)
+        const th = Math.max(10, Math.round((p.fontSize || 14) * dpi / 96))
+        lines.push(`^FO${x},${y}^A0N,${th},${th}^FD${zplString(p.text)}^FS`)
       } else if (p.kind === 'barcode') {
-        const bh = Math.max(16, dots(p.h, dpi))
+        const bh = Math.max(16, dotsSize(p.h, dpi))
         lines.push(`^FO${x},${y}^BCN,${bh},Y,N,N^FD${zplString(p.text)}^FS`)
       } else if (p.kind === 'qrcode') {
-        const cell = Math.max(2, Math.round(dots(Math.min(p.w, p.h), dpi) / 29))
+        const cell = Math.max(2, Math.round(dotsSize(Math.min(p.w, p.h), dpi) / 29))
         lines.push(`^FO${x},${y}^BQN,2,${cell}^FDMA,${zplString(p.text)}^FS`)
       } else if (p.kind === 'rect') {
-        const bw = Math.max(1, dots(p.w, dpi))
-        const bh = Math.max(1, dots(p.h, dpi))
-        const t = Math.max(1, dots((p.strokeWidth || 1) * 25.4 / 96, dpi))
+        const bw = Math.max(1, dotsSize(p.w, dpi))
+        const bh = Math.max(1, dotsSize(p.h, dpi))
+        const t = Math.max(1, dotsSize((p.strokeWidth || 1) * 25.4 / 96, dpi))
         lines.push(`^FO${x},${y}^GB${bw},${bh},${t}^FS`)
       } else if (p.kind === 'line') {
-        lines.push(`^FO${x},${y}^GB${Math.max(1, dots(p.w, dpi))},${Math.max(1, dots(p.h, dpi))},${Math.max(1, dots(p.h, dpi))}^FS`)
+        lines.push(`^FO${x},${y}^GB${Math.max(1, dotsSize(p.w, dpi))},${Math.max(1, dotsSize(p.h, dpi))},${Math.max(1, dotsSize(p.h, dpi))}^FS`)
       }
     }
     lines.push('^XZ')

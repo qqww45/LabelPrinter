@@ -1,30 +1,22 @@
 <template>
   <aside class="ai-dock" :class="{ embedded }">
     <div v-if="!embedded" class="dock-head">
-      <span class="title">🤖 {{ t('AI 调整') }}</span>
-      <button class="icon-btn" type="button" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')" :aria-label="t('设置 API Key / 模型')">⚙</button>
+      <span class="title">{{ t('AI 调整') }}</span>
       <button class="icon-btn" type="button" @click="$emit('close')" :title="t('隐藏')" :aria-label="t('隐藏')">⟨</button>
-    </div>
-    <div v-else class="dock-tools">
-      <button class="icon-btn" type="button" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')" :aria-label="t('设置 API Key / 模型')">⚙ {{ t('API 设置') }}</button>
-    </div>
-
-    <div class="mode-switch">
-      <button class="chip" :class="{ active: mode === 'adjust' }" @click="mode = 'adjust'">{{ t('调整当前') }}</button>
-      <button class="chip" :class="{ active: mode === 'generate' }" @click="mode = 'generate'">{{ t('生成新布局') }}</button>
     </div>
 
     <div class="chat" ref="chatEl">
       <p v-if="!chat.length" class="hint">
-        {{ mode === 'adjust'
-          ? t('对着已有项目微调。AI 会先读布局、已导入的数据、打印设置和纸张排版，再只改你提到的地方。')
-          : t('输入字段与风格描述，AI 帮你一键完成布局/样式/字段绑定。') }}
+        {{ t('对着已有项目微调。AI 会先读布局、已导入的数据、打印设置和纸张排版，再只改你提到的地方。') }}
       </p>
-      <p v-if="mode === 'adjust'" class="hint">{{ adjustReads }}</p>
-      <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.role">{{ m.text }}</div>
+      <p v-if="!chat.length" class="hint soft">{{ adjustReads }}</p>
+      <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.role">
+        <img v-if="m.image" class="bubble-img" :src="m.image" alt="" />
+        <span>{{ m.text }}</span>
+      </div>
       <div v-if="planLines.length && canApplyPlan" class="plan-lines">
         <div v-for="(line, i) in planLines" :key="i" class="plan-line">{{ line }}</div>
-        <button class="btn btn-primary" @click="applyPlan()">{{ t('应用到画布') }}</button>
+        <button class="btn btn-primary" type="button" @click="applyPlan()">{{ t('应用到画布') }}</button>
       </div>
       <div v-if="warnings.length" class="warnings">
         <div v-for="(w, i) in warnings" :key="i" class="warning">⚠ {{ w }}</div>
@@ -33,52 +25,125 @@
       <div v-if="!ai.isConfigured()" class="warn">⚠ {{ t('请先配置 API Key') }}</div>
     </div>
 
-    <div v-if="mode === 'generate'" class="generate-box">
-      <textarea v-model="fieldsText" class="ta" rows="4" :placeholder="t('例如：\n产品名称\n规格\n价格\n条码\n生产日期')"></textarea>
-      <div class="row-between">
-        <span class="muted">{{ t('已识别 {n} 个字段').replace('{n}', fieldsList.length) }}</span>
-        <button class="link" v-if="data.fields.length" @click="importFromData">⬇ {{ t('从数据源导入') }} ({{ data.fields.length }})</button>
+    <form class="composer" @submit.prevent="onAdjust">
+      <div class="presets" role="group" :aria-label="t('快捷指令')">
+        <button
+          v-for="h in talkHints"
+          :key="h.text"
+          class="chip"
+          type="button"
+          @click="instruction = t(h.text)"
+        >{{ t(h.label) }}</button>
       </div>
-      <div class="presets">
-        <button v-for="p in stylePresets" :key="p.key" class="chip" :class="{ active: stylePresetKey === p.key }" @click="applyStylePreset(p)">{{ t(p.label) }}</button>
-      </div>
-    </div>
 
-    <form class="composer" @submit.prevent="onGenerate">
-      <div v-if="mode === 'adjust'" class="presets">
-        <button v-for="h in talkHints" :key="h.text" class="chip" type="button" @click="instruction = t(h.text)">{{ t(h.label) }}</button>
+      <div
+        class="composer-shell"
+        :class="{ 'is-drag': dragOver, 'has-image': !!attachPreview }"
+        @dragenter.prevent="onDragEnter"
+        @dragover.prevent="onDragOver"
+        @dragleave.prevent="onDragLeave"
+        @drop.prevent="onDropFiles"
+      >
+        <input
+          ref="imageInput"
+          class="sr-only"
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+          @change="onPickImage"
+        />
+
+        <div v-if="attachPreview" class="attach-chip">
+          <img :src="attachPreview" alt="" />
+          <button class="attach-x" type="button" :aria-label="t('移除附图')" @click="clearAttach">×</button>
+        </div>
+
+        <textarea
+          v-model="instruction"
+          class="ta shell-ta"
+          rows="3"
+          :placeholder="t('说要改什么… 可 Ctrl+V 粘贴实打照片')"
+          @paste="onPaste"
+          @keydown.enter.exact.prevent="onAdjust"
+        ></textarea>
+
+        <div class="shell-bar">
+          <button
+            class="icon-tool"
+            type="button"
+            :disabled="loading"
+            :title="t('选择图片，或在框内粘贴')"
+            :aria-label="t('选择图片，或在框内粘贴')"
+            @click="imageInput?.click()"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21.4 11.6 12.1 20.9a5.5 5.5 0 0 1-7.8-7.8l9.9-9.9a3.5 3.5 0 0 1 5 5l-9.9 9.9a1.5 1.5 0 0 1-2.1-2.1l8.5-8.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <label class="model-pick">
+            <span class="sr-only">{{ t('模型') }}</span>
+            <select
+              class="model-select"
+              :value="dialogModelValue"
+              :aria-label="t('更换模型')"
+              :disabled="loading || !providerModels.length"
+              @change="onDialogModelChange"
+            >
+              <option v-for="m in providerModels" :key="m.id" :value="m.id">{{ shortModelLabel(m) }}</option>
+              <option v-if="unknownDialogModel" :value="unknownDialogModel">{{ unknownDialogModel }}</option>
+            </select>
+          </label>
+
+          <button
+            class="icon-tool"
+            type="button"
+            :title="t('API 设置')"
+            :aria-label="t('API 设置')"
+            @click="$emit('open-settings')"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.75"/>
+              <path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.5l1.6 1.6M17.5 15.9l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.5l1.6-1.6M17.5 8.1l1.6-1.6" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>
+          </button>
+
+          <button class="btn btn-primary send" type="submit" :disabled="loading || !ai.isConfigured()">
+            {{ loading ? t('生成中…') : t('发送') }}
+          </button>
+        </div>
       </div>
-      <textarea
-        v-if="mode === 'adjust'"
-        v-model="instruction"
-        class="ta"
-        rows="3"
-        :placeholder="t('例如：价格改成红色大字；规格为空时不打印；按份数列打印')"
-        @keydown.enter.exact.prevent="onGenerate"
-      ></textarea>
-      <div class="composer-row">
-        <span class="muted">{{ ai.model }}</span>
-        <button class="btn btn-primary" type="submit" :disabled="loading || !ai.isConfigured() || (mode === 'generate' && !fieldsList.length)">
-          {{ loading ? t('生成中…') : (mode === 'adjust' ? t('发送') : t('生成')) }}
-        </button>
-        <button v-if="mode === 'generate' && components.length" class="btn" type="button" @click="onApply">{{ t('应用到画布') }}</button>
-      </div>
+
+      <p v-if="attachPreview && !currentModelVision" class="vision-warn" role="status">
+        {{ t('当前模型不能看图，请换成带「可看图」的模型') }}
+      </p>
     </form>
   </aside>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useAIStore } from '../stores/ai'
 import { useI18n } from '../utils/i18n'
-import { toastInfo } from '../utils/toast'
-import { buildSystemPrompt, buildAdjustPrompt, buildAdjustMessages, packAdjustContext, callChat, parseAIResponse, parseAIPlan, validateAndNormalize, normalizeAdjustPlan, adjustPlanIsEmpty, describeAdjustPlan } from '../utils/ai'
+import { toastInfo, toastError } from '../utils/toast'
+import {
+  buildAdjustPrompt,
+  buildAdjustMessages,
+  packAdjustContext,
+  callChat,
+  parseAIPlan,
+  normalizeAdjustPlan,
+  adjustPlanIsEmpty,
+  describeAdjustPlan,
+  splitPrintPatch
+} from '../utils/ai'
+import { savePrinterProfile } from '../utils/printerProfile'
+import { fileToVisionDataUrl, visionCalibrateHint } from '../utils/aiImage'
+import { AI_MODEL_CATALOG, isKnownModel, modelSupportsVision, modelsForBaseUrl } from '../utils/aiModels'
 
 const { t } = useI18n()
 defineProps({
-  /** 嵌在 LeftDock 时：标题/收起由外层负责 */
   embedded: { type: Boolean, default: false }
 })
 const project = useProjectStore()
@@ -87,43 +152,137 @@ const ai = useAIStore()
 
 const emit = defineEmits(['close', 'open-settings', 'applied'])
 
-const fieldsText = ref('')
-const styleText = ref('')
-const mode = ref('adjust')
 const instruction = ref('')
 const plan = ref(null)
 const chat = ref([])
 const chatEl = ref(null)
-const stylePresetKey = ref('')
-const components = ref([])
 const warnings = ref([])
 const loading = ref(false)
 const error = ref('')
+
+const imageInput = ref(null)
+const attachDataUrl = ref('')
+const attachPreview = computed(() => attachDataUrl.value || '')
+const dragOver = ref(false)
+let dragDepth = 0
+
+const providerModels = computed(() => modelsForBaseUrl(ai.baseUrl))
+
+const dialogModelValue = computed(() => {
+  const id = ai.model
+  if (providerModels.value.some((m) => m.id === id)) return id
+  return id || providerModels.value[0]?.id || AI_MODEL_CATALOG[0]?.id || ''
+})
+
+const unknownDialogModel = computed(() => {
+  const id = ai.model
+  if (!id) return ''
+  if (providerModels.value.some((m) => m.id === id)) return ''
+  return id
+})
+
+const currentModelVision = computed(() => modelSupportsVision(ai.model))
+
+const dataFields = computed(() => data.fields.filter((h) => h && h !== '__id'))
+
+function shortModelLabel(m) {
+  if (!m) return ''
+  const raw = String(m.label || m.id)
+  return raw.replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').trim() || m.id
+}
+
+function onDialogModelChange(e) {
+  const id = e?.target?.value
+  if (!id) return
+  if (providerModels.value.length && !providerModels.value.some((m) => m.id === id) && isKnownModel(id)) {
+    return
+  }
+  ai.setModel(id)
+}
 
 const talkHints = [
   { label: '这个放大', text: '把选中的组件放大，字也加大' },
   { label: '空了不印', text: '内容为空的组件不打印' },
   { label: '换成条码', text: '把选中的二维码改成条形码，绑定的内容保持不变' },
-  { label: '价格标红', text: '价格改成红色大字' }
-]
-const stylePresets = [
-  { key: 'minimal',   label: '极简', text: '极简风格，黑白灰为主，无装饰边框，字号克制，大量留白' },
-  { key: 'retail',    label: '零售', text: '零售商品标签风格，价格红色加粗突出，商品名称加黑体' },
-  { key: 'warehouse', label: '仓库', text: '仓库管理风格，简洁实用，突出条码/编号/库位，灰蓝配色' },
-  { key: 'fresh',     label: '生鲜', text: '生鲜食品风格，绿色主调，产地+保质期醒目，规格清晰' },
-  { key: 'luxury',    label: '高端', text: '高端商品风格，深色字体+细线条分隔，衬线感强，大量留白' }
+  { label: '价格标红', text: '价格改成红色大字' },
+  { label: '热敏纠偏', text: '热敏整张偏右约 2mm、略偏大，请在现有校准上把水平偏移减 2、缩放调到 98' },
+  { label: '看图纠偏', text: '根据附图估计热敏偏移与缩放，使内容对齐纸边' },
+  { label: '重做布局', text: '按现有数据字段重新排一版标签布局，可增删组件，保持纸张与标签尺寸不变' }
 ]
 
-// 初始：若数据源已有字段，自动填入
-watch(() => data.fields, (v) => {
-  if (v && v.length && !fieldsText.value) {
-    fieldsText.value = v.join('\n')
+function clearAttach() {
+  attachDataUrl.value = ''
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+async function attachFile(file) {
+  if (!file) return
+  try {
+    attachDataUrl.value = await fileToVisionDataUrl(file)
+    if (!currentModelVision.value) {
+      toastInfo(t('已附图。当前模型不能看图，请换成带「可看图」的模型'), 4200)
+    }
+  } catch (err) {
+    clearAttach()
+    toastError(err?.message || t('图片无法使用'))
   }
-}, { immediate: true })
+}
 
-const fieldsList = computed(() =>
-  fieldsText.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
-)
+async function onPickImage(e) {
+  await attachFile(e?.target?.files?.[0])
+}
+
+function clipboardImageFile(e) {
+  const items = e?.clipboardData?.items
+  if (!items) return null
+  for (const item of items) {
+    if (item.kind === 'file' && String(item.type || '').startsWith('image/')) {
+      return item.getAsFile()
+    }
+  }
+  const files = e?.clipboardData?.files
+  if (files?.length) {
+    for (const f of files) {
+      if (String(f.type || '').startsWith('image/')) return f
+    }
+  }
+  return null
+}
+
+async function onPaste(e) {
+  const file = clipboardImageFile(e)
+  if (!file) return
+  e.preventDefault()
+  await attachFile(file)
+}
+
+function onDragEnter(e) {
+  if (![...((e.dataTransfer && e.dataTransfer.types) || [])].includes('Files')) return
+  dragDepth += 1
+  dragOver.value = true
+}
+
+function onDragOver(e) {
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+  dragOver.value = true
+}
+
+function onDragLeave() {
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dragOver.value = false
+}
+
+async function onDropFiles(e) {
+  dragDepth = 0
+  dragOver.value = false
+  const file = [...(e.dataTransfer?.files || [])].find((f) => String(f.type || '').startsWith('image/'))
+  if (!file) {
+    toastError(t('请拖入图片文件'))
+    return
+  }
+  await attachFile(file)
+}
+
 const planLines = computed(() => describeAdjustPlan(plan.value))
 const canApplyPlan = computed(() => plan.value && !adjustPlanIsEmpty(plan.value))
 const adjustReads = computed(() => {
@@ -133,9 +292,9 @@ const adjustReads = computed(() => {
     ? t('{c} 列 × {r} 行', { c: L.cols || 1, r: L.rows || 1 })
     : t('单张')
   const sel = project.selectedIds
-    .map(id => p.components.find(c => c.id === id))
+    .map((id) => p.components.find((c) => c.id === id))
     .filter(Boolean)
-    .map(c => c.name || c.type)
+    .map((c) => c.name || c.type)
   const base = t('将读取：布局 {n} 个组件，数据 {rows} 行，打印设置，排版 {sheet}（纸张 {w}×{h} mm）。', {
     n: p.components.length,
     rows: data.rows.length,
@@ -159,92 +318,54 @@ function planTouchesData(next) {
   return !!(d.addColumns?.length || d.renameColumns?.length || d.removeColumns?.length || d.setColumn?.length || d.setCells?.length)
 }
 
-watch(mode, () => {
-  plan.value = null
-  warnings.value = []
-  error.value = ''
-})
-
-function applyStylePreset(p) {
-  stylePresetKey.value = p.key
-  styleText.value = t(p.text)
-}
-function importFromData() {
-  fieldsText.value = data.fields.join('\n')
-}
-
-async function onGenerate() {
-  if (!ai.isConfigured()) { error.value = t('请先在设置里配置 API Key / 模型'); return }
-  if (mode.value === 'adjust') return onAdjust()
-  if (!fieldsList.value.length) { error.value = t('请至少输入一个字段'); return }
-  loading.value = true
-  error.value = ''
-  plan.value = null
-  try {
-    const sys = buildSystemPrompt({
-      labelWidth:  project.project.label.width,
-      labelHeight: project.project.label.height,
-      fields: fieldsList.value,
-      style: styleText.value
-    })
-    const userMsg = `请为以下标签设计版式：\n\n字段：${fieldsList.value.join('、')}\n画布：${project.project.label.width}×${project.project.label.height} mm\n风格：${styleText.value || '通用美观'}\n\n请直接输出 JSON 数组。`
-    const { content } = await callChat({
-      baseUrl: ai.baseUrl, apiKey: ai.apiKey, model: ai.model,
-      temperature: ai.temperature, maxTokens: ai.maxTokens
-    }, [
-      { role: 'system', content: sys },
-      { role: 'user',   content: userMsg }
-    ])
-    const arr = parseAIResponse(content)
-    const { components: comps, warnings: ws } = validateAndNormalize(arr, {
-      labelWidth: project.project.label.width,
-      labelHeight: project.project.label.height,
-      fields: fieldsList.value
-    })
-    components.value = comps
-    warnings.value = ws
-    chat.value.push({ role: 'ai', text: t('已生成 {n} 个组件，点「应用到画布」就能在旁边看到。', { n: comps.length }) })
-    scrollChat()
-  } catch (e) {
-    error.value = e?.message || String(e)
-    components.value = []
-    warnings.value = []
-  } finally {
-    loading.value = false
-  }
-}
-
 async function onAdjust() {
-  if (!instruction.value.trim()) { error.value = t('先写要改什么'); return }
+  if (!ai.isConfigured()) {
+    error.value = t('请先在设置里配置 API Key / 模型')
+    return
+  }
+  const said = instruction.value.trim()
+  const imageDataUrl = attachDataUrl.value
+  if (!said && !imageDataUrl) {
+    error.value = t('先写要改什么，或附上实打照片')
+    return
+  }
   loading.value = true
   error.value = ''
-  components.value = []
   try {
     const packed = packAdjustContext({
       project: project.project,
       rows: data.rows,
-      fields: data.fields.length ? data.fields : fieldsList.value,
+      fields: dataFields.value,
       selectedIds: project.selectedIds
     })
     const sys = buildAdjustPrompt(packed)
-    const said = instruction.value.trim()
+    const defaultVision = t('根据附图估计热敏偏移与缩放，使内容对齐纸边')
+    let userText = said || (imageDataUrl ? defaultVision : '')
+    if (imageDataUrl) userText += '\n\n' + visionCalibrateHint(project.project.label)
     const { content } = await callChat({
-      baseUrl: ai.baseUrl, apiKey: ai.apiKey, model: ai.model,
-      temperature: Math.min(ai.temperature ?? 0.4, 0.3), maxTokens: ai.maxTokens
-    }, buildAdjustMessages(sys, chat.value, said + (styleText.value.trim() ? `\n风格偏好：${styleText.value.trim()}` : '')))
+      baseUrl: ai.baseUrl,
+      apiKey: ai.apiKey,
+      model: ai.model,
+      temperature: Math.min(ai.temperature ?? 0.4, 0.3),
+      maxTokens: ai.maxTokens
+    }, buildAdjustMessages(sys, chat.value, userText, { imageDataUrl }))
     const raw = parseAIPlan(content)
     const { plan: next, warnings: ws } = normalizeAdjustPlan(raw, {
       labelWidth: project.project.label.width,
       labelHeight: project.project.label.height,
-      fields: data.fields.length ? data.fields : fieldsList.value,
+      fields: dataFields.value,
       components: project.project.components,
       rowCount: data.rows.length,
       selectedIds: project.selectedIds
     })
-    chat.value.push({ role: 'user', text: said })
+    chat.value.push({
+      role: 'user',
+      text: said || defaultVision,
+      image: imageDataUrl || ''
+    })
     instruction.value = ''
+    clearAttach()
     plan.value = next
-    components.value = next.componentAdds
     warnings.value = ws
     if (adjustPlanIsEmpty(next)) {
       chat.value.push({ role: 'ai', text: ws.filter(Boolean).join('\n') || t('没有可应用的改动') })
@@ -288,27 +409,6 @@ function applyDataOps(ops) {
   return notes
 }
 
-function onApply() {
-  if (mode.value === 'adjust') return applyPlan()
-  if (!components.value.length) return
-  const applyMode = project.project.components.length
-    ? confirm(t('当前画布已有 {n} 个组件。\n点「确定」= 全部替换\n点「取消」= 添加到末尾').replace('{n}', project.project.components.length))
-      ? 'replace' : 'append'
-    : 'replace'
-  const comps = components.value.slice()
-  project.batchUpdate(() => {
-    if (applyMode === 'replace') {
-      project.project.components.splice(0)
-      project.clearSelection()
-    }
-    for (const c of comps) project.addComponent(c)
-  })
-  emit('applied', components.value.length)
-  chat.value.push({ role: 'ai', text: t('已改到画布上，旁边就能看到。布局和打印可以用 Ctrl+Z 撤回。') })
-  components.value = []
-  scrollChat()
-}
-
 function applyPlan(opts = {}) {
   const next = plan.value
   if (!next || adjustPlanIsEmpty(next)) return
@@ -320,18 +420,22 @@ function applyPlan(opts = {}) {
   project.batchUpdate(() => {
     for (const id of next.componentRemoves) project.removeComponent(id)
     for (const item of next.componentUpdates) {
-      if (project.project.components.some(c => c.id === item.id)) project.updateComponent(item.id, item.patch)
+      if (project.project.components.some((c) => c.id === item.id)) project.updateComponent(item.id, item.patch)
     }
     for (const c of next.componentAdds) project.addComponent(c)
     if (next.sheet?.paper) project.updatePaper(next.sheet.paper)
     if (next.sheet?.margin) project.updateMargin(next.sheet.margin)
     if (next.sheet?.label) project.updateLabel(next.sheet.label)
     if (next.sheet?.layout) project.updateLayout(next.sheet.layout)
-    if (next.print) Object.assign(project.project.printConfig, next.print)
+    if (next.print) {
+      const { printConfig, calibrate } = splitPrintPatch(next.print)
+      if (printConfig) Object.assign(project.project.printConfig, printConfig)
+      if (calibrate) savePrinterProfile(calibrate)
+    }
     if (next.order?.length) {
       const moving = new Set(next.order)
-      const stay = project.project.components.filter(c => !moving.has(c.id))
-      const raised = next.order.map(id => project.project.components.find(c => c.id === id)).filter(Boolean)
+      const stay = project.project.components.filter((c) => !moving.has(c.id))
+      const raised = next.order.map((id) => project.project.components.find((c) => c.id === id)).filter(Boolean)
       project.project.components.splice(0, project.project.components.length, ...stay, ...raised)
     }
     if (next.data?.fieldMap?.length) {
@@ -366,57 +470,264 @@ function applyPlan(opts = {}) {
   border-bottom: 1px solid var(--border);
 }
 .dock-head .title { flex: 1; font-size: 12px; font-weight: 600; }
-.dock-tools {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 6px 10px 0;
-}
-.dock-tools .icon-btn {
-  width: auto;
-  height: 26px;
-  padding: 0 8px;
-  font-size: 11px;
-  gap: 4px;
-  display: inline-flex;
-  align-items: center;
-}
 .icon-btn {
-  width: 22px; height: 22px;
-  border: 0; background: transparent; color: var(--text-secondary);
-  border-radius: 4px; cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--primary); }
 .icon-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-.mode-switch { display: flex; gap: 6px; padding: 8px 10px 0; }
-.chat { flex: 1; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
-.hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
-.bubble { font-size: 13px; line-height: 1.45; padding: 6px 8px; border-radius: 6px; white-space: pre-wrap; }
-.bubble.user { align-self: flex-end; max-width: 92%; background: rgba(37,99,235,0.12); }
-.bubble.ai { align-self: flex-start; max-width: 100%; background: var(--bg); border: 1px solid var(--border); }
-.generate-box { padding: 0 10px 8px; border-top: 1px solid var(--border); }
-.composer { flex-shrink: 0; padding: 8px 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
-.composer-row { display: flex; align-items: center; gap: 6px; }
-.composer-row .muted { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.muted { color: var(--text-muted); font-size: 11px; }
-.ta { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; font-size: 13px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; resize: vertical; }
-.row-between { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
-.link { background: none; border: 0; color: var(--primary); cursor: pointer; font-size: 12px; padding: 2px 4px; }
+
+.chat {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.hint.soft { opacity: 0.85; }
+.bubble {
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+.bubble.user {
+  align-self: flex-end;
+  max-width: 92%;
+  background: rgba(37, 99, 235, 0.12);
+}
+.bubble.ai {
+  align-self: flex-start;
+  max-width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.bubble-img {
+  display: block;
+  margin-bottom: 6px;
+  max-width: 160px;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.composer {
+  flex-shrink: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: pointer;
+  color: var(--text);
+}
+.chip:hover {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: var(--primary);
+}
+.chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.composer-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.composer-shell:focus-within {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.composer-shell.is-drag {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+  background: rgba(37, 99, 235, 0.06);
+}
+.shell-ta {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  min-height: 64px;
+  resize: vertical;
+  box-shadow: none;
+}
+.shell-ta:focus,
+.shell-ta:focus-visible { outline: none; }
+.shell-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.icon-tool {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.icon-tool:hover { background: var(--bg-hover); color: var(--primary); }
+.icon-tool:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.icon-tool:disabled { opacity: 0.4; cursor: not-allowed; }
+.model-pick { flex: 1; min-width: 0; }
+.model-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.model-select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.send { flex-shrink: 0; }
+
+.attach-chip {
+  position: relative;
+  align-self: flex-start;
+  width: 72px;
+  height: 54px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.attach-chip img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.attach-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.attach-x:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.vision-warn {
+  margin: 0;
+  font-size: 11px;
+  color: var(--warning, #b45309);
+  line-height: 1.4;
+}
 .warn { color: #b45309; font-size: 12px; }
-.error { color: #dc2626; font-size: 13px; padding: 8px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 4px; }
-.presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.chip { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 2px 10px; font-size: 11px; cursor: pointer; color: var(--text); }
-.chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.error {
+  color: #dc2626;
+  font-size: 13px;
+  padding: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+}
 .warnings { display: flex; flex-direction: column; gap: 4px; }
-.warning { font-size: 11px; color: #b45309; background: rgba(245,158,11,0.08); padding: 4px 6px; border-radius: 3px; }
+.warning {
+  font-size: 11px;
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.08);
+  padding: 4px 6px;
+  border-radius: 3px;
+}
 .plan-lines { display: flex; flex-direction: column; gap: 4px; }
-.plan-line { font-size: 12px; background: rgba(37,99,235,0.08); padding: 4px 6px; border-radius: 3px; }
+.plan-line {
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.ta {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  resize: vertical;
+}
 .btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 5px 10px; border: 1px solid var(--border);
-  background: var(--bg-panel); color: var(--text);
-  border-radius: 4px; cursor: pointer; font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
 }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-shell { transition: none; }
+}
 </style>

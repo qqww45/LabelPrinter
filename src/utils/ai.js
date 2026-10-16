@@ -6,6 +6,9 @@
  * - 校验/归一化每个组件，裁剪到画布范围内
  */
 
+import { normalizeCalibrate } from './thermalCalibrate.js'
+import { getPrinterProfile } from './printerProfile.js'
+
 const FONT = 'Microsoft YaHei'
 
 // 组件类型 JSON schema（给 AI 看的，字段含义标注）
@@ -397,7 +400,7 @@ function packComponent(c) {
  * 微调前必须打包的四块：布局、已有数据、打印设置、纸张排版。
  * 行数很多时附上每一列的空值个数和最长内容，避免模型只看表头。
  */
-export function packAdjustContext({ project, rows, fields, selectedIds }) {
+export function packAdjustContext({ project, rows, fields, selectedIds, calibrate }) {
   const p = project || {}
   const list = Array.isArray(rows) ? rows : []
   const cols = (fields && fields.length)
@@ -423,6 +426,7 @@ export function packAdjustContext({ project, rows, fields, selectedIds }) {
   const margin = p.margin || {}
   const layout = p.layout || {}
   const printConfig = p.printConfig || {}
+  const cal = normalizeCalibrate(calibrate != null ? calibrate : getPrinterProfile())
   return {
     label: {
       width: label.width,
@@ -454,7 +458,10 @@ export function packAdjustContext({ project, rows, fields, selectedIds }) {
       media: printConfig.media || 'gap',
       gapMm: printConfig.gapMm ?? 2,
       dpi: printConfig.dpi || 203,
-      direction: printConfig.direction ?? 1
+      direction: printConfig.direction ?? 1,
+      offsetXMm: cal.offsetXMm,
+      offsetYMm: cal.offsetYMm,
+      scalePercent: cal.scalePercent
     },
     components: (p.components || []).map(packComponent),
     selectedIds: (selectedIds || []).filter(id => (p.components || []).some(c => c.id === id)),
@@ -497,6 +504,8 @@ ${JSON.stringify(ctx.print)}
 - copies：整单份数。copiesColumn 有值时，以该列数字为准，小于 1 的行跳过，不再乘 copies
 - serialEnabled + serialStart：开启后模板里的 {{序号}} 每打一张加 1
 - media：gap 间隙 / mark 黑标 / continuous 连续纸。dpi 只能是 203 或 300。direction：1 正向，0 反向
+- offsetXMm / offsetYMm：热敏本机校准，正数让内容向右/下移（毫米）。scalePercent：整张缩放，100 为原尺寸，常见 90～110
+- 用户说「打歪了 / 偏右 / 偏大」时改这三项；「再往右 1mm」要在当前 offsetXMm 上加减，不要从 0 重算
 
 # 4. 排版（一张纸上怎么排这些标签）
 纸张 ${ctx.paper.width}×${ctx.paper.height} mm，边距 ${JSON.stringify(ctx.margin)}
@@ -519,7 +528,7 @@ ${JSON.stringify(ctx.layout)}
     "label": { "width": 50, "height": 30, "showBorder": true, "borderColor": "#000000", "borderWidth": 0.3, "backgroundColor": "#ffffff" },
     "layout": { "mode": "auto", "cols": 3, "rows": 8, "hGap": 2, "vGap": 2 }
   },
-  "print": { "copies": 1, "copiesColumn": "份数", "serialEnabled": true, "serialStart": 1, "collate": false, "range": "all", "media": "gap", "gapMm": 2, "dpi": 203, "direction": 1 },
+  "print": { "copies": 1, "copiesColumn": "份数", "serialEnabled": true, "serialStart": 1, "collate": false, "range": "all", "media": "gap", "gapMm": 2, "dpi": 203, "direction": 1, "offsetXMm": 0, "offsetYMm": 0, "scalePercent": 100 },
   "data": {
     "addColumns": ["份数"],
     "renameColumns": [{ "from": "价格", "to": "单价" }],
@@ -544,22 +553,55 @@ ${JSON.stringify(ctx.layout)}
 - 内容为空的列，对应组件可以设 hideIfEmpty。用户要暂时不显示某个组件时，给它设 hidden: true；hidden 是画布和打印都不出现，hideIfEmpty 只在这一格没内容时跳过
 - 流水号写在 text 的 {{序号}} 里，并打开 print.serialEnabled
 - 数据里的份数各不相同时，用 print.copiesColumn 指向那一列，不要把整单份数设成某一个格子的值
+- 热敏整张偏移/缩放：只改 print.offsetXMm、offsetYMm、scalePercent；不要为此移动每个组件的 left/top
+- 用户消息若附图（实打照片），优先根据照片估计校准，并在 summary 里用中文说明你看到的偏差（例如「偏右约 2mm」）
 - 排版只在用户提到纸张、每页几张、间距时才写入 sheet
 - row 从 1 开始。setColumn 会改这一列的每一行，只在用户明确说「每一行都……」时使用
 - 不要发明数据列。新列必须先出现在 addColumns
 - 用户没提到的打印项和排版不要改`
 }
 
-/** 把上一轮对话带上，这样「再大一点」「还是不对」才接得上。 */
-export function buildAdjustMessages(system, history, instruction) {
+/** 把 AI 的 print 补丁拆成「项目打印设置」与「本机热敏校准」 */
+export function splitPrintPatch(print) {
+  if (!print || typeof print !== 'object') return { printConfig: null, calibrate: null }
+  const {
+    offsetXMm,
+    offsetYMm,
+    scalePercent,
+    ...rest
+  } = print
+  const calPatch = {}
+  if (offsetXMm != null) calPatch.offsetXMm = offsetXMm
+  if (offsetYMm != null) calPatch.offsetYMm = offsetYMm
+  if (scalePercent != null) calPatch.scalePercent = scalePercent
+  return {
+    printConfig: Object.keys(rest).length ? rest : null,
+    calibrate: Object.keys(calPatch).length ? calPatch : null
+  }
+}
+
+/**
+ * 把上一轮对话带上，这样「再大一点」「还是不对」才接得上。
+ * opts.imageDataUrl：实打照片（data URL），走 OpenAI 兼容多模态 content 数组。
+ */
+export function buildAdjustMessages(system, history, instruction, opts = {}) {
   const prior = (Array.isArray(history) ? history : []).slice(-8).filter(m => m && m.text).map(m => ({
     role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
     content: String(m.text).slice(0, 800)
   }))
+  const text = String(instruction || '')
+  const imageDataUrl = typeof opts.imageDataUrl === 'string' ? opts.imageDataUrl.trim() : ''
+  let userContent = text
+  if (imageDataUrl.startsWith('data:image/')) {
+    userContent = [
+      { type: 'text', text: text || '请根据附图微调。' },
+      { type: 'image_url', image_url: { url: imageDataUrl } }
+    ]
+  }
   return [
     { role: 'system', content: system },
     ...prior,
-    { role: 'user', content: String(instruction || '') }
+    { role: 'user', content: userContent }
   ]
 }
 
@@ -706,6 +748,17 @@ function normalizePrintPatch(raw, fields, warnings) {
     if (raw[key] == null) continue
     const n = Math.floor(Number(raw[key]))
     if (Number.isFinite(n)) out[key] = Math.min(9999, Math.max(1, n))
+  }
+  // 热敏本机校准：只收录模型明确写出的键；套用时与现有档案合并
+  if (raw.offsetXMm != null || raw.offsetYMm != null || raw.scalePercent != null) {
+    const cal = normalizeCalibrate({
+      offsetXMm: raw.offsetXMm != null ? raw.offsetXMm : 0,
+      offsetYMm: raw.offsetYMm != null ? raw.offsetYMm : 0,
+      scalePercent: raw.scalePercent != null ? raw.scalePercent : 100
+    })
+    if (raw.offsetXMm != null) out.offsetXMm = cal.offsetXMm
+    if (raw.offsetYMm != null) out.offsetYMm = cal.offsetYMm
+    if (raw.scalePercent != null) out.scalePercent = cal.scalePercent
   }
   return Object.keys(out).length ? out : null
 }
@@ -1044,6 +1097,10 @@ export function describeAdjustPlan(plan) {
     if (p.serialEnabled != null) bits.push(p.serialEnabled ? `序号从 ${p.serialStart ?? 1} 起` : '关闭序号')
     if (p.media) bits.push(p.media === 'mark' ? '黑标' : p.media === 'continuous' ? '连续纸' : '间隙')
     if (p.dpi) bits.push(`${p.dpi} dpi`)
+    if (p.offsetXMm != null || p.offsetYMm != null) {
+      bits.push(`偏移 ${p.offsetXMm ?? '·'},${p.offsetYMm ?? '·'} mm`)
+    }
+    if (p.scalePercent != null) bits.push(`缩放 ${p.scalePercent}%`)
     if (bits.length) lines.push('打印：' + bits.join('，'))
   }
   const d = plan.data || {}

@@ -1,13 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-
 const KEY = 'labelprint_ai_v1'
 const KEY_SESSION = 'labelprint_ai_key_session'
 
-// DeepSeek 默认端点
+// DeepSeek 默认端点；Flash 支持看图纠偏
 const DEFAULTS = {
   baseUrl: 'https://api.deepseek.com/v1',
-  model: 'deepseek-chat',
+  model: 'deepseek-flash',
   apiKey: '',
   temperature: 0.4,
   maxTokens: 4096,
@@ -71,8 +70,19 @@ export const useAIStore = defineStore('ai', () => {
 
   const isConfigured = () => !!(apiKey.value && baseUrl.value && model.value)
 
+  /**
+   * 只换模型名，不改 Base URL。
+   * 一个 API Key 对应一家服务商；跨厂商请到设置里换「服务商」。
+   */
+  function setModel(id) {
+    const next = String(id || '').trim()
+    if (!next) return
+    model.value = next
+    persist()
+  }
+
   return {
     baseUrl, model, apiKey, temperature, maxTokens, rememberKey,
-    persist, isConfigured
+    persist, isConfigured, setModel
   }
 })

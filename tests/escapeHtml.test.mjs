@@ -27,5 +27,6 @@ assert(html.startsWith('前缀'), 'prefix kept')
 
 assert(LOCAL_DATA_KEYS.includes('labelprint_projects_v1'), 'projects key listed')
 assert(LOCAL_DATA_KEYS.includes('labelprint_ai_v1'), 'ai key listed')
+assert(LOCAL_DATA_KEYS.includes('labelprint_printer_profile_v1'), 'printer profile key listed')
 
 console.log('escapeHtml.test.mjs: 全部通过')
