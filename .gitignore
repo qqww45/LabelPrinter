@@ -8,3 +8,7 @@ dist
 .AGENTS.md
 .CODEBUDDY.md
 .playwright-cli
+
+# 本地临时 / 规划草稿（不入库）
+audit-out.json
+docs/
