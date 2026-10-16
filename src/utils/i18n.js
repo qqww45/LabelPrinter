@@ -8,8 +8,22 @@ import { ref } from 'vue'
 // 模块级响应式语言（由 settings store 同步），保证所有组件的 t() 一致响应
 const lang = ref('zh')
 
+/** 按浏览器/系统首选语言推断界面：中文系 → zh，其余有语言则 → en，空则兜底 zh */
+export function detectPreferredLang(languages = typeof navigator !== 'undefined'
+  ? (navigator.languages?.length ? navigator.languages : [navigator.language])
+  : []) {
+  const list = Array.isArray(languages) ? languages : [languages]
+  const primary = list.map((raw) => String(raw || '').toLowerCase()).find(Boolean)
+  if (!primary) return 'zh'
+  if (primary === 'zh' || primary.startsWith('zh-')) return 'zh'
+  return 'en'
+}
+
 export function setI18nLang(v) {
   lang.value = v === 'en' ? 'en' : 'zh'
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = lang.value === 'en' ? 'en' : 'zh-CN'
+  }
 }
 
 const EN = {

@@ -62,7 +62,7 @@ Free browser-based label designer for Excel batch printing: barcodes, QR codes, 
 - **打印前体检**：字段失效预警、越界提醒
 - **AI 辅助**：AI 生成/优化标签布局（需在设置里配置 API）
 - **主题**：亮色 / 暗色
-- **多语言**：简体中文 / English
+- **多语言**：简体中文 / English；首次打开按系统/浏览器语言自动选择，之后可在工具栏切换
 - **自动保存**：项目自动存到浏览器本地，刷新不丢
 
 ---

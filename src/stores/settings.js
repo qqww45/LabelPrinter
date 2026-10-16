@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { setI18nLang } from '../utils/i18n'
+import { detectPreferredLang, setI18nLang } from '../utils/i18n'
 
 const KEY = 'labelprint_settings_v1'
 
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref('light')   // 'light' | 'dark'
-  const lang = ref('zh')       // 'zh' | 'en'
+  // 无本地偏好时跟系统/浏览器语言走；用户点过一次语言按钮后写入 localStorage
+  const lang = ref(detectPreferredLang())
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}')
