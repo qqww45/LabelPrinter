@@ -32,6 +32,7 @@ const EN = {
   '模板库': 'Templates',
   '字段映射': 'Field Mapping',
   '排版': 'Layout',
+  '打印排版': 'Print layout',
   '纸张设置': 'Paper',
   '导入数据': 'Import Data',
   '打印设置': 'Print Setup',

@@ -149,7 +149,7 @@ const secondaryActions = [
   { id: 'template-library', label: '模板库', icon: 'library' },
   { id: 'ai', label: 'AI 调整', icon: 'ai' },
   { id: 'field-map', label: '字段映射', icon: 'map' },
-  { id: 'layout-editor', label: '排版', icon: 'layout' },
+  { id: 'layout-editor', label: '打印排版', icon: 'layout' },
   { id: 'print-config', label: '打印设置', icon: 'printSetup' },
   { id: 'print-center', label: '打印中心', icon: 'queue' }
 ]
