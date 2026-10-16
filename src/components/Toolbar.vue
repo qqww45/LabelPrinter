@@ -1,6 +1,6 @@
 <template>
-  <div class="toolbar" :class="{ compact: isCompact }">
-    <div class="group group-brand">
+  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact }">
+    <div ref="brandRef" class="group group-brand">
       <div class="logo">
         <span class="logo-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -20,7 +20,7 @@
     <div class="divider divider-hide-narrow" />
 
     <!-- 主路径：纸张 · 预览 · 打印 · 导出 -->
-    <div class="group group-main">
+    <div ref="mainRef" class="group group-main">
       <button class="btn" type="button" @click="$emit('paper-config')" :title="t('纸张与标签尺寸')">
         <span class="ico" v-html="icons.paper"></span><span class="txt">{{ t('纸张') }}</span>
       </button>
@@ -40,14 +40,28 @@
 
     <div class="divider divider-hide-narrow" />
 
-    <!-- 次要入口收进「更多」 -->
-    <div class="group group-more">
-      <div class="more-wrap">
+    <!-- 次要入口：有空间就展开，「更多」只在放不下时出现 -->
+    <div ref="secondaryRef" class="group group-secondary">
+      <button
+        v-for="a in visibleActions"
+        :key="a.id"
+        class="btn"
+        type="button"
+        :data-sec-id="a.id"
+        :title="t(a.label)"
+        @click="$emit(a.id)"
+      >
+        <span class="ico" v-html="icons[a.icon]"></span>
+        <span class="txt">{{ t(a.label) }}</span>
+      </button>
+      <div v-if="overflowActions.length" class="more-wrap">
         <button
+          ref="moreBtnRef"
           class="btn"
           type="button"
           :aria-expanded="moreOpen"
           aria-haspopup="menu"
+          :aria-label="t('更多')"
           @click.stop="moreOpen = !moreOpen"
         >
           <span class="ico" v-html="icons.more"></span>
@@ -55,31 +69,43 @@
           <span class="caret" aria-hidden="true">▾</span>
         </button>
         <div v-if="moreOpen" class="more-menu" role="menu" @click.stop>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('template-library')">
-            <span class="ico" v-html="icons.library"></span>{{ t('模板库') }}
-          </button>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('ai')">
-            <span class="ico" v-html="icons.ai"></span>{{ t('AI 调整') }}
-          </button>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('field-map')">
-            <span class="ico" v-html="icons.map"></span>{{ t('字段映射') }}
-          </button>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('layout-editor')">
-            <span class="ico" v-html="icons.layout"></span>{{ t('排版') }}
-          </button>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('print-config')">
-            <span class="ico" v-html="icons.printSetup"></span>{{ t('打印设置') }}
-          </button>
-          <button type="button" class="more-item" role="menuitem" @click="pickMore('print-center')">
-            <span class="ico" v-html="icons.queue"></span>{{ t('打印中心') }}
+          <button
+            v-for="a in overflowActions"
+            :key="a.id"
+            type="button"
+            class="more-item"
+            role="menuitem"
+            @click="pickMore(a.id)"
+          >
+            <span class="ico" v-html="icons[a.icon]"></span>{{ t(a.label) }}
           </button>
         </div>
       </div>
     </div>
 
+    <!-- 离屏测量：量每个次要按钮真实宽度 -->
+    <div ref="measureRef" class="group group-measure" aria-hidden="true">
+      <button
+        v-for="a in secondaryActions"
+        :key="'m-' + a.id"
+        class="btn"
+        type="button"
+        tabindex="-1"
+        :data-sec-id="a.id"
+      >
+        <span class="ico" v-html="icons[a.icon]"></span>
+        <span class="txt">{{ t(a.label) }}</span>
+      </button>
+      <button class="btn" type="button" tabindex="-1" data-sec-id="__more__">
+        <span class="ico" v-html="icons.more"></span>
+        <span class="txt">{{ t('更多') }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+    </div>
+
     <div class="spacer" />
 
-    <div class="group group-prefs">
+    <div ref="prefsRef" class="group group-prefs">
       <button
         class="btn btn-icon"
         type="button"
@@ -104,7 +130,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../utils/i18n'
@@ -118,6 +144,23 @@ const emit = defineEmits([
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
   'template-library', 'field-map', 'print-center', 'ai'
 ])
+
+const secondaryActions = [
+  { id: 'template-library', label: '模板库', icon: 'library' },
+  { id: 'ai', label: 'AI 调整', icon: 'ai' },
+  { id: 'field-map', label: '字段映射', icon: 'map' },
+  { id: 'layout-editor', label: '排版', icon: 'layout' },
+  { id: 'print-config', label: '打印设置', icon: 'printSetup' },
+  { id: 'print-center', label: '打印中心', icon: 'queue' }
+]
+
+const overflowIds = ref([])
+const visibleActions = computed(() =>
+  secondaryActions.filter(a => !overflowIds.value.includes(a.id))
+)
+const overflowActions = computed(() =>
+  secondaryActions.filter(a => overflowIds.value.includes(a.id))
+)
 
 const moreOpen = ref(false)
 function pickMore(ev) {
@@ -145,11 +188,101 @@ const icons = {
 
 const COMPACT_THRESHOLD = 900
 const isCompact = ref(typeof window !== 'undefined' && window.innerWidth < COMPACT_THRESHOLD)
-function onResize() { isCompact.value = window.innerWidth < COMPACT_THRESHOLD }
 
-onMounted(() => { window.addEventListener('resize', onResize) })
+const toolbarRef = ref(null)
+const brandRef = ref(null)
+const mainRef = ref(null)
+const secondaryRef = ref(null)
+const prefsRef = ref(null)
+const measureRef = ref(null)
+
+let ro = null
+let recomputeTimer = 0
+
+function scheduleRecompute() {
+  if (recomputeTimer) cancelAnimationFrame(recomputeTimer)
+  recomputeTimer = requestAnimationFrame(() => {
+    recomputeTimer = 0
+    recomputeOverflow()
+  })
+}
+
+function recomputeOverflow() {
+  const bar = toolbarRef.value
+  const measure = measureRef.value
+  const brand = brandRef.value
+  const main = mainRef.value
+  const prefs = prefsRef.value
+  if (!bar || !measure || !brand || !main || !prefs) return
+
+  const gap = 4
+  const divider = isCompact.value ? 0 : 17 // divider + gaps approx when visible
+  const pad = 24 // toolbar horizontal padding
+  const barW = bar.clientWidth
+  const fixed =
+    brand.offsetWidth +
+    main.offsetWidth +
+    prefs.offsetWidth +
+    divider * 2 +
+    pad +
+    gap * 6
+
+  const avail = Math.max(0, barW - fixed)
+  const widths = secondaryActions.map(a => {
+    const el = measure.querySelector(`[data-sec-id="${a.id}"]`)
+    return el ? el.offsetWidth + gap : 72
+  })
+  const moreEl = measure.querySelector('[data-sec-id="__more__"]')
+  const moreW = (moreEl ? moreEl.offsetWidth : 64) + gap
+
+  const total = widths.reduce((s, w) => s + w, 0)
+  if (total <= avail) {
+    if (overflowIds.value.length) overflowIds.value = []
+    if (moreOpen.value) moreOpen.value = false
+    return
+  }
+
+  // 从右往左收进「更多」，至少露出一个主路径外的入口时仍保留 more
+  let used = moreW
+  const keep = []
+  for (let i = 0; i < widths.length; i++) {
+    if (used + widths[i] <= avail) {
+      used += widths[i]
+      keep.push(secondaryActions[i].id)
+    } else {
+      break
+    }
+  }
+  const next = secondaryActions.filter(a => !keep.includes(a.id)).map(a => a.id)
+  // 若一个都放不下，全部进 more
+  const same =
+    next.length === overflowIds.value.length &&
+    next.every((id, i) => id === overflowIds.value[i])
+  if (!same) overflowIds.value = next
+}
+
+function onResize() {
+  isCompact.value = window.innerWidth < COMPACT_THRESHOLD
+  scheduleRecompute()
+}
+
+onMounted(() => {
+  window.addEventListener('resize', onResize)
+  if (typeof ResizeObserver !== 'undefined' && toolbarRef.value) {
+    ro = new ResizeObserver(() => scheduleRecompute())
+    ro.observe(toolbarRef.value)
+  }
+  nextTick(scheduleRecompute)
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
+  if (ro) { ro.disconnect(); ro = null }
+  if (recomputeTimer) cancelAnimationFrame(recomputeTimer)
+})
+
+watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => project.dirty], () => {
+  nextTick(scheduleRecompute)
 })
 </script>
 
@@ -164,19 +297,33 @@ onBeforeUnmount(() => {
   gap: 4px;
   flex-shrink: 0;
   min-height: 48px;
-  flex-wrap: wrap;
-  row-gap: 4px;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 .group {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 .group-main {
   padding: 2px 6px;
   border-radius: 8px;
   background: var(--bg-soft);
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.group-secondary {
+  min-width: 0;
+}
+
+.group-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+  white-space: nowrap;
 }
 
 .logo {
@@ -212,7 +359,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .dirty { color: var(--warning); }
-.spacer { flex: 1; }
+.spacer { flex: 1; min-width: 8px; }
 
 .btn { display: inline-flex; align-items: center; gap: 5px; }
 .btn .ico {
@@ -274,4 +421,9 @@ onBeforeUnmount(() => {
 .toolbar.compact .divider-hide-narrow { display: none; }
 .toolbar.compact .group-main { background: transparent; border: 0; padding: 0; }
 .toolbar.compact .btn { padding: 4px 6px; }
+
+/* 测量层同步 compact 文案显隐，宽度才准 */
+.toolbar.compact .group-measure .btn .txt { display: none; }
+.toolbar.compact .group-measure .caret { display: none; }
+.toolbar:not(.compact) .group-measure .btn .txt { display: inline; }
 </style>
