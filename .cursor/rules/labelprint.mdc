@@ -27,6 +27,12 @@ alwaysApply: true
 - 动画尊重 `prefers-reduced-motion`；不要写 `transition: all`
 - 弹层加 `overscroll-behavior: contain`
 
+## 输出一致性（改打印 / PDF / PNG 必读）
+
+- 画布 ≈ 预览 ≈ 打印 ≈ PDF ≈ PNG；禁止另起一套排版引擎或重写 `cloneNode` 打印链路
+- PDF 拉丁字必须用 `setTextColor`（见 `vectorPdf.js`）；改完跑 `npm test`，并人工复测「红价签 + 中文名 + 二维码」
+- 详细清单见 `.agents/skills/labelprint-output-parity/SKILL.md`
+
 ## 部署
 
 - 修好后直接 `git push` main，不等 CI；push 失败重试 4–5 次

@@ -28,7 +28,7 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" />
 
-  <!-- 结构化数据：让搜索引擎识别这是一个在线工具 -->
+  <!-- 结构化数据：应用 + 场景列表 + 常见问题（单页 SEO，无多路由） -->
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -39,12 +39,57 @@
       "description": "在线标签设计与批量打印工具：拖拽设计标签模板，导入 Excel/CSV 数据批量填充，支持条形码、二维码与多列拼版，可打印或导出 PDF/图片。",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
-      "inLanguage": "zh-CN",
+      "inLanguage": ["zh-CN", "en"],
       "isAccessibleForFree": true,
-      "author": {
-        "@type": "Person",
-        "name": "qqww45"
-      }
+      "author": { "@type": "Person", "name": "qqww45" },
+      "featureList": [
+        "Excel/CSV 批量填充",
+        "条形码与二维码",
+        "毫米级纸张与拼版",
+        "矢量 PDF 与 PNG 导出",
+        "浏览器本地保存"
+      ]
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": "标签打印常见场景",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "价签 / 产品标签", "url": "https://label.s.ci64.com/#use-price-tag", "description": "品名、规格、价格与条码，适合超市与门店价签。" },
+        { "@type": "ListItem", "position": 2, "name": "快递面单", "url": "https://label.s.ci64.com/#use-express", "description": "收件人、电话、地址与运单二维码批量打印。" },
+        { "@type": "ListItem", "position": 3, "name": "资产标签", "url": "https://label.s.ci64.com/#use-asset", "description": "资产编号、部门与条码吊牌，方便盘点扫码。" },
+        { "@type": "ListItem", "position": 4, "name": "货架签 / 吊牌", "url": "https://label.s.ci64.com/#use-shelf", "description": "多列拼版，一页打印多张货架签或服装吊牌。" }
+      ]
+    }
+  </script>
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "标签打印工具需要安装吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "不需要。打开浏览器访问即可使用，项目与数据默认保存在本机浏览器。" }
+        },
+        {
+          "@type": "Question",
+          "name": "如何用 Excel 批量打印标签？",
+          "acceptedAnswer": { "@type": "Answer", "text": "导入 Excel 或 CSV（首行为字段名），把字段拖到标签组件上或使用 {{字段名}} 占位符，即可按行批量生成并打印或导出 PDF。" }
+        },
+        {
+          "@type": "Question",
+          "name": "支持条形码和二维码吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "支持。可在标签上放置条形码、二维码组件并绑定数据列，打印与矢量 PDF 导出时会一并输出。" }
+        },
+        {
+          "@type": "Question",
+          "name": "导出的 PDF 会保留字体颜色吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "会。矢量 PDF 导出会保留组件设置的文字颜色（含价格红色等），并与画布预览保持一致。" }
+        }
+      ]
     }
   </script>
 

@@ -156,9 +156,14 @@ function onBeforeUnload(e) {
 }
 onMounted(() => {
   window.addEventListener('beforeunload', onBeforeUnload)
-  // 空闲时预取画布 chunk，减少首次拖组件等待
+  // 空闲预取：先画布，再预览（含 PDF 依赖）；不改任何渲染结果
   const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 400))
-  ric(() => { import('./components/DesignCanvas.vue') })
+  ric(() => {
+    import('./components/DesignCanvas.vue').then(() => {
+      const ric2 = window.requestIdleCallback || ((cb) => setTimeout(cb, 800))
+      ric2(() => { import('./components/PreviewDialog.vue') })
+    })
+  })
 })
 onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
 

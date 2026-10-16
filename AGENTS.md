@@ -8,8 +8,10 @@
 | `npm run dev` | 启动 Vite dev server（默认端口 5173，HMR 热更新） |
 | `npm run build` | 生产构建到 `dist/`（Vite 6 + Vue 3.5） |
 | `npm run preview` | 本地预览生产构建产物 |
+| `npm test` | 跑全部 `tests/*.test.mjs`（含 PDF 颜色一致性、转义、拼版等） |
 | `node tests/basic.test.mjs` | 跑基础单元测试套件（约 66 项：纸/排版/打印/序列化） |
 | `node tests/dataMerge.test.mjs` | 跑导入追加/替换合并函数单测（7 类边界，15 项） |
+| `node tests/pdfParity.test.mjs` | PDF 拉丁字色 / 中文分流 / 价签绑定回归 |
 | `npx playwright-cli open http://localhost:5173/` | 启动 Playwright 浏览器会话（用于 UI 自动化验证） |
 | `npx playwright-cli eval "<js>"` | 在当前页面执行 JS（可读写 Pinia store、读 DOM、截图） |
 | `npx playwright-cli screenshot` | 截当前视口到 `.playwright-cli/page-*.png` |
