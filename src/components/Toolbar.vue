@@ -1,5 +1,5 @@
 <template>
-  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact }">
+  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen }">
     <div ref="brandRef" class="group group-brand">
       <div class="logo">
         <span class="logo-mark" aria-hidden="true">
@@ -300,6 +300,7 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   flex-wrap: nowrap;
   overflow: hidden;
 }
+.toolbar.menu-open { overflow: visible; }
 .group {
   display: flex;
   align-items: center;

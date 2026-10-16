@@ -4,7 +4,7 @@
       class="data-toolbar"
       role="toolbar"
       :aria-label="t('数据')"
-      :class="{ 'menu-open': sampleOpen && !data.headers.length }"
+      :class="{ 'menu-open': sampleOpen || exportOpen }"
     >
       <button
         type="button"
@@ -657,7 +657,7 @@ async function doExport(fmt) {
 .pop-mask { position: fixed; inset: 0; z-index: 20; }
 .pop-menu {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   right: 0;
   top: calc(100% + 4px);
   min-width: 168px;
