@@ -47,8 +47,60 @@
       }
     }
   </script>
+
+  <!-- 首屏加载：内联样式，不依赖 JS/CSS 包，避免白屏 -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #f5f7fa; }
+    html[data-theme="dark"], html[data-theme="dark"] body { background: #0f172a; }
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 99999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px;
+      background: #f5f7fa; color: #64748b;
+      font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      transition: opacity 0.28s ease, visibility 0.28s ease;
+    }
+    html[data-theme="dark"] #boot-splash { background: #0f172a; color: #94a3b8; }
+    #boot-splash.is-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+    #boot-splash .boot-mark {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: #2563eb; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.28);
+    }
+    html[data-theme="dark"] #boot-splash .boot-mark { background: #3b82f6; box-shadow: 0 8px 24px rgba(59, 130, 246, 0.28); }
+    #boot-splash .boot-title { font-size: 15px; font-weight: 600; color: #1e293b; }
+    html[data-theme="dark"] #boot-splash .boot-title { color: #e2e8f0; }
+    #boot-splash .boot-spinner {
+      width: 28px; height: 28px;
+      border: 2.5px solid rgba(37, 99, 235, 0.18);
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: boot-spin 0.7s linear infinite;
+    }
+    html[data-theme="dark"] #boot-splash .boot-spinner {
+      border-color: rgba(59, 130, 246, 0.2);
+      border-top-color: #3b82f6;
+    }
+    #boot-splash .boot-hint { font-size: 12px; letter-spacing: 0.02em; }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+  </style>
+  <script>
+    // 在 Vue / CSS 包加载前同步主题，避免加载屏闪白
+    try {
+      var _s = JSON.parse(localStorage.getItem('labelprint_settings_v1') || '{}')
+      if (_s.theme === 'dark') document.documentElement.dataset.theme = 'dark'
+    } catch (e) { /* ignore */ }
+  </script>
 </head>
 <body>
+  <div id="boot-splash" aria-busy="true" aria-live="polite">
+    <div class="boot-mark" aria-hidden="true">标</div>
+    <div class="boot-title">标签打印工具</div>
+    <div class="boot-spinner" aria-hidden="true"></div>
+    <div class="boot-hint">加载中…</div>
+  </div>
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
