@@ -15,7 +15,7 @@
       <div class="modal-body">
         <p class="name">{{ t('标签打印工具') }}</p>
         <p class="ver">{{ t('版本 {v}', { v: version }) }}</p>
-        <p class="lead">{{ t('在浏览器里设计标签，按表格批量打印，并导出 PDF 和图片。') }}</p>
+        <p class="lead">{{ t('在浏览器里用 AI 或亲手排好标签，按表格批量打印，并导出 PDF 和图片。') }}</p>
 
         <h3>{{ t('开源') }}</h3>
         <p>{{ t('源代码公开在 GitHub，可以查看、修改和自行部署。') }}</p>

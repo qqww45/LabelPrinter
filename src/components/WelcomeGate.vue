@@ -23,6 +23,9 @@
           <p class="body-copy">
             {{ t('不用安装。你在浏览器里画好一张标签的样子，再把 Excel 或 CSV 导进来，每一行就会填上品名、价格、条码或地址。') }}
           </p>
+          <p class="body-copy">
+            {{ t('把品名、价格和条码告诉 AI，它会先排一张，你再改。') }}
+          </p>
 
           <ul class="scenes">
             <li>
@@ -61,7 +64,7 @@
           </ul>
 
           <ol class="beats">
-            <li><b>1</b>{{ t('设计一张样子') }}</li>
+            <li><b>1</b>{{ t('自己画，或让 AI 排') }}</li>
             <li><b>2</b>{{ t('导入一张表格') }}</li>
             <li><b>3</b>{{ t('打印或导出 PDF') }}</li>
           </ol>
@@ -139,7 +142,7 @@
               <div class="tag-spec">{{ t('一级 · 500g') }}</div>
               <div class="tag-price"><small>¥</small>12.80</div>
               <div class="bars">
-                <i v-for="(w, i) in bars" :key="i" :style="{ width: w + 'px' }"></i>
+                <i v-for="(on, i) in bars" :key="i" :class="{ on }"></i>
               </div>
               <div class="tag-code">6901234 567892</div>
             </div>
@@ -163,7 +166,7 @@ const root = ref(null)
 const nameInput = ref(null)
 const primaryBtn = ref(null)
 const suggestions = ['门店价签', '快递面单', '资产标签', '仓库条码']
-const bars = [2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 3, 2, 1, 1, 4, 2, 1, 3, 1, 2, 2, 1]
+const bars = '10101011110001011000110100110010010011011110101010101110010011101010000100010010010001110100101'.split('').map((ch) => ch === '1')
 
 const cleanName = computed(() => name.value.trim())
 
@@ -574,11 +577,15 @@ h1 {
 .tag-price small { margin-right: 2px; font-size: 18px; }
 .bars {
   display: flex;
-  align-items: stretch;
-  gap: 1px;
+  width: 100%;
   height: 42px;
 }
-.bars i { display: block; background: #141414; }
+.bars i {
+  flex: 1 1 0;
+  min-width: 0;
+  background: transparent;
+}
+.bars i.on { background: #141414; }
 .tag-code {
   margin-top: 3px;
   font-size: 10px;

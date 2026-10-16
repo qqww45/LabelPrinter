@@ -1,7 +1,7 @@
 {
   "name": "label-printer",
   "version": "1.0.0",
-  "description": "标签打印设计工具",
+  "description": "把表格的每一行印成标签。AI 可以先排版，然后批量打印或导出 PDF。Each spreadsheet row becomes a label. AI can lay it out first, then you batch-print or export PDF.",
   "type": "module",
   "scripts": {
     "dev": "vite",

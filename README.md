@@ -1,33 +1,43 @@
 # 标签打印工具 (Label Printer)
 
-免费的在线标签打印、标签设计工具。导入 Excel/CSV，批量生成带条形码、二维码的价签、产品标签、快递面单、资产标签和条码吊牌，直接打印或导出 PDF。
+把表格里的每一行，印成一张可以贴出去的标签。价签、快递面单、资产贴都在浏览器里排，然后批量打印或导出 PDF。
 
-Free browser-based label designer for Excel batch printing: barcodes, QR codes, price tags, shipping labels, asset tags, and PDF export.
+Turn each row of a spreadsheet into a label you can stick on something. Lay out price tags, shipping labels, and asset tags in the browser, then batch-print them or export a PDF.
 
-**在线使用**：https://label.s.ci64.com
+**在线使用 / Try it:** https://label.s.ci64.com
 
-打开浏览器就能用，不用安装。数据留在你自己的电脑里。
+开源，不用安装。项目和表格留在这台浏览器里。AI 排版用你自己的密钥，支持 DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama。不用 AI 时，表格不会发出去。
 
-## 两件原来很烦的事
+Open source, nothing to install. The project and the table stay in this browser. AI layout uses your own key: DeepSeek, Zhipu GLM, Qwen, OpenAI, or Ollama. Skip AI, and the table is not sent.
 
-### 标签不好排
+## 标签不好排
 
-在 Word 里拉文本框做价签，纸张尺寸一改，字和框就歪了。条形码、二维码还要另找网站生成，截图贴回去，打出来经常糊、对不齐。
+在 Word 里拉文本框做价签，纸张尺寸一改，字和框就歪了。条形码、二维码还要另找网站生成，截图贴回去，打出来经常糊。
 
 这里按毫米设置纸张和边距，把文本、图片、表格、条形码、二维码拖到标签上。一页排几列几行、间距多少，改尺寸不用重画。
 
-### Excel 里的数据打不成标签
+Word text boxes slip when the paper size changes. Barcodes made on another site and pasted back print soft and crooked. Here the sheet, the margins, and the gaps are in millimetres. Change the size without redrawing the label.
 
-商品、快递单、资产编号都在表格里，几十上百行。一条条复制到标签上，改一个价格就得全部重来。
+## 表格里的数据打不成标签
 
-导入 Excel 或 CSV（`.xlsx` / `.xls` / `.csv`，首行是字段名），把「品名」「价格」「编号」拖到标签上。每一行数据自动生成一张标签，可以翻页核对，然后直接打印，或导出 PDF、图片。同一张模板，换一批数据就能再打。
+商品、快递单、资产编号都在表格里，几十上百行。一条条抄到标签上，改一个价格就得全部重来。
+
+导入 Excel 或 CSV（`.xlsx` / `.xls` / `.csv`，首行是字段名），把「品名」「价格」「编号」拖到标签上。每一行生成一张标签。翻页核对后打印，或导出 PDF、图片。换一批数据，同一张样子还能再打。
+
+Names, shipments, and asset IDs already sit in a spreadsheet. Copying them onto labels by hand means one price change starts the job over. Import the file, drop the name, price, or ID onto the label, and each row becomes one label. Swap the table and print the same design again.
+
+## 让 AI 先排一张
+
+把品名、价格、条码这些字段，加上想要的风格说出来。AI 排出布局、样式和字段绑定。标签已经在画布上时，可以说「价格改成红色大字」或「规格为空时不打印」，也可以附一张实拍照片让它照着改。
+
+Name the fields and the look, such as a product name, a price, and a barcode. AI places the layout, the styling, and the field bindings. On a label already on the canvas, say "make the price large and red" or "hide the spec when it is empty." You can attach a photo of the printed label for it to match.
 
 ## 适合拿来做
 
-- **价签、产品标签**：名称、规格、价格，配上条形码
-- **快递面单**：收件人、电话、地址，配上运单二维码
-- **资产标签、条码吊牌**：资产编号、部门，扫出来能对上台账
-- **Excel 批量打印**：表格有多少行，就出多少张，一页可以排多张
+- **价签、产品标签**：名称、规格、价格，配上条形码。Price tags: name, spec, price, and a barcode.
+- **快递面单**：收件人、电话、地址，配上运单二维码。Shipping labels: recipient, phone, address, and a QR code.
+- **资产标签、条码吊牌**：资产编号、部门，扫出来能对上台账。Asset tags: an ID and a department you can scan back to the ledger.
+- **Excel 批量打印**：表格有多少行，就出多少张，一页可以排多张。One row, one label, and several labels on a sheet.
 
 ## 功能特性
 
@@ -60,7 +70,7 @@ Free browser-based label designer for Excel batch printing: barcodes, QR codes, 
 ### 效率工具
 - **模板库**：6 个内置模板 + 自定义保存的"我的模板"
 - **打印前体检**：字段失效预警、越界提醒
-- **AI 辅助**：AI 生成/优化标签布局（需在设置里配置 API）
+- **AI 排版**：说出字段和风格，生成布局并绑定字段。也可对着现有标签逐项改，或附一张实拍照片让它照着改（需自备 API 密钥）
 - **主题**：亮色 / 暗色
 - **多语言**：简体中文 / English；首次打开按系统/浏览器语言自动选择，之后可在工具栏切换
 - **自动保存**：项目自动存到浏览器本地，刷新不丢
@@ -216,3 +226,5 @@ node tests/dataMerge.test.mjs
 [MIT](LICENSE) © 2026 qqww45
 
 非常宽松的协议：可自由使用、修改、商用、闭源，只需保留版权声明。
+
+A permissive license: use, modify, and ship it in a closed product, as long as the copyright notice stays.

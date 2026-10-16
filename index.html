@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- SEO：标题与描述 -->
-  <title>标签打印工具 - 在线标签设计与批量打印（Excel 导入 / 条码二维码 / PDF 导出）</title>
-  <meta name="description" content="免费在线标签打印工具：拖拽设计标签模板，导入 Excel/CSV 数据自动批量填充，支持条形码、二维码与多列拼版，可直接打印或导出 PDF/图片。适合产品标签、价签、快递面单、资产标签、条码吊牌等场景。" />
-  <meta name="keywords" content="标签打印,标签打印工具,在线标签设计,条码打印,二维码标签,价签打印,快递面单,批量打印,Excel批量打印,标签制作,PDF导出" />
+  <title>标签打印工具</title>
+  <meta name="description" content="把表格的每一行印成价签、面单或资产贴。AI 可以先排版，然后批量打印或导出 PDF。数据留在浏览器。Each spreadsheet row becomes a label. AI can lay it out first. Then batch-print or export PDF. Data stays in the browser." />
+  <meta name="keywords" content="标签打印,标签打印工具,AI排版,AI标签设计,在线标签设计,条码打印,二维码标签,价签打印,快递面单,批量打印,Excel批量打印,标签制作,PDF导出" />
   <meta name="author" content="qqww45" />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#2563eb" />
@@ -16,15 +16,16 @@
   <!-- Open Graph：微信 / QQ / 社交平台分享卡片 -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="标签打印工具" />
-  <meta property="og:title" content="标签打印工具 - 在线标签设计与批量打印" />
-  <meta property="og:description" content="拖拽设计标签模板，导入 Excel/CSV 自动批量填充数据，支持条码、二维码与多列拼版，直接打印或导出 PDF/图片。" />
+  <meta property="og:title" content="标签打印工具" />
+  <meta property="og:description" content="把表格的每一行印成价签、面单或资产贴。AI 可以先排版，然后批量打印或导出 PDF。Each spreadsheet row becomes a label. AI can lay it out first, then you batch-print or export PDF." />
+  <meta property="og:locale:alternate" content="en_US" />
   <meta property="og:url" content="https://label.s.ci64.com/" />
   <meta property="og:locale" content="zh_CN" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="标签打印工具 - 在线标签设计与批量打印" />
-  <meta name="twitter:description" content="拖拽设计标签模板，导入 Excel/CSV 自动批量填充数据，支持条码、二维码与多列拼版，直接打印或导出 PDF/图片。" />
+  <meta name="twitter:title" content="标签打印工具" />
+  <meta name="twitter:description" content="把表格的每一行印成价签、面单或资产贴。AI 可以先排版，然后批量打印或导出 PDF。Each spreadsheet row becomes a label. AI can lay it out first, then you batch-print or export PDF." />
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" />
 
@@ -36,13 +37,14 @@
       "name": "标签打印工具",
       "alternateName": "Label Printer",
       "url": "https://label.s.ci64.com/",
-      "description": "在线标签设计与批量打印工具：拖拽设计标签模板，导入 Excel/CSV 数据批量填充，支持条形码、二维码与多列拼版，可打印或导出 PDF/图片。",
+      "description": "把表格的每一行印成价签、面单或资产贴。AI 可以先排版，然后批量打印或导出 PDF。数据留在浏览器。Each spreadsheet row becomes a label. AI can lay it out first. Then batch-print or export PDF. Data stays in the browser.",
       "applicationCategory": "BusinessApplication",
       "operatingSystem": "Web",
       "inLanguage": ["zh-CN", "en"],
       "isAccessibleForFree": true,
       "author": { "@type": "Person", "name": "qqww45" },
       "featureList": [
+        "AI 排版与按说明调整",
         "Excel/CSV 批量填充",
         "条形码与二维码",
         "毫米级纸张与拼版",
@@ -83,6 +85,11 @@
           "@type": "Question",
           "name": "支持条形码和二维码吗？",
           "acceptedAnswer": { "@type": "Answer", "text": "支持。可在标签上放置条形码、二维码组件并绑定数据列，打印与矢量 PDF 导出时会一并输出。" }
+        },
+        {
+          "@type": "Question",
+          "name": "可以用 AI 排标签吗？",
+          "acceptedAnswer": { "@type": "Answer", "text": "可以。填入你自己的 API 密钥后，说出字段和想要的样子，AI 会排出布局、样式和字段绑定；也可以对着已有标签说明要改的地方。不用 AI 时不会发送数据。" }
         },
         {
           "@type": "Question",

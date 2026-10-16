@@ -4,6 +4,9 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
+    // 本机 Node 把 localhost 只绑到 ::1，而连 ::1 会被系统拒绝（EACCES）。
+    // 浏览器再去连 127.0.0.1 就会得到 ERR_CONNECTION_REFUSED。
+    host: '127.0.0.1',
     port: 5173,
     open: true
   },

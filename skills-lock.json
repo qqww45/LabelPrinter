@@ -7,6 +7,12 @@
       "skillPath": "skills/engineering/code-review/SKILL.md",
       "computedHash": "1846141c77eaada59e449d831720ac1fd3f99e5cb22c30ed42ea5e4d14bd3cda"
     },
+    "copywriting": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/copywriting/SKILL.md",
+      "computedHash": "b7ad458352da7e0f962bb285fdfb15daabbd2b354fc903548bf68ca7d973a8f3"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
