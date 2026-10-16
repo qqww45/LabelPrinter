@@ -88,6 +88,15 @@ button {
   color: inherit;
 }
 
+/* 暗色下原生 select 下拉常白底浅字；约束 option 与 color-scheme */
+select {
+  color-scheme: light dark;
+}
+select option {
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
 input, select, textarea {
   font-family: inherit;
   font-size: inherit;

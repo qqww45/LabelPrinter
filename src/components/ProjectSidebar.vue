@@ -16,14 +16,19 @@
         <button class="icon-btn" type="button" @click="open = false" :title="t('收起面板')">‹</button>
       </div>
 
-      <div class="actions">
-        <button class="act" type="button" @click="$emit('new')" :title="t('新建项目')">📄 {{ t('新建') }}</button>
-        <button class="act" type="button" @click="$emit('open')" :title="t('从文件打开项目')">📂 {{ t('打开') }}</button>
-        <button class="act" type="button" @click="$emit('save')" :title="t('下载项目文件。设计会自动留在这台浏览器里')">💾 {{ t('下载') }}</button>
-        <button class="act" type="button" @click="$emit('save-as')" :title="t('换个文件名下载')">📤 {{ t('下载为') }}</button>
+      <div class="list-head">
+        <span class="list-label">{{ t('本地项目（自动保存）') }}</span>
+        <button
+          class="btn-new"
+          type="button"
+          :title="t('新建项目')"
+          :aria-label="t('新建项目')"
+          @click="$emit('new')"
+        >
+          <span class="btn-new-ico" aria-hidden="true" v-html="icons.plus"></span>
+          {{ t('新建') }}
+        </button>
       </div>
-
-      <div class="list-label">{{ t('本地项目（自动保存）') }}</div>
 
       <div class="proj-list">
         <div
@@ -59,6 +64,17 @@
       </div>
 
       <div class="panel-foot">
+        <div class="file-ops" role="group" :aria-label="t('项目文件')">
+          <button type="button" class="file-link" :title="t('从文件打开项目')" @click="$emit('open')">
+            <span aria-hidden="true" v-html="icons.open"></span>{{ t('打开') }}
+          </button>
+          <button type="button" class="file-link" :title="t('下载项目文件。设计会自动留在这台浏览器里')" @click="$emit('save')">
+            <span aria-hidden="true" v-html="icons.download"></span>{{ t('下载') }}
+          </button>
+          <button type="button" class="file-link" :title="t('换个文件名下载')" @click="$emit('save-as')">
+            <span aria-hidden="true" v-html="icons.saveAs"></span>{{ t('下载为') }}
+          </button>
+        </div>
         <div class="foot-note">{{ t('自动保存在这台浏览器，下载才是文件') }}</div>
         <button
           type="button"
@@ -84,8 +100,16 @@ defineProps({
   /** 嵌入 LeftDock 时只渲染内容，不自带收起窄条 */
   embedded: { type: Boolean, default: false }
 })
-const emit = defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
+defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
 const clearing = ref(false)
+
+const S = (d) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+const icons = {
+  plus: S('<path d="M12 5v14M5 12h14"/>'),
+  open: S('<path d="M4 7.5h6l1.5 2H20v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-10z"/>'),
+  download: S('<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h14"/>'),
+  saveAs: S('<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h9M17 16v4M15 18h4"/>')
+}
 
 async function onClearLocal() {
   if (!confirm(t('确定清除本浏览器内的全部标签打印数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。'))) return
@@ -277,36 +301,78 @@ function onRemove(p) {
 .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
 .icon-btn.del:hover { background: #fee2e2; color: var(--danger); }
 
-/* 项目操作条 */
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+/* 列表头：说明 + 唯一主操作「新建」 */
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.list-label {
+  flex: 1;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  min-width: 0;
+}
+.btn-new {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-}
-.act {
-  padding: 6px 4px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--bg-panel);
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 11px;
+  transition: background-color 0.15s;
+}
+.btn-new:hover { background: var(--primary-hover); }
+.btn-new:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.btn-new-ico {
+  display: inline-flex;
+  line-height: 0;
+  opacity: 0.95;
+}
+.btn-new-ico :deep(svg) { display: block; }
+
+.file-ops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin-bottom: 6px;
+}
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
   color: var(--text-secondary);
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
 }
-.act:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+.file-link:hover {
   background: var(--bg-hover);
+  color: var(--primary);
 }
-.act:focus-visible {
+.file-link:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
-
-.list-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  padding: 2px 2px 0;
+.file-link :deep(svg) {
+  display: block;
+  opacity: 0.85;
 }
 
 .proj-list {

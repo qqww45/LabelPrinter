@@ -2,7 +2,7 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal tpl-modal">
       <div class="modal-header">
-        <span>{{ t('模板库') }} <span class="sub">{{ t('应用模板只替换版式，保留数据源与字段映射') }}</span></span>
+        <span>{{ t('模板库') }} <span class="sub">{{ headerHint }}</span></span>
         <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
@@ -83,8 +83,15 @@
             <div v-if="tplFields.length">{{ t('引用字段') }}：<code>{{ tplFields.join('、') }}</code></div>
           </div>
 
+          <label v-if="matchedSample" class="sample-opt">
+            <input v-model="loadSampleAlong" type="checkbox" />
+            <span>{{ t('同时灌入示例数据') }}（{{ t(matchedSample.name) }}）</span>
+          </label>
+
           <div class="btns">
-            <button class="btn btn-primary btn-apply" @click="apply(current)">{{ t('应用此模板') }}</button>
+            <button class="btn btn-primary btn-apply" :disabled="applying" @click="apply(current)">
+              {{ applying ? t('应用中…') : t('应用此模板') }}
+            </button>
             <button class="btn" @click="saveCurrent">{{ t('把当前设计另存为模板') }}</button>
             <button v-if="current.custom" class="btn" @click="remove(current)">{{ t('删除模板') }}</button>
           </div>
@@ -100,14 +107,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useTemplateStore } from '../stores/templates'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
-import { toastSuccess } from '../utils/toast'
+import { toastSuccess, toastError } from '../utils/toast'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
 import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
+import { findSampleForTemplate, loadSampleDataset } from '../utils/samples'
 
 const { t } = useI18n()
 const emit = defineEmits(['close'])
@@ -118,6 +126,19 @@ const tplStore = useTemplateStore()
 
 const builtin = BUILTIN_TEMPLATES
 const current = ref(BUILTIN_TEMPLATES[0])
+const loadSampleAlong = ref(true)
+const applying = ref(false)
+
+const matchedSample = computed(() => findSampleForTemplate(current.value?.id))
+const headerHint = computed(() =>
+  matchedSample.value
+    ? t('可同时灌入与模板字段对齐的示例数据')
+    : t('应用模板只替换版式，保留数据源与字段映射')
+)
+
+watch(matchedSample, (s) => {
+  loadSampleAlong.value = !!s
+}, { immediate: true })
 
 const tplFields = computed(() => {
   if (!current.value) return []
@@ -199,15 +220,53 @@ function layoutText(tpl) {
 }
 
 // ============ 动作 ============
-function apply(tpl) {
-  project.applyTemplate(tpl)
-  // 模板字段与数据列同名时自动建立映射
-  if (data.fields.length) {
-    const used = tplFields.value
-    project.updateFieldMap(autoMatchFieldMap(used, data.fields, project.project.dataSource.fieldMap))
+async function apply(tpl) {
+  if (applying.value) return
+  applying.value = true
+  try {
+    project.applyTemplate(tpl)
+    let withSample = false
+    const sample = findSampleForTemplate(tpl.id)
+    if (sample && loadSampleAlong.value) {
+      if (data.rows.length > 0) {
+        const ok = confirm(t('当前已有数据，是否替换为该模板的示例数据？'))
+        if (ok) {
+          await injectSample(sample.id)
+          withSample = true
+        }
+      } else {
+        await injectSample(sample.id)
+        withSample = true
+      }
+    }
+    // 模板字段与数据列同名时自动建立映射
+    if (data.fields.length) {
+      const used = tplFields.value
+      project.updateFieldMap(autoMatchFieldMap(used, data.fields, project.project.dataSource.fieldMap || {}))
+    }
+    project.markDirty()
+    toastSuccess(
+      withSample
+        ? t('已应用模板「{n}」，并灌入示例数据', { n: tpl.name })
+        : t('已应用模板「{n}」', { n: tpl.name })
+    )
+    emit('close')
+  } catch (e) {
+    toastError(t('应用失败：{msg}', { msg: e.message || String(e) }))
+  } finally {
+    applying.value = false
   }
-  toastSuccess(t('已应用模板「{n}」', { n: tpl.name }))
-  emit('close')
+}
+
+async function injectSample(sampleId) {
+  const parsed = await loadSampleDataset(sampleId)
+  data.setData({
+    headers: parsed.headers,
+    rows: parsed.rows,
+    sourcePath: parsed.fileName,
+    embedded: true
+  })
+  project.updateFieldMap({})
 }
 
 function saveCurrent() {
@@ -378,6 +437,25 @@ function remove(item) {
   background: var(--bg);
   padding: 1px 4px;
   border-radius: 3px;
+}
+.sample-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.sample-opt input {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
 }
 .btns {
   display: flex;

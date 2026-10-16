@@ -269,8 +269,9 @@ function onOnboardingImport() {
 }
 
 function onOnboardingSample(sampleId) {
+  // 引导内会先预览再确认；确认后只关引导。保留此入口以防旧事件。
   dismissOnboarding()
-  onLoadSample(sampleId || 'retail')
+  if (sampleId) onLoadSample(sampleId)
 }
 
 // 切项目时从目标项目自己的行取列名。不能沿用上一份表的 headers，否则列对不上会被写成空字符串再存回去。

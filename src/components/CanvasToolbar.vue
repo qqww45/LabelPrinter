@@ -392,14 +392,14 @@ onBeforeUnmount(() => {
 .zoom-readout select {
   appearance: none;
   -webkit-appearance: none;
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--border);
+  background-color: var(--bg-panel);
   color: var(--text);
   font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  padding: 0 14px 0 6px;
+  padding: 0 16px 0 8px;
   height: 28px;
   cursor: pointer;
   border-radius: 6px;
@@ -409,6 +409,11 @@ onBeforeUnmount(() => {
   background-position: calc(100% - 8px) 12px, calc(100% - 4px) 12px;
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
+  color-scheme: light dark;
+}
+.zoom-readout select option {
+  background: var(--bg-panel);
+  color: var(--text);
 }
 .zoom-readout select:focus-visible {
   outline: 2px solid var(--primary);

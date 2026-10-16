@@ -122,20 +122,60 @@
       <!-- Step 3: 导入数据 -->
       <section v-else class="body step-enter">
         <p class="tip">{{ t('有数据才能批量打。Excel 或 CSV 的第一行是列名，和模板里的字段同名会自动对上。') }}</p>
-        <p class="tip muted">{{ t('也可以先加载一份示例数据，马上预览打印效果。') }}</p>
+        <p class="tip muted">{{ t('先点一份示例预览几行，确认后再开始；或自己导入表格。') }}</p>
         <div class="sample-row">
           <button
             v-for="s in sampleSets"
             :key="s.id"
             class="btn btn-sm sample-btn"
+            :class="{
+              recommended: s.id === recommendedSampleId,
+              active: samplePreview?.id === s.id
+            }"
             type="button"
-            @click="emit('load-sample', s.id)"
-          >{{ t(s.name) }}</button>
+            :disabled="previewLoading"
+            @click="previewSample(s.id)"
+          >
+            {{ t(s.name) }}
+            <span v-if="s.id === recommendedSampleId" class="rec-tag">{{ t('推荐') }}</span>
+          </button>
         </div>
+
+        <div v-if="previewLoading" class="sample-preview loading">{{ t('正在加载示例…') }}</div>
+        <div v-else-if="samplePreview" class="sample-preview">
+          <div class="preview-head">
+            <b>{{ t(samplePreview.name) }}</b>
+            <span class="dim">{{ t('{n} 列 · {m} 行', { n: samplePreview.headers.length, m: samplePreview.rows.length }) }}</span>
+          </div>
+          <div class="preview-table-wrap">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th v-for="h in samplePreview.headers" :key="h">{{ h }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, i) in samplePreview.rows.slice(0, 5)" :key="i">
+                  <td v-for="h in samplePreview.headers" :key="h">{{ row[h] }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-if="samplePreview.rows.length > 5" class="preview-more">
+            {{ t('仅预览前 5 行，共 {n} 行', { n: samplePreview.rows.length }) }}
+          </p>
+        </div>
+
         <div class="actions">
           <button class="btn" @click="step = 2">← {{ t('上一步') }}</button>
           <button class="btn" @click="dismiss">{{ t('先跳过，稍后在底部导入') }}</button>
-          <button class="btn btn-primary" @click="emit('import')">{{ t('现在导入') }}</button>
+          <button class="btn" type="button" @click="emit('import')">{{ t('现在导入') }}</button>
+          <button
+            class="btn btn-primary"
+            type="button"
+            :disabled="!samplePreview || previewLoading"
+            @click="confirmSample"
+          >{{ t('用这份数据开始') }}</button>
         </div>
       </section>
     </div>
@@ -147,15 +187,61 @@ import { ref, computed } from 'vue'
 import { useProjectStore, LABEL_PRESETS, PAPER_PRESETS } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
-import { SAMPLE_DATASETS } from '../utils/samples'
+import { SAMPLE_DATASETS, findSampleIdForTemplate, getSampleDataset, loadSampleDataset } from '../utils/samples'
 import { autoMatchFieldMap, extractTemplateFields } from '../utils/render'
 import { useI18n } from '../utils/i18n'
+import { toastError } from '../utils/toast'
 
 const { t } = useI18n()
 const project = useProjectStore()
 const data = useDataStore()
 const emit = defineEmits(['close', 'import', 'load-sample'])
 const sampleSets = SAMPLE_DATASETS
+const pickedId = ref('')
+const pickedTpl = ref(null)
+const recommendedSampleId = computed(() => findSampleIdForTemplate(pickedTpl.value?.id) || '')
+const samplePreview = ref(null)
+const previewLoading = ref(false)
+
+async function previewSample(id) {
+  if (!id || previewLoading.value) return
+  previewLoading.value = true
+  try {
+    const parsed = await loadSampleDataset(id)
+    const meta = getSampleDataset(id)
+    samplePreview.value = {
+      id,
+      name: meta?.name || id,
+      headers: parsed.headers,
+      rows: parsed.rows,
+      fileName: parsed.fileName
+    }
+  } catch (e) {
+    samplePreview.value = null
+    toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function confirmSample() {
+  const p = samplePreview.value
+  if (!p) return
+  data.setData({
+    headers: p.headers,
+    rows: p.rows,
+    sourcePath: p.fileName,
+    embedded: true
+  })
+  if (pickedTpl.value) {
+    const tplFields = pickedTpl.value.fields?.length
+      ? pickedTpl.value.fields
+      : extractTemplateFields(pickedTpl.value.components)
+    project.updateFieldMap(autoMatchFieldMap(tplFields, data.fields, {}))
+  }
+  project.markDirty()
+  emit('close')
+}
 
 // 去重并排序，作为尺寸下拉的可选值
 const uniq = (arr) => [...new Set(arr)].sort((a, b) => a - b)
@@ -188,8 +274,6 @@ function isPaperPicked(p) {
   return paperW.value === p.w && paperH.value === p.h
 }
 const templates = BUILTIN_TEMPLATES
-const pickedId = ref('')
-const pickedTpl = ref(null)
 
 const labelW = ref(60)
 const labelH = ref(40)
@@ -254,6 +338,10 @@ function goImportStep() {
   if (tooBig.value) return
   commitLayout()
   step.value = 3
+  samplePreview.value = null
+  // 有推荐示例时先打开预览，仍需点「用这份数据开始」才真正灌入
+  const sid = findSampleIdForTemplate(pickedTpl.value?.id)
+  if (sid) previewSample(sid)
 }
 
 function commitLayout() {
@@ -373,7 +461,81 @@ function dismiss() {
   gap: 8px;
   margin: 0 0 16px;
 }
+.sample-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sample-btn.recommended {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+.sample-btn .rec-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+.sample-btn.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
+}
 .sample-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.sample-preview {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.sample-preview.loading {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.preview-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.preview-head .dim { color: var(--text-muted); font-size: 12px; }
+.preview-table-wrap {
+  overflow: auto;
+  max-height: 180px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overscroll-behavior: contain;
+}
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.preview-table th,
+.preview-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--text);
+}
+.preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-weight: 600;
+  z-index: 1;
+}
+.preview-table tbody tr:last-child td { border-bottom: 0; }
+.preview-more {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .unit { color: var(--text-muted); font-size: 12px; }
 
 /* 放不下警告（红/橙跟随 --danger / --warning，暗色下自动调亮） */
