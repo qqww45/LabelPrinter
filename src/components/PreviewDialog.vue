@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="modal-overlay preview-overlay" @click.self="$emit('close')">
     <div class="preview-modal">
       <div class="modal-header">
@@ -9,7 +9,7 @@
               ({{ data.displayRows.length || 0 }} {{ t('条') }}<template v-if="labelCount !== (data.displayRows.length || 0)"> · {{ labelCount }} {{ t('张') }}</template> / {{ totalPages }} {{ t('页') }})
             </span>
           </div>
-          <div class="preview-tabs" role="tablist" :aria-label="t('预览与排版')">
+          <div class="preview-tabs" role="tablist" :aria-label="t('预览排版与设置')">
             <button
               type="button"
               role="tab"
@@ -26,6 +26,14 @@
               :aria-selected="activeTab === 'layout'"
               @click="activeTab = 'layout'"
             >{{ t('排版') }}</button>
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              :class="{ active: activeTab === 'settings' }"
+              :aria-selected="activeTab === 'settings'"
+              @click="activeTab = 'settings'"
+            >{{ t('设置') }}</button>
           </div>
         </div>
         <div class="header-tools">
@@ -123,6 +131,14 @@
           @applied="onLayoutApplied"
         />
       </div>
+
+      <div v-show="activeTab === 'settings'" class="tab-panel settings-panel" role="tabpanel">
+        <PrintConfig
+          :key="'print-' + printConfigKey"
+          embedded
+          @applied="onPrintSettingsApplied"
+        />
+      </div>
     </div>
 
     <!-- 隐藏的完整渲染容器（供打印/导出用） -->
@@ -155,9 +171,11 @@ import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, h, defineCo
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import LayoutEditor from './LayoutEditor.vue'
+import PrintConfig from './PrintConfig.vue'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText } from '../utils/printModel'
+import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -186,13 +204,20 @@ const pageRefs = ref([])
 const moreOpen = ref(false)
 const activeTab = ref('preview')
 const layoutEditorKey = ref(0)
+const printConfigKey = ref(0)
 
 watch(activeTab, (tab) => {
   if (tab === 'layout') layoutEditorKey.value += 1
+  if (tab === 'settings') printConfigKey.value += 1
 })
 
 function onLayoutApplied() {
   toastSuccess(t('排版已应用到预览'))
+  activeTab.value = 'preview'
+  currentPage.value = 1
+}
+
+function onPrintSettingsApplied() {
   activeTab.value = 'preview'
   currentPage.value = 1
 }
@@ -404,33 +429,25 @@ const CompRenderer = defineComponent({
 })
 
 // ============ 样式函数 ============
-const pageStyle = computed(() => {
-  const p = project.project.paper
-  return {
-    width: (p.width * S()) + 'px',
-    height: (p.height * S()) + 'px',
-    padding: 0,
+// 纸张边距用 page padding（border-box），不用 .label 的 marginTop——
+// html2canvas 导 PNG 时会裁掉子元素上边距，预览/PDF 却正常。
+const pageStyle = computed(() => pageBoxStyle(
+  project.project.paper,
+  project.project.margin,
+  S(),
+  {
     margin: '20px auto',
     background: 'white',
     boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
   }
-})
+))
 
-const labelStyle = computed(() => {
-  // 纸张 - 纸张边距 = 标签区
-  const p = project.project.paper
-  const m = project.project.margin
-  const w = (p.width - m.left - m.right) * S()
-  const h = (p.height - m.top - m.bottom) * S()
-  return {
-    position: 'relative',
-    width: w + 'px',
-    height: h + 'px',
-    marginLeft: (m.left * S()) + 'px',
-    marginTop: (m.top * S()) + 'px',
-    overflow: 'hidden'
-  }
-})
+const labelStyle = computed(() => labelAreaStyle(
+  project.project.paper,
+  project.project.margin,
+  S(),
+  { background: 'white' }
+))
 
 // 每个标签的左上角和尺寸（相对标签区，px）
 function slotRect(idx) {
@@ -997,7 +1014,8 @@ async function onExportImage() {
   flex-direction: column;
 }
 .preview-panel { min-height: 0; }
-.layout-panel {
+.layout-panel,
+.settings-panel {
   min-height: 0;
   overflow: hidden;
 }
