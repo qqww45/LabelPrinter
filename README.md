@@ -182,6 +182,14 @@ node tests/dataMerge.test.mjs
 
 ---
 
+## 参与和安全
+
+- [贡献指南](.github/CONTRIBUTING.md)
+- [行为准则](.github/CODE_OF_CONDUCT.md)
+- [安全策略](.github/SECURITY.md)
+
+缺陷和功能建议用 GitHub Issue 模板。可利用的漏洞请按安全策略私下报告，不要开公开 Issue。
+
 ## License
 
 [MIT](LICENSE) © 2026 qqww45

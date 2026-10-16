@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/qqww45/LabelPrinter/security/policy
+    about: 可利用的漏洞请按安全策略私下报告，不要开公开 Issue。
