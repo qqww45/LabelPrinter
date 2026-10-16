@@ -1,9 +1,9 @@
 <template>
-  <div class="onboarding-mask">
+  <div class="onboarding-mask" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
     <div class="onboarding-card">
       <header class="head">
-        <h2>👋 {{ t('开始制作你的第一个标签') }}</h2>
-        <button class="close" @click="dismiss" :title="t('稍后再说')">×</button>
+        <h2 id="onboard-title">{{ t('给「{name}」选一个样子', { name: projectName }) }}</h2>
+        <button class="close" type="button" @click="dismiss" :aria-label="t('稍后再说')">×</button>
       </header>
 
       <ol class="step-bar">
@@ -14,7 +14,7 @@
 
       <!-- Step 1: 选类型 -->
       <section v-if="step === 1" class="body step-enter">
-        <p class="tip">{{ t('选一个最像的开始 —— 后面所有元素、尺寸、文字都能改。') }}</p>
+        <p class="tip">{{ t('项目已经在了。选一个最接近的样子，尺寸、文字、条码之后都能改。') }}</p>
         <div class="grid">
           <button
             v-for="tpl in templates"
@@ -194,6 +194,7 @@ import { toastError } from '../utils/toast'
 
 const { t } = useI18n()
 const project = useProjectStore()
+const projectName = computed(() => project.project?.meta?.name || t('未命名项目'))
 const data = useDataStore()
 const emit = defineEmits(['close', 'import', 'load-sample'])
 const sampleSets = SAMPLE_DATASETS
@@ -424,6 +425,7 @@ function dismiss() {
   padding: 0 6px;
 }
 .close:hover { color: var(--text); }
+.close:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .step-bar {
   display: flex;

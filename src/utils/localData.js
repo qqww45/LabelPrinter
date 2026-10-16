@@ -15,6 +15,7 @@ export const LOCAL_DATA_KEYS = [
   'labelprint_user_defaults_v1',
   'labelprint_printer_profile_v1',
   'labelprint_onboarding_dismissed',
+  'labelprint_intro_done',
   'labelprint_property_panel_width',
   'labelprint_property_panel_hidden',
   'labelprint_sidebar_open',

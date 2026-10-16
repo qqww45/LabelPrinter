@@ -1,5 +1,7 @@
 <template>
   <div class="app">
+    <div v-if="!storageReady && !introDone" class="boot-cover" aria-hidden="true"></div>
+    <div class="app-shell" :inert="showWelcome || showOnboarding">
     <div v-if="project.persistError" class="persist-banner" role="alert">{{ t(project.persistError) }}</div>
     <Toolbar
       v-if="project.project.meta"
@@ -86,14 +88,6 @@
       @proceed="preflightProceed"
       @fix="preflightFix"
     />
-    <OnboardingGuide
-      v-if="showOnboarding"
-      @close="dismissOnboarding"
-      @import="onOnboardingImport"
-      @load-sample="onOnboardingSample"
-    />
-    <ToastHost />
-
     <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
       <div class="modal import-choice">
         <div class="modal-header">
@@ -111,6 +105,20 @@
         </div>
       </div>
     </div>
+    </div>
+
+    <WelcomeGate
+      v-if="showWelcome"
+      @skip="skipWelcome"
+      @create="onWelcomeCreate"
+    />
+    <OnboardingGuide
+      v-if="showOnboarding"
+      @close="dismissOnboarding"
+      @import="onOnboardingImport"
+      @load-sample="onOnboardingSample"
+    />
+    <ToastHost />
   </div>
 </template>
 
@@ -126,6 +134,8 @@ import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { mergeDataAppend, headersFromRows } from './utils/dataMerge'
 import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
+import WelcomeGate from './components/WelcomeGate.vue'
+import { shouldOfferWelcome } from './utils/firstRun'
 import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
@@ -240,9 +250,42 @@ function migrateLegacyData() {
 
 applyProjectData(project.project)
 migrateLegacyData()
+
+const INTRO_KEY = 'labelprint_intro_done'
+try {
+  if (localStorage.getItem('labelprint_onboarding_dismissed') === '1') {
+    localStorage.setItem(INTRO_KEY, '1')
+  }
+} catch { /* 隐私模式忽略 */ }
+const introDone = ref(localStorage.getItem(INTRO_KEY) === '1')
+const storageReady = ref(false)
+const welcomeEligible = ref(false)
+
+function welcomeSnapshot() {
+  const rows = project.project?.dataSource?.data
+  return {
+    introDone: introDone.value,
+    projectCount: project.projects.length,
+    componentCount: project.project?.components?.length || 0,
+    rowCount: Array.isArray(rows) ? rows.length : 0
+  }
+}
+
+function markIntroDone() {
+  introDone.value = true
+  try { localStorage.setItem(INTRO_KEY, '1') } catch { /* ignore */ }
+}
+
+function settleFirstRun() {
+  storageReady.value = true
+  const offer = shouldOfferWelcome(welcomeSnapshot())
+  if (!offer && !introDone.value) markIntroDone()
+  welcomeEligible.value = offer && !introDone.value
+}
+
 project.hydrateFromIdb().then((replaced) => {
   if (replaced) applyProjectData(project.project)
-})
+}).finally(settleFirstRun)
 
 const paperConfigVisible = ref(false)
 const printConfigVisible = ref(false)
@@ -260,20 +303,35 @@ const preflightVisible = ref(false)
 const preflightReport = ref(null)
 const importPrompt = ref(null)
 
-// 首屏引导卡：空画布时出现。点「下一步」套用模板后画布不再空，引导仍留到用户关掉或导入。
+// 第一次打开先讲清工具并建立项目。看过之后，空画布才进入选样子。
 const onboardingDismissed = ref(localStorage.getItem('labelprint_onboarding_dismissed') === '1')
 const onboardingLatched = ref(false)
 const canvasEmpty = computed(() => !!project.project?.meta && project.project.components.length === 0)
-watch(canvasEmpty, (empty) => {
-  if (empty && !onboardingDismissed.value) onboardingLatched.value = true
-}, { immediate: true })
+watch([canvasEmpty, storageReady], ([empty, ready]) => {
+  if (!ready || !empty || onboardingDismissed.value) return
+  onboardingLatched.value = true
+})
+const showWelcome = computed(() => storageReady.value && welcomeEligible.value && !introDone.value)
 const showOnboarding = computed(() =>
-  onboardingLatched.value && !onboardingDismissed.value && !!project.project?.meta
+  storageReady.value && introDone.value && onboardingLatched.value && !onboardingDismissed.value && !!project.project?.meta
 )
 function dismissOnboarding() {
   onboardingDismissed.value = true
   onboardingLatched.value = false
-  localStorage.setItem('labelprint_onboarding_dismissed', '1')
+  try { localStorage.setItem('labelprint_onboarding_dismissed', '1') } catch { /* ignore */ }
+}
+
+function skipWelcome() {
+  markIntroDone()
+  dismissOnboarding()
+}
+
+function onWelcomeCreate(rawName) {
+  const clean = sanitizeName(rawName).slice(0, 40)
+  if (!clean) return
+  project.renameCurrentProject(clean)
+  markIntroDone()
+  onboardingLatched.value = true
 }
 
 function onOnboardingImport() {
@@ -679,9 +737,18 @@ window.addEventListener('keydown', onGlobalKey)
 
 <style scoped>
 .app {
+  height: 100vh;
+}
+.app-shell {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+}
+.boot-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: var(--bg);
 }
 .persist-banner {
   flex-shrink: 0;

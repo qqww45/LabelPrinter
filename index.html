@@ -244,13 +244,8 @@
       #boot-splash .boot-progress { width: 55%; left: 22.5%; background: var(--boot-ink); }
     }
   </style>
-  <script>
-    // 在 Vue / CSS 包加载前同步主题，避免加载屏闪白
-    try {
-      var _s = JSON.parse(localStorage.getItem('labelprint_settings_v1') || '{}')
-      if (_s.theme === 'dark') document.documentElement.dataset.theme = 'dark'
-    } catch (e) { /* ignore */ }
-  </script>
+  <!-- 阻塞加载：画加载屏之前写上 data-theme。文件在 public/，构建不会改内容或文件名。 -->
+  <script src="/theme-boot.js"></script>
 </head>
 <body>
   <div id="boot-splash" aria-busy="true" aria-live="polite">
