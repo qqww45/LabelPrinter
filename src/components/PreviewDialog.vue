@@ -943,15 +943,18 @@ async function onExportPDF() {
 
 async function onExportImage() {
   const prev = scale.value
+  const pageNo = currentPage.value
   scale.value = 1
   try {
-    const els = await settleImages()
+    await settleImages()
+    const els = pagesForTask({ range: 'current' })
     if (!els.length) { toastError(t('没有可导出的内容')); return }
-    const fname = (project.project.meta.name || 'label') + '.png'
+    const base = project.project.meta.name || 'label'
+    const fname = totalPages.value > 1 ? `${base}-p${pageNo}.png` : `${base}.png`
     await exportElementToImage(els[0], fname)
     printStore.addHistory({
       type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
-      pages: 1, copies: 1, detail: '第 1 页'
+      pages: 1, copies: 1, detail: `第 ${pageNo} 页`
     })
     toastSuccess(t('图片已导出'))
   } catch (e) {

@@ -552,6 +552,7 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { availableFields, componentFields, componentMissingFields } from '../utils/diagnose'
 import { placeholderNames, rewriteBindingText } from '../utils/render'
+import { heightForFont } from '../utils/textFit'
 import { ref, computed } from 'vue'
 import PropSection from './PropSection.vue'
 
@@ -594,9 +595,13 @@ function fieldOptionLabel(name) {
 }
 
 function update(key, value) {
-  if (selected.value) {
-    project.updateComponent(selected.value.id, { [key]: value })
+  if (!selected.value) return
+  const patch = { [key]: value }
+  if (key === 'fontSize' && ['text', 'date', 'serial', 'checkbox'].includes(selected.value.type)) {
+    const nextH = heightForFont(selected.value.height, value)
+    if (nextH !== selected.value.height) patch.height = nextH
   }
+  project.updateComponent(selected.value.id, patch)
 }
 
 /** 毫米显示：一位小数，去掉拖拽带来的长尾浮点 */

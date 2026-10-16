@@ -42,6 +42,7 @@ import { generateQRCode } from '../utils/qrcode'
 import { generateBarcode } from '../utils/barcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
+import { heightForFont } from '../utils/textFit'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { useI18n } from '../utils/i18n'
 import { safeImageSrc } from '../utils/escapeHtml'
@@ -437,6 +438,18 @@ let syncingSelection = false
 
 function renderAll() {
   if (!fabricCanvas) return
+  let grew = false
+  for (const c of pj.project.components) {
+    if (!c || c.hidden) continue
+    if (!['text', 'date', 'serial', 'checkbox'].includes(c.type)) continue
+    const nextH = heightForFont(c.height, c.fontSize || (c.type === 'text' ? 14 : 12))
+    if (nextH !== c.height) {
+      pj.updateComponent(c.id, { height: nextH })
+      grew = true
+    }
+  }
+  // 高度刚补上，等 store 的监听再画一次，避免框还是旧高度
+  if (grew) return
   const gen = ++renderGeneration
   isRendering = true
   // 保留当前选中（clear 会触发 selection:cleared 清空 selectedId）
@@ -593,6 +606,8 @@ function buildFabricObject(c, gen = renderGeneration) {
         fontFamily: c.fontFamily,
         fontWeight: r.missing.length ? 'bold' : c.fontWeight,
         textAlign: c.textAlign || 'left',
+        lineHeight: 1.2,
+        objectCaching: false,
         splitByGrapheme: true
       })
       break
@@ -718,7 +733,9 @@ function buildFabricObject(c, gen = renderGeneration) {
         fill: c.fill,
         fontFamily: c.fontFamily,
         fontWeight: c.fontWeight,
-        textAlign: c.textAlign || 'left'
+        textAlign: c.textAlign || 'left',
+        lineHeight: 1.2,
+        objectCaching: false
       })
       break
     }
@@ -732,7 +749,9 @@ function buildFabricObject(c, gen = renderGeneration) {
         fill: c.fill,
         fontFamily: c.fontFamily || 'Microsoft YaHei',
         fontWeight: c.fontWeight || 'normal',
-        textAlign: c.textAlign || (c.type === 'checkbox' ? 'center' : 'left')
+        textAlign: c.textAlign || (c.type === 'checkbox' ? 'center' : 'left'),
+        lineHeight: 1.2,
+        objectCaching: false
       })
       break
     }
@@ -1013,6 +1032,7 @@ function buildTable(c, row, baseOpts) {
           fontWeight: (isHeader || alert) ? 'bold' : 'normal',
           textAlign: isHeader ? 'center' : textAlign,
           lineHeight: 1.2,
+          objectCaching: false,
           splitByGrapheme: true,
           strokeWidth: 0, selectable: false, evented: false
         })
