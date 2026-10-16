@@ -186,20 +186,39 @@ function svgDate() {
     <text x="20" y="30" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">31</text>
   </svg>`
 }
+function svgEllipse() {
+  return `<svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="20" cy="20" rx="14" ry="10" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
+  </svg>`
+}
+function svgSerial() {
+  return `<svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <text x="20" y="26" text-anchor="middle" font-family="monospace" font-size="14" font-weight="700" fill="currentColor">No.01</text>
+  </svg>`
+}
+function svgCheckbox() {
+  return `<svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="8" width="24" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M14 20 L18 25 L27 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`
+}
 
 const componentTypes = [
-  { type: 'text',    name: '文本',     svg: svgText() },
-  { type: 'image',   name: '图片',     svg: svgImage() },
-  { type: 'table',   name: '表格',     svg: svgTable() },
-  { type: 'qrcode',  name: '二维码',   svg: svgQR() },
-  { type: 'barcode', name: '条形码',   svg: svgBarcode() },
-  { type: 'rect',    name: '矩形',     svg: svgRect() },
-  { type: 'line',    name: '直线',     svg: svgLine() },
-  { type: 'date',    name: '日期',     svg: svgDate() }
+  { type: 'text',     name: '文本',     svg: svgText() },
+  { type: 'image',    name: '图片',     svg: svgImage() },
+  { type: 'table',    name: '表格',     svg: svgTable() },
+  { type: 'qrcode',   name: '二维码',   svg: svgQR() },
+  { type: 'barcode',  name: '条形码',   svg: svgBarcode() },
+  { type: 'rect',     name: '矩形',     svg: svgRect() },
+  { type: 'ellipse',  name: '椭圆',     svg: svgEllipse() },
+  { type: 'line',     name: '直线',     svg: svgLine() },
+  { type: 'date',     name: '日期',     svg: svgDate() },
+  { type: 'serial',   name: '序号',     svg: svgSerial() },
+  { type: 'checkbox', name: '勾选框',   svg: svgCheckbox() }
 ]
 
-const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', line: '直线', date: '日期' }
-const icons = { text: 'A', image: '🖼', table: '⊞', qrcode: '▣', barcode: '▌', rect: '▭', line: '╱', date: '📅' }
+const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' }
+const icons = { text: 'A', image: '🖼', table: '⊞', qrcode: '▣', barcode: '▌', rect: '▭', ellipse: '⬭', line: '╱', date: '📅', serial: '#', checkbox: '☑' }
 
 function iconOf(t) { return icons[t] || '·' }
 function labelOf(c) {

@@ -69,7 +69,7 @@ function pieces(components, row) {
       for (const bit of tableBits(c, row)) out.push({ kind: 'text', ...bit })
       continue
     }
-    if (c.type === 'text' || c.type === 'date') {
+    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox') {
       const text = String(componentPlainText(c, row) ?? '').trim()
       if (!text) continue
       out.push({
@@ -95,7 +95,8 @@ function pieces(components, row) {
       })
       continue
     }
-    if (c.type === 'rect') {
+    if (c.type === 'rect' || c.type === 'ellipse') {
+      // 热敏指令无椭圆原语时用 BOX 近似外接矩形，位置尺寸仍与画布一致
       out.push({
         kind: 'rect',
         x: Number(c.left) || 0,

@@ -64,7 +64,7 @@
         />
       </div>
     </div>
-    <DataPanel class="bottom" @import="onImportData" />
+    <DataPanel class="bottom" @import="onImportData" @load-sample="onLoadSample" />
 
     <PaperConfig v-if="paperConfigVisible" @close="paperConfigVisible = false" />
     <TemplateDialog v-if="templateVisible" @close="templateVisible = false" />
@@ -89,7 +89,12 @@
       @proceed="preflightProceed"
       @fix="preflightFix"
     />
-    <OnboardingGuide v-if="showOnboarding" @close="dismissOnboarding" @import="onOnboardingImport" />
+    <OnboardingGuide
+      v-if="showOnboarding"
+      @close="dismissOnboarding"
+      @import="onOnboardingImport"
+      @load-sample="onOnboardingSample"
+    />
     <ToastHost />
 
     <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
@@ -265,6 +270,11 @@ function dismissOnboarding() {
 function onOnboardingImport() {
   dismissOnboarding()
   onImportData()
+}
+
+function onOnboardingSample(sampleId) {
+  dismissOnboarding()
+  onLoadSample(sampleId || 'retail')
 }
 
 // 切项目时从目标项目自己的行取列名。不能沿用上一份表的 headers，否则列对不上会被写成空字符串再存回去。
@@ -518,6 +528,32 @@ async function onImportData() {
     applyImported('replace', payload)
   } catch (e) {
     if (e.message !== '未选择文件') toastError(t('导入失败：{msg}', { msg: e.message }))
+  }
+}
+
+/** 加载内置示例 CSV（追加/替换确认与文件导入相同） */
+async function onLoadSample(sampleId = 'retail') {
+  try {
+    const { loadSampleDataset } = await import('./utils/samples')
+    const parsed = await loadSampleDataset(sampleId)
+    if (!parsed.rows.length && !data.rows.length) {
+      toastInfo(t('新文件没有数据。'))
+      return
+    }
+    const payload = {
+      headers: parsed.headers,
+      rows: parsed.rows,
+      fileName: parsed.fileName,
+      current: data.rows.length,
+      next: parsed.rows.length
+    }
+    if (data.rows.length > 0) {
+      importPrompt.value = payload
+      return
+    }
+    applyImported('replace', payload)
+  } catch (e) {
+    toastError(t('导入失败：{msg}', { msg: e.message }))
   }
 }
 

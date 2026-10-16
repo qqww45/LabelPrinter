@@ -266,6 +266,19 @@
         </div>
       </fieldset>
 
+      <!-- 椭圆 -->
+      <fieldset v-if="selected.type === 'ellipse'">
+        <legend>样式</legend>
+        <div class="form-row">
+          <label>填充</label><input class="input" type="color" :value="selected.fill === 'transparent' || !selected.fill ? '#ffffff' : selected.fill" @input="update('fill', $event.target.value)" />
+          <label>边框</label><input class="input" type="color" :value="selected.stroke || '#000000'" @input="update('stroke', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>边框宽</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
+          <button class="btn btn-sm" type="button" @click="update('fill', 'transparent')">{{ t('透明填充') }}</button>
+        </div>
+      </fieldset>
+
       <!-- 直线 -->
       <fieldset v-if="selected.type === 'line'">
         <legend>样式</legend>
@@ -298,7 +311,67 @@
         </div>
       </fieldset>
 
-      <fieldset v-if="selected.type === 'text' || selected.type === 'qrcode' || selected.type === 'barcode' || selected.type === 'date'">
+      <!-- 序号 -->
+      <fieldset v-if="selected.type === 'serial'">
+        <legend>{{ t('序号') }}</legend>
+        <div class="form-row">
+          <label>{{ t('来源') }}</label>
+          <select class="input" :value="selected.source || 'print'" @change="update('source', $event.target.value)">
+            <option value="print">{{ t('打印流水号') }}</option>
+            <option value="field">{{ t('数据字段') }}</option>
+          </select>
+        </div>
+        <div v-if="(selected.source || 'print') === 'field'" class="form-row">
+          <label>{{ t('字段') }}</label>
+          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('选择字段') }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
+          </select>
+        </div>
+        <div v-else class="hint">{{ t('在打印设置里开启「流水号」后，每张标签自动递增。') }}</div>
+        <div class="form-row">
+          <label>{{ t('前缀') }}</label><input class="input" :value="selected.prefix || ''" @input="update('prefix', $event.target.value)" />
+          <label>{{ t('后缀') }}</label><input class="input" :value="selected.suffix || ''" @input="update('suffix', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('补零位数') }}</label><input class="input" type="number" min="0" max="12" :value="selected.pad ?? 0" @input="update('pad', +$event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('字号') }}</label><input class="input" type="number" :value="selected.fontSize" @input="update('fontSize', +$event.target.value)" />
+          <label>{{ t('字色') }}</label><input class="input" type="color" :value="selected.fill || '#000000'" @input="update('fill', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('对齐') }}</label>
+          <div class="btn-group">
+            <button class="btn btn-sm" :class="{active: selected.textAlign==='left'}" @click="update('textAlign','left')">{{ t('左') }}</button>
+            <button class="btn btn-sm" :class="{active: selected.textAlign==='center'}" @click="update('textAlign','center')">{{ t('中') }}</button>
+            <button class="btn btn-sm" :class="{active: selected.textAlign==='right'}" @click="update('textAlign','right')">{{ t('右') }}</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- 勾选框 -->
+      <fieldset v-if="selected.type === 'checkbox'">
+        <legend>{{ t('勾选框') }}</legend>
+        <div class="form-row">
+          <label>{{ t('绑定字段') }}</label>
+          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('（不绑定）') }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
+          </select>
+        </div>
+        <div class="hint">{{ t('字段为 1/是/Y/true 等时显示勾选，0/否/空为未勾选。') }}</div>
+        <div class="form-row">
+          <label>{{ t('勾选符') }}</label><input class="input" :value="selected.checkedChar || '☑'" @input="update('checkedChar', $event.target.value)" />
+          <label>{{ t('未选符') }}</label><input class="input" :value="selected.uncheckedChar || '☐'" @input="update('uncheckedChar', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('字号') }}</label><input class="input" type="number" :value="selected.fontSize" @input="update('fontSize', +$event.target.value)" />
+          <label>{{ t('字色') }}</label><input class="input" type="color" :value="selected.fill || '#000000'" @input="update('fill', $event.target.value)" />
+        </div>
+      </fieldset>
+
+      <fieldset v-if="selected.type === 'text' || selected.type === 'qrcode' || selected.type === 'barcode' || selected.type === 'date' || selected.type === 'serial' || selected.type === 'checkbox'">
         <legend>{{ t('空内容') }}</legend>
         <label class="check-line"><input type="checkbox" :checked="!!selected.hideIfEmpty" @change="update('hideIfEmpty', $event.target.checked)" /> {{ t('内容为空时不打印') }}</label>
         <div class="hint">{{ t('没填数据时画布上仍显示，方便排版。') }}</div>
@@ -510,7 +583,7 @@ function confirmRemoveSelected() {
   if (!confirm(t('确定要删除选中的 {n} 个组件？\n此操作可通过 Ctrl+Z 撤销。').replace('{n}', project.selectedIds.length))) return
   project.removeSelected()
 }
-const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', line: '直线', date: '日期' }
+const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' }
 
 // 单元格类型 tab：4 选 1（label 用中文原文作 i18n key）
 const typeTabs = [

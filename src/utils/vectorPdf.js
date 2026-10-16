@@ -286,6 +286,20 @@ function drawRect(pdf, c, x, y, w, h) {
   else pdf.rect(x, y, w, h, mode)
 }
 
+function drawEllipse(pdf, c, x, y, w, h) {
+  if (w <= 0 || h <= 0) return
+  const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
+  pdf.setLineWidth(sw)
+  const fill = c.fill && c.fill !== 'transparent' && c.fill !== 'none'
+  if (fill) setFill(pdf, c.fill)
+  if (c.stroke) setStroke(pdf, c.stroke)
+  const mode = fill && c.stroke ? 'FD' : fill ? 'F' : 'S'
+  const cx = x + w / 2
+  const cy = y + h / 2
+  if (typeof pdf.ellipse === 'function') pdf.ellipse(cx, cy, w / 2, h / 2, mode)
+  else pdf.ellipse(cx, cy, w / 2, h / 2, 'S')
+}
+
 function drawLine(pdf, c, x, y, w) {
   const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
   setStroke(pdf, c.stroke || '#000000')
@@ -392,8 +406,10 @@ function drawComponent(pdf, c, row, ox, oy) {
   const y = oy + (Number(c.top) || 0)
   const w = Number(c.width) || 0
   const h = Number(c.height) || 0
-  if (c.type === 'text' || c.type === 'date') {
-    const text = c.type === 'date' ? componentPlainText(c, row) : renderText(c.text || '', row)
+  if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox') {
+    const text = (c.type === 'text')
+      ? renderText(c.text || '', row)
+      : componentPlainText(c, row)
     drawText(pdf, text, x, y, w, h, c)
   } else if (c.type === 'qrcode') {
     const text = componentPlainText(c, row)
@@ -413,6 +429,8 @@ function drawComponent(pdf, c, row, ox, oy) {
     }
   } else if (c.type === 'rect') {
     drawRect(pdf, c, x, y, w, h)
+  } else if (c.type === 'ellipse') {
+    drawEllipse(pdf, c, x, y, w, h)
   } else if (c.type === 'line') {
     drawLine(pdf, c, x, y, w)
   } else if (c.type === 'image') {

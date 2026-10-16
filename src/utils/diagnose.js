@@ -95,14 +95,16 @@ export function findOutOfBounds(components = [], label = {}) {
     if (x < -TOL) reasons.push('left')
     if (y < -TOL) reasons.push('top')
     if (w > 0 && x + w > W + TOL) reasons.push('right')
-    if (c.type !== 'text' && h > 0 && y + h > H + TOL) reasons.push('bottom')
+    // 文本类高度常随内容变化，底边不判越界（与 text 一致）
+    const softBottom = c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox'
+    if (!softBottom && h > 0 && y + h > H + TOL) reasons.push('bottom')
     if (reasons.length) {
       out.push({
         id: c.id,
         name: c.name || c.type,
         reasons,
         overflowRight: w > 0 ? Math.max(0, x + w - W) : 0,
-        overflowBottom: (c.type !== 'text' && h > 0) ? Math.max(0, y + h - H) : 0
+        overflowBottom: (!softBottom && h > 0) ? Math.max(0, y + h - H) : 0
       })
     }
   }

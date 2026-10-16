@@ -122,6 +122,16 @@
       <!-- Step 3: 导入数据 -->
       <section v-else class="body step-enter">
         <p class="tip">{{ t('有数据才能批量打。Excel 或 CSV 的第一行是列名，和模板里的字段同名会自动对上。') }}</p>
+        <p class="tip muted">{{ t('也可以先加载一份示例数据，马上预览打印效果。') }}</p>
+        <div class="sample-row">
+          <button
+            v-for="s in sampleSets"
+            :key="s.id"
+            class="btn btn-sm sample-btn"
+            type="button"
+            @click="emit('load-sample', s.id)"
+          >{{ t(s.name) }}</button>
+        </div>
         <div class="actions">
           <button class="btn" @click="step = 2">← {{ t('上一步') }}</button>
           <button class="btn" @click="dismiss">{{ t('先跳过，稍后在底部导入') }}</button>
@@ -137,13 +147,15 @@ import { ref, computed } from 'vue'
 import { useProjectStore, LABEL_PRESETS, PAPER_PRESETS } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
+import { SAMPLE_DATASETS } from '../utils/samples'
 import { autoMatchFieldMap, extractTemplateFields } from '../utils/render'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
 const project = useProjectStore()
 const data = useDataStore()
-const emit = defineEmits(['close', 'import'])
+const emit = defineEmits(['close', 'import', 'load-sample'])
+const sampleSets = SAMPLE_DATASETS
 
 // 去重并排序，作为尺寸下拉的可选值
 const uniq = (arr) => [...new Set(arr)].sort((a, b) => a - b)
@@ -353,7 +365,15 @@ function dismiss() {
 
 .body { padding: 16px 20px 20px; overflow-y: auto; }
 .tip { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.6; }
+.tip.muted { color: var(--text-muted); margin-top: -4px; }
 .tip b { color: var(--text); }
+.sample-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.sample-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .unit { color: var(--text-muted); font-size: 12px; }
 
 /* 放不下警告（红/橙跟随 --danger / --warning，暗色下自动调亮） */

@@ -158,6 +158,111 @@ export const BUILTIN_TEMPLATES = [
       text('tpl_express-c6', '单号', { left: 36, top: 86, width: 60, height: 7, text: '单号：{{单号}}', fontSize: 10 }),
       text('tpl_express-c7', '备注', { left: 36, top: 96, width: 60, height: 14, text: '签收：____________', fontSize: 9, fill: '#64748b' })
     ]
+  },
+  {
+    id: 'tpl_grocery_price',
+    name: '超市价签 70×40',
+    group: '零售',
+    desc: '品名 + 规格 + 大红单价/单位 + 条码，超市货架常用',
+    fields: ['品名', '规格', '单价', '单位', '条码'],
+    paper: labelPaper(70, 40),
+    label: { width: 70, height: 40, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_grocery_price-c1', '品名', { left: 3, top: 2, width: 64, height: 7, text: '{{品名}}', fontSize: 12, fontWeight: 'bold' }),
+      text('tpl_grocery_price-c2', '规格', { left: 3, top: 9, width: 64, height: 5, text: '{{规格}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_grocery_price-c3', '单价', { left: 3, top: 15, width: 42, height: 10, text: '¥{{单价}}', fontSize: 20, fontWeight: 'bold', fill: '#d0021b' }),
+      text('tpl_grocery_price-c4', '单位', { left: 46, top: 20, width: 21, height: 5, text: '/{{单位}}', fontSize: 9, fill: '#64748b' }),
+      barcode('tpl_grocery_price-c5', '条码', { left: 3, top: 27, width: 64, height: 11, binding: '条码' })
+    ]
+  },
+  {
+    id: 'tpl_jewelry',
+    name: '珠宝签 50×20',
+    group: '零售',
+    desc: '细长小字：品名、克重、工费、条码',
+    fields: ['品名', '克重', '工费', '条码'],
+    paper: labelPaper(50, 20),
+    label: { width: 50, height: 20, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.2 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_jewelry-c1', '品名', { left: 1.5, top: 1, width: 28, height: 4, text: '{{品名}}', fontSize: 7, fontWeight: 'bold' }),
+      text('tpl_jewelry-c2', '克重', { left: 1.5, top: 5, width: 28, height: 3.5, text: '{{克重}}g', fontSize: 6, fill: '#475569' }),
+      text('tpl_jewelry-c3', '工费', { left: 1.5, top: 8.5, width: 28, height: 3.5, text: '工费 ¥{{工费}}', fontSize: 6, fill: '#d0021b' }),
+      barcode('tpl_jewelry-c4', '条码', { left: 30, top: 2, width: 18, height: 16, binding: '条码' })
+    ]
+  },
+  {
+    id: 'tpl_apparel_hang',
+    name: '服装吊牌 40×60',
+    group: '零售',
+    desc: '竖版吊牌：款号、尺码、颜色、吊牌价、条码',
+    fields: ['款号', '尺码', '颜色', '吊牌价', '条码'],
+    paper: labelPaper(40, 60),
+    label: { width: 40, height: 60, backgroundColor: '#ffffff', showBorder: true, borderColor: '#94a3b8', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_apparel_hang-c1', '款号', { left: 3, top: 3, width: 34, height: 6, text: '{{款号}}', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }),
+      text('tpl_apparel_hang-c2', '尺码', { left: 3, top: 11, width: 34, height: 5, text: '尺码 {{尺码}}', fontSize: 9, textAlign: 'center' }),
+      text('tpl_apparel_hang-c3', '颜色', { left: 3, top: 17, width: 34, height: 5, text: '{{颜色}}', fontSize: 9, textAlign: 'center', fill: '#64748b' }),
+      text('tpl_apparel_hang-c4', '吊牌价', { left: 3, top: 25, width: 34, height: 9, text: '¥{{吊牌价}}', fontSize: 16, fontWeight: 'bold', fill: '#d0021b', textAlign: 'center' }),
+      barcode('tpl_apparel_hang-c5', '条码', { left: 4, top: 37, width: 32, height: 18, binding: '条码' })
+    ]
+  },
+  {
+    id: 'tpl_shelf_strip',
+    name: '货架条 100×30',
+    group: '批量',
+    desc: '宽条货架签：品名、货位、大红价格',
+    fields: ['品名', '货位', '价格'],
+    paper: labelPaper(100, 30),
+    label: { width: 100, height: 30, backgroundColor: '#ffffff', showBorder: true, borderColor: '#cbd5e1', borderWidth: 0.2 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_shelf_strip-c1', '品名', { left: 3, top: 3, width: 62, height: 8, text: '{{品名}}', fontSize: 13, fontWeight: 'bold' }),
+      text('tpl_shelf_strip-c2', '货位', { left: 3, top: 13, width: 62, height: 5, text: '货位 {{货位}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_shelf_strip-c3', '价格', { left: 66, top: 4, width: 31, height: 22, text: '¥{{价格}}', fontSize: 20, fontWeight: 'bold', fill: '#d0021b', textAlign: 'center' })
+    ]
+  },
+  {
+    id: 'tpl_asset_fixed',
+    name: '固定资产 60×40',
+    group: '资产',
+    desc: '资产编号二维码 + 名称、部门、保管人',
+    fields: ['资产编号', '名称', '部门', '保管人'],
+    paper: labelPaper(60, 40),
+    label: { width: 60, height: 40, backgroundColor: '#ffffff', showBorder: true, borderColor: '#94a3b8', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      qrcode('tpl_asset_fixed-c1', '二维码', { left: 2, top: 4, width: 20, height: 20, binding: '资产编号' }),
+      text('tpl_asset_fixed-c2', '资产编号', { left: 24, top: 2, width: 34, height: 5, text: '{{资产编号}}', fontSize: 8, fontWeight: 'bold' }),
+      text('tpl_asset_fixed-c3', '名称', { left: 24, top: 9, width: 34, height: 7, text: '{{名称}}', fontSize: 10 }),
+      text('tpl_asset_fixed-c4', '部门', { left: 24, top: 18, width: 34, height: 5, text: '{{部门}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_asset_fixed-c5', '保管人', { left: 24, top: 25, width: 34, height: 5, text: '保管 {{保管人}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_asset_fixed-c6', '底栏', { left: 2, top: 32, width: 56, height: 5, text: '固定资产', fontSize: 7, fill: '#94a3b8', textAlign: 'center' })
+    ]
+  },
+  {
+    id: 'tpl_warehouse_bin',
+    name: '库位签 80×50',
+    group: '仓储',
+    desc: '大号库位二维码 + SKU、品名',
+    fields: ['库位', 'SKU', '品名'],
+    paper: labelPaper(80, 50),
+    label: { width: 80, height: 50, backgroundColor: '#ffffff', showBorder: true, borderColor: '#64748b', borderWidth: 0.4 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      qrcode('tpl_warehouse_bin-c1', '库位码', { left: 4, top: 5, width: 28, height: 28, binding: '库位' }),
+      text('tpl_warehouse_bin-c2', '库位', { left: 36, top: 5, width: 40, height: 10, text: '{{库位}}', fontSize: 16, fontWeight: 'bold' }),
+      text('tpl_warehouse_bin-c3', 'SKU', { left: 36, top: 18, width: 40, height: 7, text: 'SKU {{SKU}}', fontSize: 10 }),
+      text('tpl_warehouse_bin-c4', '品名', { left: 36, top: 28, width: 40, height: 14, text: '{{品名}}', fontSize: 10, fill: '#475569' })
+    ]
   }
 ]
 

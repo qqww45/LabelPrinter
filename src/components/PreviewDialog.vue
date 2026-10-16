@@ -94,7 +94,7 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
-import { expandPrintLabels, paginateLabels, componentHidden } from '../utils/printModel'
+import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText } from '../utils/printModel'
 import { exportVectorPDF } from '../utils/vectorPdf'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { exportElementToImage } from '../utils/pdf'
@@ -272,12 +272,18 @@ const CompRenderer = defineComponent({
           inner = h('div', { style: rectStyle(c) })
           break
         }
+        case 'ellipse': {
+          inner = h('div', { style: ellipseStyle(c) })
+          break
+        }
         case 'line': {
           inner = h('div', { style: lineStyle(c) })
           break
         }
-        case 'date': {
-          inner = h('div', { style: textStyle(c) }, formatDate(c, row))
+        case 'date':
+        case 'serial':
+        case 'checkbox': {
+          inner = h('div', { style: textStyle(c) }, componentPlainText(c, row))
           break
         }
         case 'table': {
@@ -389,6 +395,18 @@ function rectStyle(c) {
     background: c.fill,
     border: `${(c.strokeWidth||1) * scale.value}px solid ${c.stroke}`,
     borderRadius: ((c.rx||0) * S()) + 'px'
+  }
+}
+
+function ellipseStyle(c) {
+  const fill = c.fill && c.fill !== 'transparent' && c.fill !== 'none' ? c.fill : 'transparent'
+  return {
+    width: '100%',
+    height: '100%',
+    background: fill,
+    border: `${(c.strokeWidth || 1) * scale.value}px solid ${c.stroke || '#000'}`,
+    borderRadius: '50%',
+    boxSizing: 'border-box'
   }
 }
 

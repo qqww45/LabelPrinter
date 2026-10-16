@@ -4,6 +4,7 @@
  */
 import dayjs from 'dayjs'
 import { codePayload, renderText, rowIsEmpty } from './render.js'
+import { formatCheckboxText, formatSerialText } from './controls.js'
 
 const MAX_COPIES = 999
 
@@ -110,6 +111,15 @@ export function componentHidden(c, row) {
   if (!c?.hideIfEmpty) return false
   if (rowIsEmpty(row)) return false
   if (c.type === 'date' && c.source !== 'field') return false
+  if (c.type === 'serial' && c.source !== 'field') {
+    return !String(formatSerialText(c, row) || '').trim()
+  }
+  if (c.type === 'checkbox') {
+    // 未绑定字段时始终显示空框；绑定后空值才可能隐藏
+    if (!c.binding) return false
+    const v = row[c.binding]
+    return v == null || String(v).trim() === ''
+  }
   if (c.binding) {
     const v = row[c.binding]
     return v == null || String(v).trim() === ''
@@ -131,6 +141,8 @@ export function componentPlainText(c, row) {
     }
     return dayjs().format(c.format || 'YYYY-MM-DD HH:mm:ss')
   }
+  if (c.type === 'serial') return formatSerialText(c, row)
+  if (c.type === 'checkbox') return formatCheckboxText(c, row)
   if (c.type === 'qrcode' || c.type === 'barcode') return codePayload(c, row)
   if (c.type === 'text') return renderText(c.text || '', row)
   return ''

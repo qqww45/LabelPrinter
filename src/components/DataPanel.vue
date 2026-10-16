@@ -13,6 +13,27 @@
       <button v-if="data.headers.length" class="btn btn-sm" @click="addEmpty" :title="t('在末尾添加一行')">+ {{ t('添加行') }}</button>
       <button v-if="data.rows.length" class="btn btn-sm" @click="openExport" :title="t('导出当前数据为 Excel 或 CSV')">{{ t('导出') }}</button>
       <button v-if="data.headers.length || data.rows.length" class="btn btn-sm" @click="clearAll">{{ t('清空') }}</button>
+      <div class="sample-wrap" v-if="!data.headers.length">
+        <button
+          class="btn btn-sm"
+          type="button"
+          :aria-label="t('加载示例')"
+          :aria-expanded="sampleOpen"
+          aria-haspopup="menu"
+          @click="sampleOpen = !sampleOpen"
+        >{{ t('加载示例') }}</button>
+        <div v-if="sampleOpen" class="sample-menu" role="menu">
+          <button
+            v-for="s in samples"
+            :key="s.id"
+            class="sample-item"
+            type="button"
+            role="menuitem"
+            @click="pickSample(s.id)"
+          >{{ t(s.name) }}</button>
+        </div>
+        <div v-if="sampleOpen" class="sample-mask" @click="sampleOpen = false"></div>
+      </div>
       <button class="btn btn-sm btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
     </div>
 
@@ -120,7 +141,17 @@
       <div class="empty-sub">{{ t('从这里开始：') }}</div>
       <div class="empty-actions">
         <button class="btn" @click="addCol('名称')">+ {{ t('手动建表（添加字段）') }}</button>
+        <button class="btn" type="button" @click="pickSample('retail')">{{ t('加载示例') }}</button>
         <button class="btn btn-primary" @click="$emit('import')">{{ t('导入 Excel/CSV') }}</button>
+      </div>
+      <div class="sample-hints">
+        <button
+          v-for="s in samples"
+          :key="'hint-' + s.id"
+          class="sample-chip"
+          type="button"
+          @click="pickSample(s.id)"
+        >{{ t(s.name) }}</button>
       </div>
     </div>
 
@@ -138,6 +169,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
 import { toastError, toastSuccess } from '../utils/toast'
+import { SAMPLE_DATASETS } from '../utils/samples'
 const { t } = useI18n()
 const data = useDataStore()
 
@@ -186,7 +218,14 @@ onMounted(() => {
   }
 })
 
-defineEmits(['import'])
+const emit = defineEmits(['import', 'load-sample'])
+const sampleOpen = ref(false)
+const samples = SAMPLE_DATASETS
+
+function pickSample(id) {
+  sampleOpen.value = false
+  emit('load-sample', id)
+}
 
 // ============ 列宽管理 ============
 // 默认列宽 140，存 localStorage 跨刷新
@@ -536,6 +575,52 @@ tr.active td .cell-input { color: inherit; }
 .empty-title { font-size: 15px; color: var(--text-secondary); font-weight: 500; }
 .empty-sub { font-size: 12px; color: var(--text-muted); }
 .empty-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.sample-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+  max-width: 420px;
+}
+.sample-chip {
+  border: 1px solid var(--border);
+  background: var(--bg-soft, var(--bg));
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sample-chip:hover { border-color: var(--primary); color: var(--primary); }
+.sample-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.sample-wrap { position: relative; }
+.sample-mask { position: fixed; inset: 0; z-index: 9; }
+.sample-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  min-width: 160px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+.sample-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.sample-item:hover { background: var(--bg-hover); }
+.sample-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .empty-row td { background: var(--bg); }
 .empty-inline {
   display: flex; flex-direction: column; align-items: center;

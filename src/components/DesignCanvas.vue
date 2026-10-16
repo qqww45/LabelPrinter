@@ -9,7 +9,7 @@
       <!-- 空画布引导：首拖即消失；pointer-events:none 不挡拖放 -->
       <div v-if="!pj.project.components.length" class="canvas-empty" aria-hidden="true">
         <div class="canvas-empty-title">{{ t('从左侧拖入组件') }}</div>
-        <div class="canvas-empty-sub">{{ t('文字、条码、二维码都可以直接拖到这里') }}</div>
+        <div class="canvas-empty-sub">{{ t('文字、条码、二维码、序号、勾选框都可以直接拖到这里') }}</div>
       </div>
     </div>
 
@@ -30,6 +30,7 @@ import * as fabric from 'fabric'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
+import { formatCheckboxText, formatSerialText } from '../utils/controls'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { generateBarcode } from '../utils/barcode'
@@ -291,8 +292,16 @@ function setupDnd() {
     } else if (field) {
       const sel = pj.selectedComponent
       if (sel) {
-        const text = rewriteBindingText(sel.text || '', sel.binding || '', field)
-        pj.updateComponent(sel.id, { binding: field, text })
+        if (sel.type === 'checkbox') {
+          pj.updateComponent(sel.id, { binding: field })
+        } else if (sel.type === 'serial') {
+          pj.updateComponent(sel.id, { source: 'field', binding: field })
+        } else if (sel.type === 'date') {
+          pj.updateComponent(sel.id, { source: 'field', binding: field })
+        } else {
+          const text = rewriteBindingText(sel.text || '', sel.binding || '', field)
+          pj.updateComponent(sel.id, { binding: field, text })
+        }
       } else {
         addComponent('text', xMm, yMm, { binding: field, text: `{{${field}}}` })
       }
@@ -330,8 +339,11 @@ function addComponent(type, xMm, yMm, extra = {}) {
     qrcode: { w: Math.min(20, lw - 4),  h: Math.min(20, lh - 4) },
     barcode:{ w: Math.min(35, lw - 4),  h: Math.min(10, lh - 4) },
     rect:   { w: Math.min(40, lw - 4),  h: Math.min(20, lh - 4) },
+    ellipse:{ w: Math.min(24, lw - 4),  h: Math.min(24, lh - 4) },
     line:   { w: Math.min(40, lw - 4),  h: 0 },
-    date:   { w: Math.min(35, lw - 4),  h: Math.min(8, lh - 4) }
+    date:   { w: Math.min(35, lw - 4),  h: Math.min(8, lh - 4) },
+    serial: { w: Math.min(28, lw - 4),  h: Math.min(8, lh - 4) },
+    checkbox:{ w: Math.min(8, lw - 4),  h: Math.min(8, lh - 4) }
   }
   const sz = sizeDefaults[type] || { w: Math.min(40, lw - 4), h: Math.min(20, lh - 4) }
 
@@ -364,12 +376,25 @@ function addComponent(type, xMm, yMm, extra = {}) {
     case 'rect':
       comp = { ...def, fill: 'transparent', stroke: '#000', strokeWidth: 1, rx: 0 }
       break
+    case 'ellipse':
+      comp = { ...def, name: '椭圆', fill: 'transparent', stroke: '#000', strokeWidth: 1 }
+      break
     case 'line':
       comp = { ...def, stroke: '#000', strokeWidth: 1 }
       break
     case 'date':
       comp = { ...def, text: dayjs().format('YYYY-MM-DD'), source: 'now', format: 'YYYY-MM-DD HH:mm:ss', binding: '',
                fontSize: 10, fill: '#000', fontFamily: 'Microsoft YaHei', fontWeight: 'normal', textAlign: 'left' }
+      break
+    case 'serial':
+      comp = { ...def, name: '序号', source: 'print', binding: '', prefix: '', suffix: '', pad: 4,
+               fontSize: 12, fill: '#000', fontFamily: 'Microsoft YaHei', fontWeight: 'bold', textAlign: 'left',
+               hideIfEmpty: true }
+      break
+    case 'checkbox':
+      comp = { ...def, name: '勾选', binding: '', checkedChar: '☑', uncheckedChar: '☐', checkedValue: '',
+               fontSize: 14, fill: '#000', fontFamily: 'Microsoft YaHei', fontWeight: 'normal', textAlign: 'center',
+               hideIfEmpty: false }
       break
     case 'table':
       comp = { ...def, rows: 3, cols: 3, cellPadding: 1, borderColor: '#333', borderWidth: 0.2,
@@ -616,6 +641,22 @@ function buildFabricObject(c, gen = renderGeneration) {
       })
       break
     }
+    case 'ellipse': {
+      const ew = c.width * MM_TO_PX
+      const eh = c.height * MM_TO_PX
+      obj = new fabric.Ellipse({
+        ...baseOpts,
+        rx: Math.max(1, ew / 2),
+        ry: Math.max(1, eh / 2),
+        // Ellipse 默认原点中心；改成左上角与其它组件一致
+        originX: 'left',
+        originY: 'top',
+        fill: c.fill,
+        stroke: c.stroke,
+        strokeWidth: c.strokeWidth
+      })
+      break
+    }
     case 'line': {
       obj = new fabric.Line(
         [0, 0, c.width * MM_TO_PX, 0],
@@ -641,6 +682,20 @@ function buildFabricObject(c, gen = renderGeneration) {
       })
       break
     }
+    case 'serial':
+    case 'checkbox': {
+      const txt = c.type === 'serial' ? formatSerialText(c, row) : formatCheckboxText(c, row)
+      obj = new fabric.Textbox(txt || (c.type === 'serial' ? '0001' : '☐'), {
+        ...baseOpts,
+        width: (c.width || 20) * MM_TO_PX,
+        fontSize: (c.fontSize || 12),
+        fill: c.fill,
+        fontFamily: c.fontFamily || 'Microsoft YaHei',
+        fontWeight: c.fontWeight || 'normal',
+        textAlign: c.textAlign || (c.type === 'checkbox' ? 'center' : 'left')
+      })
+      break
+    }
     case 'table': {
       obj = buildTable(c, row, baseOpts)
       break
@@ -651,8 +706,8 @@ function buildFabricObject(c, gen = renderGeneration) {
     obj.__id = c.id
     obj.__type = c.type
     dressHandles(obj)
-    if (c.type === 'text' || c.type === 'date') obj.lockScalingY = false
-    if (c.type === 'text' || c.type === 'date' || c.type === 'table') {
+    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox') obj.lockScalingY = false
+    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') {
       clipToBox(obj, (c.width || 40) * MM_TO_PX, (c.height || 10) * MM_TO_PX)
     }
   }
@@ -683,7 +738,7 @@ function geometryPatch(obj) {
     angle: obj.angle
   }
   const c = pj.project.components.find(x => x.id === obj.__id)
-  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'table') && Math.abs(sy - 1) > 0.02) {
+  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') && Math.abs(sy - 1) > 0.02) {
     patch.fontSize = Math.max(6, Math.min(96, Math.round((c.fontSize || 12) * sy)))
   }
   obj.scaleX = 1

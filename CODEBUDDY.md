@@ -12,6 +12,8 @@
 | `node tests/basic.test.mjs` | 跑基础单元测试套件（约 66 项：纸/排版/打印/序列化） |
 | `node tests/dataMerge.test.mjs` | 跑导入追加/替换合并函数单测（7 类边界，15 项） |
 | `node tests/pdfParity.test.mjs` | PDF 拉丁字色 / 中文分流 / 价签绑定回归 |
+| `node tests/samples.test.mjs` | Phase B 示例 CSV 列与行业模板边界 |
+| `node tests/controls.test.mjs` | 椭圆/序号/勾选框绑定、隐藏与 AI 归一化 |
 | `npx playwright-cli open http://localhost:5173/` | 启动 Playwright 浏览器会话（用于 UI 自动化验证） |
 | `npx playwright-cli eval "<js>"` | 在当前页面执行 JS（可读写 Pinia store、读 DOM、截图） |
 | `npx playwright-cli screenshot` | 截当前视口到 `.playwright-cli/page-*.png` |

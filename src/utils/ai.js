@@ -16,9 +16,12 @@ export const COMPONENT_SCHEMA = `
   { "type": "table",   "name": "信息表", "left": 3, "top": 15, "width": 54, "height": 20, "rows": 2, "cols": 2, "fontSize": 8, "colWidths": [30, 70], "cells": { "0,0": {"text":"规格","binding":""}, "0,1":{"text":"{{规格}}","binding":"规格"}, "1,0":{"text":"单价","binding":""}, "1,1":{"text":"¥{{价格}}","binding":"价格"} } },
   { "type": "qrcode",  "name": "二维码", "left": 35,"top": 15, "width": 20, "height": 20, "text": "",             "binding": "网址" },
   { "type": "barcode", "name": "条形码", "left": 3, "top": 27, "width": 54, "height": 11, "text": "",             "binding": "条码", "format": "CODE128" },
-  { "type": "rect",    "name": "矩形",   "left": 3, "top": 2,  "width": 54, "height": 0.3,"fill": "#000000" },
-  { "type": "line",    "name": "分隔线", "left": 3, "top": 14, "width": 54, "height": 0,  "stroke": "#000000", "strokeWidth": 0.2 },
-  { "type": "date",    "name": "日期",   "left": 3, "top": 28, "width": 30, "height": 5,  "format": "YYYY-MM-DD", "binding": "", "fontSize": 8 }
+  { "type": "rect",     "name": "矩形",   "left": 3, "top": 2,  "width": 54, "height": 0.3,"fill": "#000000" },
+  { "type": "ellipse",  "name": "椭圆",   "left": 40,"top": 5,  "width": 16, "height": 12, "fill": "transparent", "stroke": "#000000", "strokeWidth": 0.3 },
+  { "type": "line",     "name": "分隔线", "left": 3, "top": 14, "width": 54, "height": 0,  "stroke": "#000000", "strokeWidth": 0.2 },
+  { "type": "date",     "name": "日期",   "left": 3, "top": 28, "width": 30, "height": 5,  "format": "YYYY-MM-DD", "binding": "", "fontSize": 8 },
+  { "type": "serial",   "name": "序号",   "left": 40,"top": 28, "width": 18, "height": 5,  "source": "print", "prefix": "", "suffix": "", "pad": 4, "fontSize": 10, "fill": "#000000", "hideIfEmpty": true },
+  { "type": "checkbox", "name": "勾选",   "left": 3, "top": 34, "width": 6,  "height": 6,  "binding": "已检", "checkedChar": "☑", "uncheckedChar": "☐", "fontSize": 12, "hideIfEmpty": false }
 ]
 `
 
@@ -51,8 +54,10 @@ ${COMPONENT_SCHEMA}
 - 如果组件显示的是某个数据字段，把 binding 设为该字段名（不带 {{}}）
 - 静态文字（如单位、标签）则 binding 留空，text 直接写
 - 二维码/条形码的 binding 指向要编码的字段（网址/条码号/编号等）
-- 内容为空时不打印：文本/二维码/条码/日期可加 "hideIfEmpty": true
-- 需要每张标签一个流水号时，文本写 {{序号}}。序号由打印设置生成，不要把它当成数据列
+- 内容为空时不打印：文本/二维码/条码/日期/序号/勾选框可加 "hideIfEmpty": true
+- 需要每张标签一个流水号：优先用 type "serial"（source 默认 print，可设 prefix/suffix/pad）；也可用文本写 {{序号}}。序号由打印设置生成，不要把它当成数据列
+- 勾选框 type "checkbox"：binding 指向布尔/是否类字段；1/是/Y/true 显示勾选，0/否/空显示未勾选
+- 椭圆 type "ellipse"：纯装饰，可设 fill/stroke/strokeWidth；无 binding
 
 # 打印相关（只在用户要求时才做，生成版式本身不要输出打印设置）
 - 整单份数、按某一列决定份数、起始序号、热敏纸间隙/黑标/连续纸，属于打印设置，不是组件
@@ -160,7 +165,7 @@ function findMatchingClose(s, start) {
 }
 
 // 合法组件类型
-const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'line', 'date'])
+const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'ellipse', 'line', 'date', 'serial', 'checkbox'])
 
 /**
  * 校验 + 归一化 + 裁剪到画布
@@ -291,6 +296,11 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
     case 'rect':
       c.fill = String(raw.fill || '#000000')
       break
+    case 'ellipse':
+      c.fill = String(raw.fill || 'transparent')
+      c.stroke = String(raw.stroke || '#000000')
+      c.strokeWidth = num(raw.strokeWidth, 0.3)
+      break
     case 'line':
       c.stroke = String(raw.stroke || '#000000')
       c.strokeWidth = num(raw.strokeWidth, 0.2)
@@ -301,6 +311,30 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       c.fontSize = num(raw.fontSize, 8)
       c.fontFamily = FONT
       c.fill = String(raw.fill || '#000000')
+      if (raw.binding) c.binding = String(raw.binding)
+      if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
+      break
+    case 'serial':
+      c.source = raw.source === 'field' ? 'field' : 'print'
+      c.prefix = String(raw.prefix || '')
+      c.suffix = String(raw.suffix || '')
+      c.pad = Math.max(0, Math.min(12, Math.floor(num(raw.pad, 0))))
+      c.fontSize = num(raw.fontSize, 10)
+      c.fontFamily = FONT
+      c.fill = String(raw.fill || '#000000')
+      c.fontWeight = ['normal', 'bold'].includes(raw.fontWeight) ? raw.fontWeight : 'bold'
+      c.textAlign = ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'left'
+      if (raw.binding) c.binding = String(raw.binding)
+      c.hideIfEmpty = typeof raw.hideIfEmpty === 'boolean' ? raw.hideIfEmpty : true
+      break
+    case 'checkbox':
+      c.checkedChar = String(raw.checkedChar || '☑')
+      c.uncheckedChar = String(raw.uncheckedChar || '☐')
+      if (raw.checkedValue != null && String(raw.checkedValue) !== '') c.checkedValue = String(raw.checkedValue)
+      c.fontSize = num(raw.fontSize, 12)
+      c.fontFamily = FONT
+      c.fill = String(raw.fill || '#000000')
+      c.textAlign = ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'center'
       if (raw.binding) c.binding = String(raw.binding)
       if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
@@ -315,7 +349,7 @@ function num(v, def) {
 function round2(n) { return Math.round(n * 100) / 100 }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)) }
 function defaultName(type) {
-  return ({ text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', line: '直线', date: '日期' })[type] || type
+  return ({ text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' })[type] || type
 }
 
 const ADJUST_ROW_CAP = 120
@@ -339,7 +373,7 @@ function packComponent(c) {
     width: c.width,
     height: c.height
   }
-  const copy = ['text', 'binding', 'fontSize', 'fontFamily', 'fontWeight', 'fill', 'textAlign', 'format', 'stroke', 'strokeWidth', 'angle', 'source', 'rx', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerBg', 'vAlign']
+  const copy = ['text', 'binding', 'fontSize', 'fontFamily', 'fontWeight', 'fill', 'textAlign', 'format', 'stroke', 'strokeWidth', 'angle', 'source', 'rx', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerBg', 'vAlign', 'prefix', 'suffix', 'pad', 'checkedChar', 'uncheckedChar', 'checkedValue']
   for (const key of copy) {
     if (c[key] != null && c[key] !== '') out[key] = c[key]
   }
@@ -501,7 +535,7 @@ ${JSON.stringify(ctx.layout)}
 - 改布局优先 componentUpdates，用现有 id。不要为了改字号把全部组件重写一遍
 - 用户说「这个」「选中的」时，只改「当前选中」里的 id。没选中就按组件 name 对上那一个
 - 更换组件种类必须在 componentUpdates 里写 type，例如二维码改成条形码：{ "id": "现有id", "type": "barcode" }。保留原来的 binding 和文字。只在 summary 里说「已改成条形码」不会生效
-- 文字还能改 fontFamily（Microsoft YaHei、SimSun、SimHei、KaiTi、Arial）、textAlign、fontWeight。条码 format 只能是 CODE128、EAN13、CODE39。日期 source 是 now 或 field
+- 文字还能改 fontFamily（Microsoft YaHei、SimSun、SimHei、KaiTi、Arial）、textAlign、fontWeight。条码 format 只能是 CODE128、EAN13、CODE39。日期 source 是 now 或 field；序号 source 是 print 或 field（可改 prefix/suffix/pad）；勾选框可改 binding、checkedChar、uncheckedChar；椭圆可改 fill/stroke
 - 表格用 rows、cols，以及 cells 的「行,列」只写要改的格子（text、binding、type 为 text/qrcode/barcode/image）
 - 调整叠放顺序用 order，数组最后一个盖在最上面。没写到的组件保持原位
 - 字段名对不上时写 data.fieldMap，键是模板字段，值是已经存在的数据列
@@ -545,7 +579,7 @@ export function parseAIPlan(raw) {
   return obj
 }
 
-const PATCH_KEYS = ['type', 'name', 'text', 'binding', 'fontSize', 'fontFamily', 'fill', 'fontWeight', 'textAlign', 'hideIfEmpty', 'hidden', 'format', 'stroke', 'strokeWidth', 'src', 'left', 'top', 'width', 'height', 'angle', 'rx', 'source', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerRow', 'headerBg', 'vAlign', 'cells', 'colWidths']
+const PATCH_KEYS = ['type', 'name', 'text', 'binding', 'fontSize', 'fontFamily', 'fill', 'fontWeight', 'textAlign', 'hideIfEmpty', 'hidden', 'format', 'stroke', 'strokeWidth', 'src', 'left', 'top', 'width', 'height', 'angle', 'rx', 'source', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerRow', 'headerBg', 'vAlign', 'cells', 'colWidths', 'prefix', 'suffix', 'pad', 'checkedChar', 'uncheckedChar', 'checkedValue']
 
 function cleanName(s) {
   return String(s ?? '').trim().replace(/[{}]/g, '').slice(0, 40)
@@ -756,13 +790,24 @@ function applyTypeChange(existing, patch) {
     const w = Number(next.width ?? existing.width) || 0
     if (h > 14 && w && h > w * 0.45) next.height = 12
   }
-  if (patch.type === 'text') {
+  if (patch.type === 'text' || patch.type === 'serial' || patch.type === 'checkbox') {
     if (next.fontSize == null) next.fontSize = existing.fontSize || 12
     if (!next.fill) next.fill = existing.fill || '#000000'
     if (!next.fontWeight) next.fontWeight = existing.fontWeight || 'normal'
-    if (!next.textAlign) next.textAlign = existing.textAlign || 'left'
-    if (next.text == null) next.text = existing.text || (existing.binding ? `{{${existing.binding}}}` : '')
+    if (!next.textAlign) next.textAlign = existing.textAlign || (patch.type === 'checkbox' ? 'center' : 'left')
     next.fontFamily = existing.fontFamily || 'Microsoft YaHei'
+  }
+  if (patch.type === 'text') {
+    if (next.text == null) next.text = existing.text || (existing.binding ? `{{${existing.binding}}}` : '')
+  }
+  if (patch.type === 'serial') {
+    if (next.source == null) next.source = existing.source === 'field' ? 'field' : 'print'
+    if (next.pad == null) next.pad = existing.pad ?? 4
+  }
+  if (patch.type === 'ellipse') {
+    if (!next.stroke) next.stroke = existing.stroke || '#000000'
+    if (next.strokeWidth == null) next.strokeWidth = existing.strokeWidth ?? 1
+    if (next.fill == null) next.fill = existing.fill || 'transparent'
   }
   const oldLabel = defaultName(existing.type)
   if (!next.name && (!existing.name || existing.name === oldLabel || existing.name === existing.type)) {
@@ -798,7 +843,12 @@ function normalizeComponentPatch(raw, LW, LH) {
       continue
     }
     if (key === 'source') {
-      if (v === 'static' || v === 'field' || v === 'now') patch.source = v
+      if (v === 'static' || v === 'field' || v === 'now' || v === 'print') patch.source = v
+      continue
+    }
+    if (key === 'pad') {
+      const n = Math.floor(Number(v))
+      if (Number.isFinite(n)) patch.pad = Math.min(12, Math.max(0, n))
       continue
     }
     if (key === 'vAlign') {
