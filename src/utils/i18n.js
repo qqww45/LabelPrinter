@@ -885,7 +885,16 @@ const EN = {
   '已选 {n} / 共 {m}': 'Selected {n} / {m}',
   'API 设置': 'API settings',
   '展开属性栏': 'Expand properties',
-  '收起属性栏': 'Collapse properties'
+  '收起属性栏': 'Collapse properties',
+  '关于': 'About',
+  '版本 {v}': 'Version {v}',
+  '在浏览器里设计标签，按表格批量打印，并导出 PDF 和图片。': 'Design labels in the browser, print them from a table, and export PDF or images.',
+  '开源': 'Open source',
+  '源代码公开在 GitHub，可以查看、修改和自行部署。': 'The source is public on GitHub. You can read it, change it, and host it yourself.',
+  '安全': 'Safety',
+  '项目和表格保存在这台电脑的浏览器里。没有账号，也不会把这些数据传到工具自己的服务器。': 'Projects and tables stay in this browser. There is no account, and this data is not sent to a server run by the tool.',
+  '没有统计和埋点。': 'No analytics and no tracking.',
+  '使用「AI 调整」并填写密钥后，相关内容会发给你选择的服务商。不用 AI 就不会发送。': 'If you use AI adjust and enter a key, that content goes to the provider you chose. Nothing is sent when you do not use AI.'
 }
 
 export function useI18n() {

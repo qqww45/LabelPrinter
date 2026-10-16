@@ -124,6 +124,15 @@
       >
         {{ settings.lang === 'en' ? '中' : 'EN' }}
       </button>
+      <button
+        class="btn btn-icon"
+        type="button"
+        :title="t('关于')"
+        :aria-label="t('关于')"
+        @click="$emit('about')"
+      >
+        <span class="ico" aria-hidden="true" v-html="icons.info"></span>
+      </button>
     </div>
     <div v-if="moreOpen" class="more-mask" @click="moreOpen = false"></div>
   </div>
@@ -142,7 +151,7 @@ const { t } = useI18n()
 const emit = defineEmits([
   'import-data',
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
-  'template-library', 'field-map', 'print-center', 'ai'
+  'template-library', 'field-map', 'print-center', 'ai', 'about'
 ])
 
 const secondaryActions = [
@@ -183,7 +192,8 @@ const icons = {
   image: S('<rect x="4" y="5" width="16" height="14" rx="1.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 16.5l4.5-4.5 3 3 3-4 4.5 5.5"/>'),
   more: S('<circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"/>'),
   sun: S('<circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6 6 18"/>'),
-  moon: S('<path d="M16.5 14.2A6.2 6.2 0 0 1 9.8 7.5 6.5 6.5 0 1 0 16.5 14.2z"/>')
+  moon: S('<path d="M16.5 14.2A6.2 6.2 0 0 1 9.8 7.5 6.5 6.5 0 1 0 16.5 14.2z"/>'),
+  info: S('<circle cx="12" cy="12" r="8"/><path d="M12 11v5"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/>')
 }
 
 const COMPACT_THRESHOLD = 900

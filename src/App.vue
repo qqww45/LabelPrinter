@@ -15,6 +15,7 @@
       @print-center="printCenterVisible = true"
       @preview="previewVisible = true"
       @ai="openAI"
+      @about="aboutVisible = true"
     />
     <div class="main">
       <LeftDock
@@ -77,6 +78,7 @@
       v-if="aiSettingsVisible"
       @close="aiSettingsVisible = false"
     />
+    <AboutDialog v-if="aboutVisible" @close="aboutVisible = false" />
     <PreflightCheckDialog
       v-if="preflightVisible && preflightReport"
       :report="preflightReport"
@@ -141,6 +143,7 @@ const PrintConfig = defineAsyncComponent(() => import('./components/PrintConfig.
 const LayoutEditor = defineAsyncComponent(() => import('./components/LayoutEditor.vue'))
 const PreviewDialog = defineAsyncComponent(() => import('./components/PreviewDialog.vue'))
 const AISettingsDialog = defineAsyncComponent(() => import('./components/AISettingsDialog.vue'))
+const AboutDialog = defineAsyncComponent(() => import('./components/AboutDialog.vue'))
 const PreflightCheckDialog = defineAsyncComponent(() => import('./components/PreflightCheckDialog.vue'))
 const OnboardingGuide = defineAsyncComponent(() => import('./components/OnboardingGuide.vue'))
 
@@ -241,6 +244,7 @@ const printCenterVisible = ref(false)
 const previewRef = ref(null)
 const leftDockRef = ref(null)
 const aiSettingsVisible = ref(false)
+const aboutVisible = ref(false)
 // 打印前体检
 const preflightVisible = ref(false)
 const preflightReport = ref(null)
