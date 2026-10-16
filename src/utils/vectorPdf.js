@@ -16,7 +16,7 @@ function pxMm(px) {
   return (Number(px) || 0) * PX_TO_MM
 }
 
-function rgb(hex) {
+export function rgb(hex) {
   const s = String(hex || '#000000').trim()
   let m = s.match(/^#([0-9a-f]{6})$/i)
   if (m) {
@@ -27,6 +27,8 @@ function rgb(hex) {
   if (m) {
     return m[1].split('').map(ch => parseInt(ch + ch, 16))
   }
+  m = s.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i)
+  if (m) return [Number(m[1]), Number(m[2]), Number(m[3])]
   return [0, 0, 0]
 }
 
@@ -43,6 +45,12 @@ function setFill(pdf, hex) {
 function setStroke(pdf, hex) {
   const [r, g, b] = rgb(hex)
   pdf.setDrawColor(r, g, b)
+}
+
+/** jsPDF 的 text() 读的是文字色，不是填充色；价格等拉丁字必须走这里。 */
+function setText(pdf, hex) {
+  const [r, g, b] = rgb(hex)
+  pdf.setTextColor(r, g, b)
 }
 
 function tableCellText(c, r, col, row) {
@@ -134,7 +142,7 @@ function drawLatinText(pdf, text, x, y, w, h, fontPx, align, weight, color, vAli
   const pt = (fontPx || 14) * 72 / 96
   pdf.setFont('helvetica', weight === 'bold' ? 'bold' : 'normal')
   pdf.setFontSize(pt)
-  setFill(pdf, color || '#000000')
+  setText(pdf, color || '#000000')
   const lines = wrapByWidth(pdf, text, Math.max(1, w), fontMm)
   const step = fontMm * 1.25
   const block = Math.max(step, lines.length * step)
@@ -320,7 +328,7 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
     fontSize: cell?._fontSize,
     textAlign: cell?._align,
     fontWeight: cell?._weight,
-    fill: '#111111',
+    fill: cell?._fill || cell?.fill || '#111111',
     vAlign: cell?._vAlign || 'middle'
   })
 }
@@ -371,7 +379,8 @@ function drawTable(pdf, c, row, x, y, w, h) {
         _fontSize: c.fontSize || 10,
         _align: header ? 'center' : (c.textAlign || 'left'),
         _weight: header ? 'bold' : c.fontWeight,
-        _vAlign: c.vAlign || 'middle'
+        _vAlign: c.vAlign || 'middle',
+        _fill: header ? (c.headerText || '#111111') : (c.cellTextColor || cell.fill || '#111111')
       }, text, cx, cy, cw, ch)
     }
   }
