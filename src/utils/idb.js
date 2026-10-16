@@ -49,3 +49,19 @@ export async function idbSet(key, value) {
     db.close()
   }
 }
+
+/** 清空项目快照仓库（不删库结构） */
+export async function idbClear() {
+  const db = await openDb()
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      tx.objectStore(STORE).clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error || new Error('indexedDB abort'))
+    })
+  } finally {
+    db.close()
+  }
+}

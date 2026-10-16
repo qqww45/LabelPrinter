@@ -8,6 +8,7 @@ import { renderText } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
+import { safeImageSrc } from './escapeHtml.js'
 
 const PX_TO_MM = 25.4 / 96
 
@@ -285,7 +286,8 @@ function drawLine(pdf, c, x, y, w) {
 }
 
 function drawImage(pdf, c, row, x, y, w, h) {
-  const src = c.source === 'field' ? (row?.[c.binding] || '') : (c.src || '')
+  // 只拦危险协议；正常 http(s)/data:image 与预览一致，不改版式
+  const src = safeImageSrc(c.source === 'field' ? (row?.[c.binding] || '') : (c.src || ''))
   if (!src || w <= 0 || h <= 0) return
   try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 跨域或坏图就跳过 */ }
 }
@@ -307,7 +309,7 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
     return
   }
   if (type === 'image') {
-    const src = text || cell?.src || ''
+    const src = safeImageSrc(text || cell?.src || '')
     if (src) {
       try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 坏图跳过 */ }
     }

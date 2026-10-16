@@ -60,7 +60,16 @@
         </div>
       </div>
 
-      <div class="panel-foot">{{ t('自动保存在这台浏览器，下载才是文件') }}</div>
+      <div class="panel-foot">
+        <div class="foot-note">{{ t('自动保存在这台浏览器，下载才是文件') }}</div>
+        <button
+          type="button"
+          class="clear-local"
+          :disabled="clearing"
+          :title="t('删除本浏览器里的项目、模板、打印记录与 AI Key')"
+          @click="onClearLocal"
+        >{{ clearing ? t('清除中…') : t('清除本机数据') }}</button>
+      </div>
     </div>
   </div>
 </template>
@@ -69,9 +78,25 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
+import { clearAllLocalData } from '../utils/localData'
+import { toastError, toastSuccess } from '../utils/toast'
 
 const { t } = useI18n()
 const emit = defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
+const clearing = ref(false)
+
+async function onClearLocal() {
+  if (!confirm(t('确定清除本浏览器内的全部标签打印数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。'))) return
+  clearing.value = true
+  try {
+    await clearAllLocalData()
+    toastSuccess(t('已清除，即将刷新'))
+    setTimeout(() => location.reload(), 400)
+  } catch (e) {
+    toastError(e?.message || t('清除失败'))
+    clearing.value = false
+  }
+}
 
 const SIDEBAR_KEY = 'labelprint_sidebar_open'
 
@@ -342,8 +367,35 @@ function onRemove(p) {
 }
 .new-btn:hover { border-color: var(--primary); color: var(--primary); background: #f8fafc; }
 .panel-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  padding-top: 4px;
+}
+.foot-note {
   font-size: 10px;
   color: var(--text-muted);
   text-align: center;
+  line-height: 1.4;
+}
+.clear-local {
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.06);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.clear-local:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--danger);
+}
+.clear-local:disabled { opacity: 0.5; cursor: wait; }
+.clear-local:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
 }
 </style>

@@ -621,6 +621,7 @@ function rangeLabel(o = {}) {
  * 核心打印：按 opts（range/rangeStart/rangeEnd/copies）构建打印 HTML 并调起系统打印
  */
 async function printPages(opts = {}) {
+  // 打印仍用 cloneNode，保证与预览像素级一致；文案已在 CompRenderer 里 escape，不改版式。
   await settleImages()
   const els = pagesForTask(opts)
   if (!els.length) { toastError(t('没有可打印的内容')); return false }

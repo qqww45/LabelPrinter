@@ -667,7 +667,13 @@ const EN = {
   '样式已复制': 'Style copied',
   '正在加载画布…': 'Loading canvas…',
   'API Key 默认只存在本标签页会话，不上传服务器。勾选「记住」才会写入本机。': 'API Key stays in this tab session by default and is never uploaded. Check “Remember” to store it on this device.',
-  '记住 API Key（保存在本浏览器，共用电脑请勿勾选）': 'Remember API Key (stored in this browser — skip on shared PCs)'
+  '记住 API Key（保存在本浏览器，共用电脑请勿勾选）': 'Remember API Key (stored in this browser — skip on shared PCs)',
+  '清除本机数据': 'Clear local data',
+  '清除中…': 'Clearing…',
+  '删除本浏览器里的项目、模板、打印记录与 AI Key': 'Remove projects, templates, print history, and AI Key from this browser',
+  '确定清除本浏览器内的全部标签打印数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。': 'Clear all Label Printer data in this browser?\nThis includes projects, templates, print history, and AI Key. This cannot be undone.',
+  '已清除，即将刷新': 'Cleared. Reloading…',
+  '清除失败': 'Clear failed'
 }
 
 export function useI18n() {
