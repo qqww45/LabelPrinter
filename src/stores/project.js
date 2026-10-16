@@ -4,6 +4,7 @@ import { getUserDefaults, saveUserDefaults } from './userDefaults'
 import { idbGet, idbSet } from '../utils/idb'
 import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
 import { normalizeMargin } from '../utils/pageBox'
+import { insertOpenedProject } from '../utils/projectOpen'
 
 // 纸张预设（打印介质：决定打印机走纸的纸张）
 export const PAPER_PRESETS = [
@@ -834,6 +835,24 @@ export const useProjectStore = defineStore('project', () => {
   // store 初始化时建立基线快照（保证第一次修改也能撤销）
   initHistory()
 
+  function importAsNewProject(raw, fileName = '') {
+    persistNow()
+    const id = genProjId()
+    const placed = insertOpenedProject(projects.value, raw, { id, fileName })
+    restoring = true
+    try {
+      projects.value = placed.list
+      currentId.value = id
+      setProject(placed.list[0].data)
+      projects.value[0].name = project.value.meta?.name || placed.name
+      projects.value[0].data = getExportData()
+    } finally {
+      restoring = false
+    }
+    persistNow()
+    return id
+  }
+
   function createProject(name = '未命名项目') {
     persistNow()
     const fresh = createDefaultProject()
@@ -923,6 +942,6 @@ export const useProjectStore = defineStore('project', () => {
     updateFieldMap, applyTemplate,
     undo, redo, canUndo, canRedo, clearHistory,
     getExportData,
-    loadFromStorage, hydrateFromIdb, createProject, switchProject, deleteProject, renameCurrentProject, renameProject
+    loadFromStorage, hydrateFromIdb, createProject, importAsNewProject, switchProject, deleteProject, renameCurrentProject, renameProject
   }
 })

@@ -455,21 +455,15 @@ function switchToProject(id) {
 }
 
 async function onOpen() {
+  embedCurrentData()
   try { project.flushPersist() } catch { /* ignore */ }
   if (project.persistError && !confirm(t('自动保存失败，确定继续打开其他项目吗？'))) return
   try {
     const file = await pickFile('.json,.lbp,application/json')
     const json = await readJSONFile(file)
-    project.setProject(json)
-    // 加载数据源（外置或内嵌）
-    if (json.dataSource?.embedded && json.dataSource?.data) {
-      data.setData({
-        headers: headersFromRows(json.dataSource.data),
-        rows: json.dataSource.data,
-        sourcePath: '',
-        embedded: true
-      })
-    } else if (json.dataSource?.path) {
+    // 加进列表再切过去。当前项目留在列表里，不整份换掉。
+    project.importAsNewProject(json, file.name)
+    if (json.dataSource?.path && !(json.dataSource?.embedded && json.dataSource?.data)) {
       // 外置：尝试加载
       try {
         const df = await pickFile('.xlsx,.xls,.csv,.txt')
@@ -486,6 +480,7 @@ async function onOpen() {
       }
     }
     project.setFilePath(file.name)
+    toastSuccess(t('已作为新项目打开，原来的还在列表里'))
   } catch (e) {
     if (e.message !== '未选择文件') console.error(e)
   }

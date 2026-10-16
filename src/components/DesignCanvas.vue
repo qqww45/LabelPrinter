@@ -39,7 +39,6 @@ import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCo
 import { formatCheckboxText, formatSerialText } from '../utils/controls'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
-import { generateBarcode } from '../utils/barcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
 import { heightForFont } from '../utils/textFit'
@@ -666,16 +665,23 @@ function buildFabricObject(c, gen = renderGeneration) {
         obj = codePlaceholder(c, baseOpts, c.type === 'barcode' ? t('条码') : t('二维码'))
         break
       }
+      const boxW = Math.max(1, c.width * MM_TO_PX)
+      const boxH = Math.max(1, c.height * MM_TO_PX)
       const ready = c.type === 'barcode'
-        ? Promise.resolve(generateBarcode(txt, { format: c.format }))
+        ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, {
+          format: c.format,
+          targetWidth: boxW * 2,
+          targetHeight: boxH * 2
+        })))
         : generateQRCode(txt, { width: 200 })
       ready.then(dataUrl => {
         if (!dataUrl) return
         fabric.Image.fromURL(dataUrl).then(img => {
           if (!img) return
           img.set({ ...baseOpts,
-            scaleX: (c.width * MM_TO_PX) / img.width,
-            scaleY: (c.height * MM_TO_PX) / img.height
+            imageSmoothing: c.type !== 'barcode',
+            scaleX: boxW / img.width,
+            scaleY: boxH / img.height
           })
           img.__id = c.id
           safeAddAsync(img, gen)
@@ -813,7 +819,7 @@ const decodedImageCache = new Map()
 // 正在解码中的 URL，避免重复请求
 const decodingUrls = new Set()
 
-function makeCellDataUrl(type, value, cell, comp) {
+function makeCellDataUrl(type, value, cell, comp, boxW = 0, boxH = 0) {
   if (type === 'qrcode') {
     const key = `qr|${value}`
     if (!cellDataUrlCache.has(key)) {
@@ -823,9 +829,11 @@ function makeCellDataUrl(type, value, cell, comp) {
   }
   if (type === 'barcode') {
     const fmt = cell.format || comp.barcodeFormat || 'CODE128'
-    const key = `bar|${value}|${fmt}`
+    const tw = Math.max(1, Math.round(boxW * 2))
+    const th = Math.max(1, Math.round(boxH * 2))
+    const key = `bar|${value}|${fmt}|${tw}|${th}`
     if (!cellDataUrlCache.has(key)) {
-      const cv = barcodeToCanvas(value, { format: fmt })
+      const cv = barcodeToCanvas(value, { format: fmt, targetWidth: tw, targetHeight: th })
       cellDataUrlCache.set(key, cv ? canvasToDataURL(cv) : '')
     }
     return cellDataUrlCache.get(key)
@@ -862,11 +870,12 @@ const decodedImageUrlsFailed = new Set()
 /**
  * 用已解码的图片元素构造 fabric 图像（同步）
  */
-function makeCellImage(el, left, top, w, h) {
+function makeCellImage(el, left, top, w, h, crisp = false) {
   return new fabric.FabricImage(el, {
     left, top,
     scaleX: w / el.width,
     scaleY: h / el.height,
+    imageSmoothing: !crisp,
     strokeWidth: 0,
     selectable: false,
     evented: false
@@ -979,14 +988,14 @@ function buildTable(c, row, baseOpts) {
       const isHeader = r === 0 && headerRow
 
       if ((cellType === 'qrcode' || cellType === 'barcode') && isEncodableCode(display)) {
-        const url = makeCellDataUrl(cellType, display, cell, c)
+        const url = makeCellDataUrl(cellType, display, cell, c, innerW, innerH)
         const imgEl = url ? getDecodedImageSync(url) : null
         if (imgEl) {
           const ratio = imgEl.width / imgEl.height
           let w = innerW
           let h = w / ratio
           if (h > innerH) { h = innerH; w = h * ratio }
-          items.push(makeCellImage(imgEl, x + (cellW - w) / 2, y + (cellH - h) / 2, w, h))
+          items.push(makeCellImage(imgEl, x + (cellW - w) / 2, y + (cellH - h) / 2, w, h, cellType === 'barcode'))
         } else if (url) {
           // 首帧占位，图片解码完成后会自动重绘
           items.push(new fabric.Rect({

@@ -382,11 +382,15 @@ const CompRenderer = defineComponent({
             break
           }
           const cv = c.type === 'barcode'
-            ? barcodeToCanvas(String(txt), { format: c.format || 'CODE128' })
+            ? barcodeToCanvas(String(txt), {
+              format: c.format || 'CODE128',
+              targetWidth: Math.max(1, c.width * S() * 3),
+              targetHeight: Math.max(1, c.height * S() * 3)
+            })
             : qrToCanvas(String(txt), 240)
           const url = cv ? canvasToDataURL(cv) : ''
           if (!url) return null
-          inner = h('img', { src: url, style: imgStyle(c) })
+          inner = h('img', { src: url, style: c.type === 'barcode' ? barcodeImgStyle() : imgStyle(c) })
           break
         }
         case 'rect': {
@@ -503,8 +507,12 @@ function textStyle(c) {
   }
 }
 
-function imgStyle(c) {
+function imgStyle() {
   return { width: '100%', height: '100%', objectFit: 'fill' }
+}
+
+function barcodeImgStyle() {
+  return { ...imgStyle(), imageRendering: 'pixelated' }
 }
 
 function rectStyle(c) {
@@ -607,16 +615,22 @@ function tableCellNode(c, r, col, row) {
 
   if (type === 'qrcode' || type === 'barcode') {
     if (!isEncodableCode(value)) return value || ''
-    const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}`
+    const tableW = (Number(c.width) || 0) * S()
+    const tableH = (Number(c.height) || 0) * S()
+    const colW = tableColumnWidths(c, tableW)
+    const rowH = tableRowHeights(c, tableH)
+    const tw = Math.max(1, Math.round((colW[col] || 40) * 2))
+    const th = Math.max(1, Math.round((rowH[r] || 20) * 2))
+    const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}|${tw}|${th}`
     if (!cellImgCache.value[key]) {
       const cv = type === 'qrcode'
         ? qrToCanvas(String(value), 240)
-        : barcodeToCanvas(String(value), { format: cell.format || 'CODE128' })
+        : barcodeToCanvas(String(value), { format: cell.format || 'CODE128', targetWidth: tw, targetHeight: th })
       cellImgCache.value[key] = cv ? canvasToDataURL(cv) : ''
     }
     const src = cellImgCache.value[key]
     if (!src) return ''
-    return h('img', { src, style: cellImageStyle(c) })
+    return h('img', { src, style: cellImageStyle(c, type === 'barcode') })
   }
 
   if (type === 'image') {
@@ -645,7 +659,7 @@ function tableCellNode(c, r, col, row) {
   }, value)
 }
 
-function cellImageStyle(c) {
+function cellImageStyle(c, crisp = false) {
   const pad = (c.cellPadding || 1) * S()
   // 脱离文档流，避免二维码、条码的原始像素把行高撑开。缩放方式和画布一致：放进格子里。
   return {
@@ -657,7 +671,8 @@ function cellImageStyle(c) {
     maxHeight: `calc(100% - ${pad * 2}px)`,
     width: 'auto',
     height: 'auto',
-    objectFit: 'contain'
+    objectFit: 'contain',
+    imageRendering: crisp ? 'pixelated' : 'auto'
   }
 }
 

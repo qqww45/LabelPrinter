@@ -8,6 +8,7 @@ import { renderText } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
+import { barcodePrintPx } from './barcodeFit.js'
 import { safeImageSrc } from './escapeHtml.js'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from './tableGeom.js'
 
@@ -305,7 +306,11 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
   if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
     const cv = type === 'qrcode'
       ? qrToCanvas(String(text), 240)
-      : barcodeToCanvas(String(text), { format: cell.format || 'CODE128' })
+      : barcodeToCanvas(String(text), {
+        format: cell.format || 'CODE128',
+        targetWidth: barcodePrintPx(w),
+        targetHeight: barcodePrintPx(h)
+      })
     if (cv) drawContainedImage(pdf, canvasToDataURL(cv), cv.width, cv.height, x, y, w, h)
     return
   }
@@ -402,7 +407,11 @@ function drawComponent(pdf, c, row, ox, oy) {
     const text = componentPlainText(c, row)
     if (!text) return
     if (typeof document === 'undefined') { drawBarcode(pdf, text, c.format, x, y, w, h); return }
-    const cv = barcodeToCanvas(String(text), { format: c.format || 'CODE128' })
+    const cv = barcodeToCanvas(String(text), {
+      format: c.format || 'CODE128',
+      targetWidth: barcodePrintPx(w),
+      targetHeight: barcodePrintPx(h)
+    })
     if (cv) {
       try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
     }

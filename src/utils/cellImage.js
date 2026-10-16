@@ -1,5 +1,6 @@
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
+import { BARCODE_QUIET_MODULES, barcodeBarHeight, barcodeFontSize, barcodeModuleWidth } from './barcodeFit.js'
 
 /**
  * 同步生成二维码 canvas（用于 canvas 内即时渲染，无需等待异步加载）
@@ -35,19 +36,36 @@ export function qrToCanvas(text, px = 200, opts = {}) {
 export function barcodeToCanvas(text, opts = {}) {
   const value = text == null ? '' : String(text).trim()
   if (!value) return null
-  const cv = document.createElement('canvas')
-  const base = {
-    format: opts.format || 'CODE128',
-    width: 2,
-    height: 60,
-    displayValue: opts.displayValue !== false,
-    fontSize: 14,
-    margin: 4,
-    background: '#ffffff',
-    lineColor: '#000000'
-  }
+  const format = opts.format || 'CODE128'
+  const showText = opts.displayValue !== false
   try {
-    JsBarcode(cv, value, base)
+    const probe = document.createElement('canvas')
+    JsBarcode(probe, value, {
+      format,
+      width: 1,
+      height: 8,
+      displayValue: false,
+      margin: 0,
+      background: '#ffffff',
+      lineColor: '#000000'
+    })
+    const targetW = Number(opts.targetWidth) || 0
+    const targetH = Number(opts.targetHeight) || 0
+    const moduleWidth = barcodeModuleWidth(probe.width, targetW)
+    const fontSize = showText ? barcodeFontSize(targetH) : 14
+    const margin = moduleWidth * BARCODE_QUIET_MODULES
+    const cv = document.createElement('canvas')
+    JsBarcode(cv, value, {
+      format,
+      width: moduleWidth,
+      height: barcodeBarHeight(targetH, fontSize, moduleWidth, showText),
+      displayValue: showText,
+      fontSize,
+      textMargin: Math.max(1, Math.round(moduleWidth * 0.6)),
+      margin,
+      background: '#ffffff',
+      lineColor: '#000000'
+    })
     return cv
   } catch (e) {
     return null
