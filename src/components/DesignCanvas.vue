@@ -1,25 +1,24 @@
 <template>
-  <div class="design-canvas-wrap" ref="wrapRef">
-    <!-- 标签画布：只显示一个标签（数据单元） -->
-    <div class="label-canvas-wrapper" :style="canvasWrapperStyle">
-      <canvas ref="canvasRef"></canvas>
-      <!-- 标签边框 overlay：不能用 wrapper border（fabric canvas 会盖住右/下边） -->
-      <div v-if="pj.project.label.showBorder" class="label-border-overlay"
-           :style="labelBorderOverlayStyle"></div>
-      <!-- 空画布引导：首拖即消失；pointer-events:none 不挡拖放 -->
-      <div v-if="!pj.project.components.length" class="canvas-empty" aria-hidden="true">
-        <div class="canvas-empty-title">{{ t('从左侧拖入组件') }}</div>
-        <div class="canvas-empty-sub">{{ t('文字、条码、二维码、序号、勾选框都可以直接拖到这里') }}</div>
+  <div class="design-canvas-root">
+    <div class="design-canvas-wrap" ref="wrapRef">
+      <!-- 标签画布：只显示一个标签（数据单元） -->
+      <div class="label-canvas-wrapper" :style="canvasWrapperStyle">
+        <canvas ref="canvasRef"></canvas>
+        <!-- 标签边框 overlay：不能用 wrapper border（fabric canvas 会盖住右/下边） -->
+        <div v-if="pj.project.label.showBorder" class="label-border-overlay"
+             :style="labelBorderOverlayStyle"></div>
+        <!-- 空画布引导：首拖即消失；pointer-events:none 不挡拖放 -->
+        <div v-if="!pj.project.components.length" class="canvas-empty" aria-hidden="true">
+          <div class="canvas-empty-title">{{ t('从左侧拖入组件') }}</div>
+          <div class="canvas-empty-sub">{{ t('文字、条码、二维码、序号、勾选框都可以直接拖到这里') }}</div>
+        </div>
       </div>
-    </div>
 
-    <!-- 尺寸说明常驻：这是画布上唯一写明「标签 / 纸张 / 每页几个」的地方 -->
-    <div class="info-bar">
-      <span>{{ t('标签') }} {{ pj.project.label.width }}×{{ pj.project.label.height }} mm</span>
-      <span>{{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
-      <span>{{ layoutSummary }}</span>
-      <span>{{ Math.round(pj.zoom * 100) }}%</span>
-      <span v-if="data.rows.length">{{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
+      <!-- 纸张与当前行：缩放/标签尺寸已在画布工具条 -->
+      <div class="info-bar">
+        <span>{{ t('纸张') }} {{ pj.project.paper.width }}×{{ pj.project.paper.height }} mm</span>
+        <span v-if="data.rows.length">{{ data.activeRowIndex + 1 }}/{{ data.filteredRows.length }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -73,14 +72,6 @@ const labelBorderOverlayStyle = computed(() => {
     pointerEvents: 'none',
     zIndex: 10
   }
-})
-
-// 排版摘要（提示该标签会被怎么排到纸上）
-const layoutSummary = computed(() => {
-  const n = pj.labelsPerPage
-  if (n <= 1) return t('每页 1 张')
-  const L = pj.project.layout
-  return t('每页 {n} 张（{c}×{r}）', { n, c: L.cols, r: L.rows })
 })
 
 onMounted(() => {
@@ -1123,6 +1114,12 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
 </script>
 
 <style scoped>
+.design-canvas-root {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .design-canvas-wrap {
   position: relative;
   flex: 1;

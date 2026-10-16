@@ -1,9 +1,12 @@
 <template>
-  <aside class="ai-dock">
-    <div class="dock-head">
+  <aside class="ai-dock" :class="{ embedded }">
+    <div v-if="!embedded" class="dock-head">
       <span class="title">🤖 {{ t('AI 调整') }}</span>
-      <button class="icon-btn" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')">⚙</button>
-      <button class="icon-btn" @click="$emit('close')" :title="t('隐藏')">⟨</button>
+      <button class="icon-btn" type="button" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')" :aria-label="t('设置 API Key / 模型')">⚙</button>
+      <button class="icon-btn" type="button" @click="$emit('close')" :title="t('隐藏')" :aria-label="t('隐藏')">⟨</button>
+    </div>
+    <div v-else class="dock-tools">
+      <button class="icon-btn" type="button" @click="$emit('open-settings')" :title="t('设置 API Key / 模型')" :aria-label="t('设置 API Key / 模型')">⚙ {{ t('API 设置') }}</button>
     </div>
 
     <div class="mode-switch">
@@ -74,6 +77,10 @@ import { toastInfo } from '../utils/toast'
 import { buildSystemPrompt, buildAdjustPrompt, buildAdjustMessages, packAdjustContext, callChat, parseAIResponse, parseAIPlan, validateAndNormalize, normalizeAdjustPlan, adjustPlanIsEmpty, describeAdjustPlan } from '../utils/ai'
 
 const { t } = useI18n()
+defineProps({
+  /** 嵌在 LeftDock 时：标题/收起由外层负责 */
+  embedded: { type: Boolean, default: false }
+})
 const project = useProjectStore()
 const data = useDataStore()
 const ai = useAIStore()
@@ -359,12 +366,28 @@ function applyPlan(opts = {}) {
   border-bottom: 1px solid var(--border);
 }
 .dock-head .title { flex: 1; font-size: 12px; font-weight: 600; }
+.dock-tools {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 0;
+}
+.dock-tools .icon-btn {
+  width: auto;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+}
 .icon-btn {
   width: 22px; height: 22px;
   border: 0; background: transparent; color: var(--text-secondary);
   border-radius: 4px; cursor: pointer;
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--primary); }
+.icon-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .mode-switch { display: flex; gap: 6px; padding: 8px 10px 0; }
 .chat { flex: 1; overflow: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
 .hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }

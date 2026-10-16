@@ -1,27 +1,26 @@
 <template>
-  <div class="project-sidebar" :class="{ collapsed: !open }">
-    <!-- 折叠态：窄条 -->
-    <div v-if="!open" class="rail" @click="open = true" :title="t('展开项目列表')">
+  <div class="project-sidebar" :class="{ embedded, collapsed: !embedded && !open }">
+    <!-- 独立模式折叠态：窄条（LeftDock 嵌入时不使用） -->
+    <div v-if="!embedded && !open" class="rail" @click="open = true" :title="t('展开项目列表')">
       <div class="rail-icon">🗂</div>
       <div class="rail-badge">{{ project.projects.length }}</div>
       <div class="rail-name">{{ currentName }}</div>
-      <button class="rail-toggle" :title="t('展开项目列表')">›</button>
+      <button class="rail-toggle" type="button" :title="t('展开项目列表')">›</button>
     </div>
 
-    <!-- 展开态：完整列表 -->
-    <div v-else class="panel">
-      <div class="panel-head">
+    <!-- 内容面板 -->
+    <div v-if="embedded || open" class="panel" :class="{ 'panel-embedded': embedded }">
+      <div v-if="!embedded" class="panel-head">
         <span class="panel-title">🗂 {{ t('项目') }}</span>
         <span class="panel-count">{{ project.projects.length }}</span>
-        <button class="icon-btn" @click="open = false" :title="t('收起面板')">‹</button>
+        <button class="icon-btn" type="button" @click="open = false" :title="t('收起面板')">‹</button>
       </div>
 
-      <!-- 项目操作（新建 / 打开 / 保存 / 另存为） -->
       <div class="actions">
-        <button class="act" @click="$emit('new')" :title="t('新建项目')">📄 {{ t('新建') }}</button>
-        <button class="act" @click="$emit('open')" :title="t('从文件打开项目')">📂 {{ t('打开') }}</button>
-        <button class="act" @click="$emit('save')" :title="t('下载项目文件。设计会自动留在这台浏览器里')">💾 {{ t('下载') }}</button>
-        <button class="act" @click="$emit('save-as')" :title="t('换个文件名下载')">📤 {{ t('下载为') }}</button>
+        <button class="act" type="button" @click="$emit('new')" :title="t('新建项目')">📄 {{ t('新建') }}</button>
+        <button class="act" type="button" @click="$emit('open')" :title="t('从文件打开项目')">📂 {{ t('打开') }}</button>
+        <button class="act" type="button" @click="$emit('save')" :title="t('下载项目文件。设计会自动留在这台浏览器里')">💾 {{ t('下载') }}</button>
+        <button class="act" type="button" @click="$emit('save-as')" :title="t('换个文件名下载')">📤 {{ t('下载为') }}</button>
       </div>
 
       <div class="list-label">{{ t('本地项目（自动保存）') }}</div>
@@ -37,7 +36,6 @@
         >
           <span class="dot" :class="{ on: p.id === project.currentId }"></span>
 
-          <!-- 重命名输入框 -->
           <input
             v-if="editingId === p.id"
             ref="nameInput"
@@ -54,8 +52,8 @@
               <div class="proj-name">{{ p.name }}</div>
               <div class="proj-meta">{{ labelOf(p) }} · {{ fmtTime(p.updatedAt) }}</div>
             </div>
-            <button class="icon-btn pencil" @click.stop="startRename(p)" :title="t('重命名')">✎</button>
-            <button class="icon-btn del" @click.stop="onRemove(p)" :title="t('删除项目')">✕</button>
+            <button class="icon-btn pencil" type="button" @click.stop="startRename(p)" :title="t('重命名')">✎</button>
+            <button class="icon-btn del" type="button" @click.stop="onRemove(p)" :title="t('删除项目')">✕</button>
           </template>
         </div>
       </div>
@@ -82,6 +80,10 @@ import { clearAllLocalData } from '../utils/localData'
 import { toastError, toastSuccess } from '../utils/toast'
 
 const { t } = useI18n()
+defineProps({
+  /** 嵌入 LeftDock 时只渲染内容，不自带收起窄条 */
+  embedded: { type: Boolean, default: false }
+})
 const emit = defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
 const clearing = ref(false)
 
@@ -181,6 +183,11 @@ function onRemove(p) {
   display: flex;
   transition: width 0.15s;
 }
+.project-sidebar.embedded {
+  width: 100%;
+  border-right: 0;
+  transition: none;
+}
 .project-sidebar.collapsed { width: 40px; }
 
 /* 折叠态窄条 */
@@ -235,6 +242,10 @@ function onRemove(p) {
   padding: 10px;
   gap: 8px;
 }
+.panel-embedded {
+  width: 100%;
+  min-height: 0;
+}
 .panel-head {
   display: flex;
   align-items: center;
@@ -285,7 +296,11 @@ function onRemove(p) {
 .act:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: #f8fafc;
+  background: var(--bg-hover);
+}
+.act:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 .list-label {
@@ -312,10 +327,13 @@ function onRemove(p) {
 }
 .proj-item:hover { background: var(--bg-hover); }
 .proj-item.current {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: color-mix(in srgb, var(--primary) 12%, var(--bg-panel));
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
 }
-.proj-item.editing { background: #f8fafc; border-color: var(--primary); }
+.proj-item.editing {
+  background: var(--bg-soft, var(--bg));
+  border-color: var(--primary);
+}
 .dot {
   width: 6px;
   height: 6px;
@@ -352,7 +370,8 @@ function onRemove(p) {
   border: 1px solid var(--primary);
   border-radius: 4px;
   outline: none;
-  background: #fff;
+  background: var(--bg-panel);
+  color: var(--text);
 }
 
 .new-btn {

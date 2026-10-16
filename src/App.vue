@@ -17,20 +17,25 @@
       @ai="openAI"
     />
     <div class="main">
-      <ProjectSidebar
+      <LeftDock
+        ref="leftDockRef"
         @new="onNew"
         @open="onOpen"
         @save="onSave"
         @save-as="onSaveAs"
         @switch="switchToProject"
+        @open-ai-settings="aiSettingsVisible = true"
+        @ai-applied="onAIApplied"
       />
-      <ComponentPanel class="left" />
-      <Suspense>
-        <DesignCanvas class="center" />
-        <template #fallback>
-          <div class="center canvas-fallback" role="status">{{ t('正在加载画布…') }}</div>
-        </template>
-      </Suspense>
+      <div class="canvas-stage center">
+        <CanvasToolbar />
+        <Suspense>
+          <DesignCanvas class="canvas-body" />
+          <template #fallback>
+            <div class="canvas-fallback" role="status">{{ t('正在加载画布…') }}</div>
+          </template>
+        </Suspense>
+      </div>
       <!-- 属性栏：支持拖拽调宽 / 收起。AI 调整跟属性共用这一栏，避免再挤掉画布。 -->
       <div class="right-panel" :class="{ resizing }" :style="rightPanelStyle">
         <div
@@ -45,23 +50,14 @@
             class="panel-toggle"
             @click="togglePanel"
             :title="panelHidden ? '展开属性栏' : '收起属性栏'"
+            :aria-label="panelHidden ? t('展开属性栏') : t('收起属性栏')"
           >{{ panelHidden ? '⟨' : '⟩' }}</button>
-          <template v-if="!panelHidden">
-            <button class="right-tab" :class="{ active: !aiDialogVisible }" @click="aiDialogVisible = false">{{ t('属性') }}</button>
-            <button class="right-tab" :class="{ active: aiDialogVisible }" @click="aiDialogVisible = true">{{ t('AI 调整') }}</button>
-          </template>
-          <span v-else class="right-title-v">{{ aiDialogVisible ? t('AI') : t('属性') }}</span>
+          <span v-if="!panelHidden" class="right-tab active">{{ t('属性') }}</span>
+          <span v-else class="right-title-v">{{ t('属性') }}</span>
         </div>
-        <div v-show="!panelHidden && !aiDialogVisible" class="right-body">
+        <div v-show="!panelHidden" class="right-body">
           <PropertyPanel @field-map="fieldMapVisible = true" />
         </div>
-        <AIDialog
-          v-show="!panelHidden && aiDialogVisible"
-          class="right-body"
-          @close="aiDialogVisible = false"
-          @open-settings="aiSettingsVisible = true"
-          @applied="onAIApplied"
-        />
       </div>
     </div>
     <DataPanel class="bottom" @import="onImportData" @load-sample="onLoadSample" />
@@ -123,17 +119,16 @@ import { useI18n } from './utils/i18n'
 const { t } = useI18n()
 import { useProjectStore } from './stores/project'
 import { useDataStore } from './stores/data'
+import CanvasToolbar from './components/CanvasToolbar.vue'
+import LeftDock from './components/LeftDock.vue'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { mergeDataAppend, headersFromRows } from './utils/dataMerge'
 import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
-import ProjectSidebar from './components/ProjectSidebar.vue'
-import ComponentPanel from './components/ComponentPanel.vue'
 import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
 import { toastError, toastSuccess, toastInfo } from './utils/toast'
-import AIDialog from './components/AIDialog.vue'
 import { runDiagnostics } from './utils/diagnose'
 
 // 画布含 fabric，异步加载让工具栏/侧栏先出屏（改善 LCP）
@@ -244,7 +239,7 @@ const templateVisible = ref(false)
 const fieldMapVisible = ref(false)
 const printCenterVisible = ref(false)
 const previewRef = ref(null)
-const aiDialogVisible = ref(false)
+const leftDockRef = ref(null)
 const aiSettingsVisible = ref(false)
 // 打印前体检
 const preflightVisible = ref(false)
@@ -344,8 +339,7 @@ function togglePanel() {
 }
 
 function openAI() {
-  aiDialogVisible.value = !aiDialogVisible.value
-  if (aiDialogVisible.value && panelHidden.value) togglePanel()
+  leftDockRef.value?.showView('ai')
 }
 
 function sanitizeName(s) {
@@ -701,12 +695,25 @@ window.addEventListener('keydown', onGlobalKey)
   display: flex;
   overflow: hidden;
 }
-.left {
-  width: 240px;
-  flex-shrink: 0;
-  background: var(--bg-panel);
-  border-right: 1px solid var(--border);
-  overflow: auto;
+.canvas-stage {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+.canvas-body {
+  flex: 1;
+  min-height: 0;
+}
+.canvas-fallback {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 /* ---- 右侧属性栏 ---- */
@@ -789,19 +796,7 @@ window.addEventListener('keydown', onGlobalKey)
 }
 .center {
   flex: 1;
-  background: var(--bg);
-  overflow: auto;
-}
-.canvas-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  background:
-    radial-gradient(600px 280px at 30% 20%, rgba(37, 99, 235, 0.08), transparent 60%),
-    var(--bg);
+  min-width: 0;
 }
 .bottom {
   height: 220px;

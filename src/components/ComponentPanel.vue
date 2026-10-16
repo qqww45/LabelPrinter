@@ -1,7 +1,29 @@
 <template>
-  <div class="component-panel">
-    <div class="section">
-      <div class="section-title">📦 {{ t('组件') }}</div>
+  <div class="component-panel" :class="{ 'only-mode': !!only }">
+    <div v-if="!only" class="rail-tabs" role="tablist" :aria-label="t('设计面板')">
+      <button
+        role="tab"
+        type="button"
+        class="rail-tab"
+        :class="{ on: activeView === 'components' }"
+        :aria-selected="activeView === 'components'"
+        @click="setTab('components')"
+      >{{ t('组件') }}</button>
+      <button
+        role="tab"
+        type="button"
+        class="rail-tab"
+        :class="{ on: activeView === 'layers' }"
+        :aria-selected="activeView === 'layers'"
+        @click="setTab('layers')"
+      >
+        {{ t('图层') }}
+        <span v-if="project.project.components.length" class="tab-count">{{ project.project.components.length }}</span>
+      </button>
+    </div>
+
+    <div v-show="activeView === 'components'" class="section section-fill" role="tabpanel">
+      <p class="section-lead">{{ t('点击添加，或拖到画布指定位置') }}</p>
       <div class="components-grid">
         <div
           v-for="item in componentTypes"
@@ -18,10 +40,18 @@
         </div>
       </div>
     </div>
-    <div class="section">
-      <div class="section-title">
-        <span>📋 {{ t('图层') }} <span class="hint" v-if="project.project.components.length">{{ project.selectedIds.length }} / {{ project.project.components.length }}</span></span>
+
+    <div v-show="activeView === 'layers'" class="section section-fill" role="tabpanel">
+      <div v-if="!only" class="section-title">
+        <span>{{ t('图层') }}
+          <span class="hint" v-if="project.project.components.length">{{ project.selectedIds.length }} / {{ project.project.components.length }}</span>
+        </span>
       </div>
+      <p v-else class="section-lead">
+        {{ project.project.components.length
+          ? t('已选 {n} / 共 {m}', { n: project.selectedIds.length, m: project.project.components.length })
+          : t('画布为空') }}
+      </p>
       <div v-if="!project.project.components.length" class="empty">
         {{ t('画布为空') }}
       </div>
@@ -44,65 +74,38 @@
           <img v-if="c.type === 'image' && c.src" class="layer-thumb" :src="c.src" :title="c.name || '图片'" />
           <span v-else-if="c.type === 'image'" class="layer-thumb layer-thumb-empty" :title="t('未上传图片')">{{ t('空') }}</span>
           <span class="layer-name">{{ c.name || labelOf(c) }}</span>
-          <button class="layer-eye" @click.stop="project.updateComponent(c.id, { hidden: !c.hidden })" :title="c.hidden ? t('显示') : t('隐藏')">{{ c.hidden ? '◌' : '👁' }}</button>
-          <button class="layer-order" @click.stop="project.bringForward(c.id)" :title="t('上移一层')">↑</button>
-          <button class="layer-order" @click.stop="project.sendBackward(c.id)" :title="t('下移一层')">↓</button>
-          <button class="layer-del" @click.stop="onLayerDelete(c, $event)" :title="t('删除')">×</button>
+          <button class="layer-eye" type="button" @click.stop="project.updateComponent(c.id, { hidden: !c.hidden })" :title="c.hidden ? t('显示') : t('隐藏')" :aria-label="c.hidden ? t('显示') : t('隐藏')">{{ c.hidden ? '◌' : '👁' }}</button>
+          <button class="layer-order" type="button" @click.stop="project.bringForward(c.id)" :title="t('上移一层')" :aria-label="t('上移一层')">↑</button>
+          <button class="layer-order" type="button" @click.stop="project.sendBackward(c.id)" :title="t('下移一层')" :aria-label="t('下移一层')">↓</button>
+          <button class="layer-del" type="button" @click.stop="onLayerDelete(c, $event)" :title="t('删除')" :aria-label="t('删除')">×</button>
         </div>
       </div>
     </div>
-
-    <div class="section">
-      <div class="section-title">
-        <span>🔗 {{ t('数据字段') }} <span class="hint">{{ t('拖拽到组件以绑定') }}</span></span>
-        <button class="section-add" :title="t('添加新字段')" @click="addFieldPrompt">+</button>
-      </div>
-      <div v-if="!data.fields.length" class="empty">
-        <div>{{ t('暂无字段') }}</div>
-        <div>{{ t('请先在底部导入数据') }}</div>
-        <button class="empty-btn" @click="addFieldPrompt">+ {{ t('添加字段') }}</button>
-      </div>
-      <div v-else class="fields">
-        <div
-          v-for="f in data.fields"
-          :key="f"
-          class="field-item"
-          :draggable="editingField !== f"
-          @dragstart="editingField !== f && onFieldDragStart($event, f)"
-          :title="t('拖拽到组件绑定字段 {f}', { f })"
-        >
-          <input
-            v-if="editingField === f"
-            ref="fieldInput"
-            class="field-input"
-            :value="editDraft"
-            @input="editDraft = $event.target.value"
-            @blur="commitFieldRename(f)"
-            @keydown.enter.prevent="commitFieldRename(f)"
-            @keydown.esc="cancelFieldEdit"
-            @click.stop
-          />
-          <template v-else>
-            <span class="field-name" @click="startFieldEdit(f)">📄 {{ f }}</span>
-            <button class="field-x" :title="t('删除该字段（会从所有组件解绑）')" @click.stop="delField(f)">×</button>
-          </template>
-        </div>
-      </div>
-    </div>
-
   </div>
 </template>
 
 <script setup>
 import { useProjectStore } from '../stores/project'
-import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
-import { toastError } from '../utils/toast'
 const { t } = useI18n()
-import { ref, nextTick } from 'vue'
+import { ref, computed } from 'vue'
+
+const props = defineProps({
+  /** LeftDock 指定只显示组件或图层 */
+  only: { type: String, default: '' } // '' | 'components' | 'layers'
+})
 
 const project = useProjectStore()
-const data = useDataStore()
+const TAB_KEY = 'labelprint_left_tab'
+const tab = ref(localStorage.getItem(TAB_KEY) === 'layers' ? 'layers' : 'components')
+function setTab(name) {
+  tab.value = name
+  try { localStorage.setItem(TAB_KEY, name) } catch {}
+}
+const activeView = computed(() => {
+  if (props.only === 'components' || props.only === 'layers') return props.only
+  return tab.value
+})
 
 // SVG 缩略图（viewBox 40×40），用 currentColor 跟随主题
 function svgText() {
@@ -305,66 +308,6 @@ function onLayerDrop(e, target) {
   project.reorderComponent(dragId, toArrIdx)
 }
 
-function onFieldDragStart(e, field) {
-  e.dataTransfer.setData('field-name', field)
-  e.dataTransfer.effectAllowed = 'copy'
-}
-
-// ============ 字段增删改（与 DataPanel 行为一致，自动级联 project 引用）============
-const editingField = ref('')
-const editDraft = ref('')
-const fieldInput = ref(null)
-
-function startFieldEdit(name) {
-  editingField.value = name
-  editDraft.value = name
-  nextTick(() => {
-    const el = fieldInput.value
-    if (el && el.focus) {
-      el.focus()
-      try { el.setSelectionRange(0, name.length) } catch {}
-    }
-  })
-}
-
-function commitFieldRename(oldName) {
-  if (!editingField.value) return
-  const v = editDraft.value.trim()
-  if (v && v !== oldName) {
-    try {
-      data.renameColumn(oldName, v)
-    } catch (e) {
-      toastError(e.message || t('重命名失败'))
-    }
-  }
-  editingField.value = ''
-  editDraft.value = ''
-}
-
-function cancelFieldEdit() {
-  editingField.value = ''
-  editDraft.value = ''
-}
-
-function addFieldPrompt() {
-  const name = prompt(t('请输入新字段名（留空自动命名）'))
-  if (name === null) return
-  try {
-    data.addColumn(name || '')
-  } catch (e) {
-    toastError(e.message || t('添加失败'))
-  }
-}
-
-function delField(name) {
-  if (!confirm(t('删除字段 "{name}" 及其所有数据？\n（所有组件的该字段绑定也会被清除）', { name }))) return
-  try {
-    data.removeColumn(name)
-    if (editingField.value === name) cancelFieldEdit()
-  } catch (e) {
-    toastError(e.message || t('删除失败'))
-  }
-}
 </script>
 
 <style scoped>
@@ -372,10 +315,82 @@ function delField(name) {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+.component-panel.only-mode .section-fill {
+  padding-top: 8px;
+}
+.rail-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 8px 8px 0;
+  flex-shrink: 0;
+  background: var(--bg-panel);
+}
+.rail-tab {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 8px 6px 10px;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+}
+.rail-tab:hover { color: var(--text); background: var(--bg-hover); }
+.rail-tab.on {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--bg));
+}
+.rail-tab.on::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--primary);
+}
+.rail-tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.tab-count {
+  display: inline-block;
+  margin-left: 4px;
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg-soft, var(--bg));
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.rail-tab.on .tab-count {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--primary);
 }
 .section {
-  padding: 12px;
+  padding: 10px 12px 12px;
   border-bottom: 1px solid var(--border);
+}
+.section-fill {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-bottom: 0;
+}
+.section-lead {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 .section-title {
   font-weight: 600;
@@ -447,8 +462,16 @@ function delField(name) {
 }
 .component-item:hover {
   border-color: var(--primary);
-  background: white;
+  background: var(--bg-panel);
   transform: translateY(-1px);
+}
+.component-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .component-item { transition: none; }
+  .component-item:hover { transform: none; }
 }
 .component-item:active {
   cursor: grabbing;
@@ -566,7 +589,7 @@ function delField(name) {
 }
 .layer-item:hover { background: var(--bg-hover); }
 .layer-item.active {
-  background: rgba(99, 102, 241, 0.15);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
   color: var(--text);
 }
 .layer-item.active.primary {

@@ -67,10 +67,7 @@
 
     <div class="spacer" />
 
-    <div class="group">
-      <button class="btn btn-icon" type="button" @click="project.undo()" :disabled="!project.canUndo" :title="t('撤销 (Ctrl+Z)')" :aria-label="t('撤销 (Ctrl+Z)')">↩</button>
-      <button class="btn btn-icon" type="button" @click="project.redo()" :disabled="!project.canRedo" :title="t('重做 (Ctrl+Y)')" :aria-label="t('重做 (Ctrl+Y)')">↪</button>
-      <span class="divider divider-hide-narrow" />
+    <div class="group group-prefs">
       <button
         class="btn btn-icon"
         type="button"
@@ -90,34 +87,14 @@
         {{ settings.lang === 'en' ? '中' : 'EN' }}
       </button>
     </div>
-
-    <div class="group zoom-group">
-      <button class="btn btn-icon" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" aria-label="缩小">−</button>
-      <div class="zoom-select" :title="t('缩放比例（点击选常用档位）')">
-        <select :value="zoomPercent" @change="onZoomPreset($event.target.value)">
-          <option v-for="p in zoomOptions" :key="p" :value="p">{{ p }}%</option>
-        </select>
-      </div>
-      <button class="btn btn-icon" @click="zoomIn" :title="t('放大 (Ctrl++)')" aria-label="放大">+</button>
-      <button class="btn btn-icon" @click="zoomReset" :title="t('实际大小 (Ctrl+0)')" aria-label="实际大小 100%">1:1</button>
-      <button class="btn btn-icon" @click="zoomFit" :title="t('适合窗口 (F)')" aria-label="适合窗口">⛶</button>
-      <button
-        class="btn btn-icon"
-        :class="{ active: project.showGrid }"
-        @click="toggleGrid"
-        :title="t('网格 (G)') + (project.showGrid ? '  · ' + t('已开启') : '  · ' + t('已关闭'))"
-        aria-label="网格"
-      >▦</button>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, computed, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../utils/i18n'
-import { fitZoomToWindow } from '../utils/canvasFit'
 
 const project = useProjectStore()
 const settings = useSettingsStore()
@@ -148,62 +125,8 @@ const COMPACT_THRESHOLD = 1180
 const isCompact = ref(typeof window !== 'undefined' && window.innerWidth < COMPACT_THRESHOLD)
 function onResize() { isCompact.value = window.innerWidth < COMPACT_THRESHOLD }
 
-const zoomPresets = [25, 50, 75, 100, 125, 150, 200, 300, 400]
-const zoomPercent = computed(() => Math.round(project.zoom * 100))
-const zoomOptions = computed(() => {
-  const current = zoomPercent.value
-  if (zoomPresets.includes(current)) return zoomPresets
-  return [...zoomPresets, current].sort((a, b) => a - b)
-})
-
-function step() {
-  const z = project.zoom
-  if (z < 0.5) return 0.1
-  if (z < 1.5) return 0.05
-  return 0.1
-}
-function zoomIn() { project.zoom = Math.min(4, +(project.zoom + step()).toFixed(2)); project.autoFit = false }
-function zoomOut() { project.zoom = Math.max(0.2, +(project.zoom - step()).toFixed(2)); project.autoFit = false }
-function zoomReset() { project.zoom = 1; project.autoFit = false }
-function onZoomPreset(p) { project.zoom = Number(p) / 100; project.autoFit = false }
-function zoomFit() {
-  const wrap = document.querySelector('.design-canvas-wrap')
-  const z = fitZoomToWindow(wrap, project.project.label.width || 50, project.project.label.height || 30)
-  if (z != null) project.zoom = z
-  project.autoFit = true
-}
-function toggleGrid() { project.showGrid = !project.showGrid }
-
-function onKeydown(e) {
-  const tag = (e.target.tagName || '').toLowerCase()
-  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return
-  if (!(e.ctrlKey || e.metaKey) && !['+', '-', '0', 'f', 'g'].includes(e.key.toLowerCase())) return
-  if (e.ctrlKey || e.metaKey) {
-    if (e.key === '=' || e.key === '+') { e.preventDefault(); zoomIn() }
-    else if (e.key === '-') { e.preventDefault(); zoomOut() }
-    else if (e.key === '0') { e.preventDefault(); zoomReset() }
-  } else {
-    if (e.key.toLowerCase() === 'f') { e.preventDefault(); zoomFit() }
-    if (e.key.toLowerCase() === 'g' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); toggleGrid() }
-  }
-}
-function onWheel(e) {
-  if (!e.ctrlKey && !e.metaKey) return
-  const canvas = e.target.closest('.design-canvas-wrap')
-  if (!canvas) return
-  e.preventDefault()
-  if (e.deltaY < 0) zoomIn(); else zoomOut()
-}
-onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
-  window.addEventListener('wheel', onWheel, { passive: false })
-  window.addEventListener('resize', onResize)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('wheel', onWheel)
-  window.removeEventListener('resize', onResize)
-})
+onMounted(() => { window.addEventListener('resize', onResize) })
+onBeforeUnmount(() => { window.removeEventListener('resize', onResize) })
 </script>
 
 <style scoped>
@@ -286,37 +209,6 @@ onBeforeUnmount(() => {
 .btn .ico :deep(svg) { display: block; }
 .btn .txt { white-space: nowrap; }
 
-.zoom-group { gap: 2px; }
-.zoom-select {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.zoom-select select {
-  appearance: none; -webkit-appearance: none;
-  border: 1px solid var(--border);
-  background: var(--bg-panel);
-  color: var(--text);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 18px 2px 8px;
-  border-radius: 3px;
-  cursor: pointer;
-  height: 28px;
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 10px) 12px, calc(100% - 6px) 12px;
-  background-size: 4px 4px, 4px 4px;
-  background-repeat: no-repeat;
-  opacity: 0.85;
-}
-.zoom-select select:hover { opacity: 1; }
-.zoom-select select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
-.btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-}
-
 .toolbar.compact .logo-text,
 .toolbar.compact .filename-text { display: none; }
 .toolbar.compact .btn .txt { display: none; }
@@ -324,8 +216,4 @@ onBeforeUnmount(() => {
 .toolbar.compact .divider-hide-narrow { display: none; }
 .toolbar.compact .group { background: transparent; padding: 0; }
 .toolbar.compact .btn { padding: 4px 6px; }
-
-@media (max-width: 720px) {
-  .toolbar.compact .zoom-select { display: none; }
-}
 </style>

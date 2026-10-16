@@ -703,7 +703,26 @@ const EN = {
   '左': 'L',
   '中': 'C',
   '右': 'R',
-  '绑定字段': 'Bound field'
+  '绑定字段': 'Bound field',
+  '设计面板': 'Design panel',
+  '点击添加，或拖到画布指定位置': 'Click to add, or drag onto the canvas',
+  '画布工具': 'Canvas tools',
+  '缩放': 'Zoom',
+  '缩小': 'Zoom out',
+  '放大': 'Zoom in',
+  '实际大小': 'Actual size',
+  '适合窗口': 'Fit window',
+  '网格': 'Grid',
+  '拖到画布组件上绑定': 'Drag onto a canvas component to bind',
+  '{n} 张/页': '{n} / page',
+  '左侧面板': 'Left panel',
+  '字段': 'Fields',
+  '打开「{n}」': 'Open "{n}"',
+  '收起「{n}」': 'Collapse "{n}"',
+  '已选 {n} / 共 {m}': 'Selected {n} / {m}',
+  'API 设置': 'API settings',
+  '展开属性栏': 'Expand properties',
+  '收起属性栏': 'Collapse properties'
 }
 
 export function useI18n() {
