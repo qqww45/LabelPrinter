@@ -28,6 +28,10 @@
 <script setup>
 import { ref, onMounted, watch, computed, onBeforeUnmount, nextTick } from 'vue'
 import * as fabric from 'fabric'
+
+// Fabric 7 默认原点改为 center/center；本应用按 left/top 定位，保持与 v6 一致
+fabric.FabricObject.ownDefaults.originX = 'left'
+fabric.FabricObject.ownDefaults.originY = 'top'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'

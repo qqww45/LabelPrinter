@@ -400,7 +400,7 @@ async function onOpen() {
     } else if (json.dataSource?.path) {
       // 外置：尝试加载
       try {
-        const df = await pickFile('.xlsx,.xls,.csv')
+        const df = await pickFile('.xlsx,.xls,.csv,.txt')
         const { parseExcelFile } = await import('./utils/excel')
         const parsed = await parseExcelFile(df)
         data.setData({
@@ -507,7 +507,7 @@ function confirmImport(mode) {
 // 已有数据时用页面里的三个按钮：追加 / 替换 / 取消
 async function onImportData() {
   try {
-    const file = await pickFile('.xlsx,.xls,.csv')
+    const file = await pickFile('.xlsx,.xls,.csv,.txt')
     const { parseExcelFile } = await import('./utils/excel')
     const parsed = await parseExcelFile(file)
     const headers = (parsed.headers || []).map(s => String(s || '').replace(/^\uFEFF/, '').trim())
