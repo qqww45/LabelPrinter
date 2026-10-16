@@ -131,21 +131,31 @@ import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
 import { toastError, toastSuccess, toastInfo } from './utils/toast'
 import { runDiagnostics } from './utils/diagnose'
+import DialogLoading from './components/DialogLoading.vue'
 
 // 画布含 fabric，异步加载让工具栏/侧栏先出屏（改善 LCP）
 const DesignCanvas = defineAsyncComponent(() => import('./components/DesignCanvas.vue'))
-// 弹窗按需加载：缩短首包，打开时再拉 PDF/预览等重模块
-const PaperConfig = defineAsyncComponent(() => import('./components/PaperConfig.vue'))
-const TemplateDialog = defineAsyncComponent(() => import('./components/TemplateDialog.vue'))
-const FieldMapDialog = defineAsyncComponent(() => import('./components/FieldMapDialog.vue'))
-const PrintCenterDialog = defineAsyncComponent(() => import('./components/PrintCenterDialog.vue'))
-const PrintConfig = defineAsyncComponent(() => import('./components/PrintConfig.vue'))
-const LayoutEditor = defineAsyncComponent(() => import('./components/LayoutEditor.vue'))
-const PreviewDialog = defineAsyncComponent(() => import('./components/PreviewDialog.vue'))
-const AISettingsDialog = defineAsyncComponent(() => import('./components/AISettingsDialog.vue'))
-const AboutDialog = defineAsyncComponent(() => import('./components/AboutDialog.vue'))
-const PreflightCheckDialog = defineAsyncComponent(() => import('./components/PreflightCheckDialog.vue'))
-const OnboardingGuide = defineAsyncComponent(() => import('./components/OnboardingGuide.vue'))
+// 弹窗按需加载：缩短首包。第一次打开要等模块下来，这段时间先显示「正在打开」。
+function lazyDialog(loader) {
+  return defineAsyncComponent({
+    loader,
+    loadingComponent: DialogLoading,
+    errorComponent: DialogLoading,
+    delay: 80,
+    timeout: 20000
+  })
+}
+const PaperConfig = lazyDialog(() => import('./components/PaperConfig.vue'))
+const TemplateDialog = lazyDialog(() => import('./components/TemplateDialog.vue'))
+const FieldMapDialog = lazyDialog(() => import('./components/FieldMapDialog.vue'))
+const PrintCenterDialog = lazyDialog(() => import('./components/PrintCenterDialog.vue'))
+const PrintConfig = lazyDialog(() => import('./components/PrintConfig.vue'))
+const LayoutEditor = lazyDialog(() => import('./components/LayoutEditor.vue'))
+const PreviewDialog = lazyDialog(() => import('./components/PreviewDialog.vue'))
+const AISettingsDialog = lazyDialog(() => import('./components/AISettingsDialog.vue'))
+const AboutDialog = lazyDialog(() => import('./components/AboutDialog.vue'))
+const PreflightCheckDialog = lazyDialog(() => import('./components/PreflightCheckDialog.vue'))
+const OnboardingGuide = lazyDialog(() => import('./components/OnboardingGuide.vue'))
 
 const project = useProjectStore()
 const data = useDataStore()

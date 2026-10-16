@@ -819,6 +819,8 @@ const EN = {
   '模板已保存': 'Template saved',
   '样式已复制': 'Style copied',
   '正在加载画布…': 'Loading canvas…',
+  '正在打开…': 'Opening…',
+  '打开失败，请关闭后重试': 'Could not open. Close and try again.',
   'API Key 默认只存在本标签页会话，不上传服务器。勾选「记住」才会写入本机。': 'API Key stays in this tab session by default and is never uploaded. Check “Remember” to store it on this device.',
   '记住 API Key（保存在本浏览器，共用电脑请勿勾选）': 'Remember API Key (stored in this browser — skip on shared PCs)',
   '清除本机数据': 'Clear local data',
