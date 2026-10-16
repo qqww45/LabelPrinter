@@ -30,7 +30,6 @@
           @new="emit('new')"
           @open="emit('open')"
           @save="emit('save')"
-          @save-as="emit('save-as')"
           @switch="id => emit('switch', id)"
         />
         <ComponentPanel v-else-if="view === 'components'" only="components" />
@@ -58,7 +57,7 @@ import ComponentPanel from './ComponentPanel.vue'
 import FieldBindStrip from './FieldBindStrip.vue'
 import AIDialog from './AIDialog.vue'
 
-const emit = defineEmits(['new', 'open', 'save', 'save-as', 'switch', 'open-ai-settings', 'ai-applied'])
+const emit = defineEmits(['new', 'open', 'save', 'switch', 'open-ai-settings', 'ai-applied'])
 const { t } = useI18n()
 const project = useProjectStore()
 const data = useDataStore()

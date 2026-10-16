@@ -22,7 +22,6 @@
         @new="onNew"
         @open="onOpen"
         @save="onSave"
-        @save-as="onSaveAs"
         @switch="switchToProject"
         @open-ai-settings="aiSettingsVisible = true"
         @ai-applied="onAIApplied"
@@ -429,21 +428,6 @@ function onSave() {
     data2save.dataSource.data = JSON.parse(JSON.stringify(data.rows))
   }
   const name = project.project.meta.name || '未命名'
-  saveJSON(data2save, `${name}.json`)
-  project.dirty = false
-  toastSuccess(t('已保存'))
-}
-
-async function onSaveAs() {
-  embedCurrentData()
-  const data2save = project.getExportData()
-  if (data.rows.length) {
-    data2save.dataSource.embedded = true
-    data2save.dataSource.data = JSON.parse(JSON.stringify(data.rows))
-  }
-  const name = sanitizeName(prompt('项目名称', project.project.meta.name || '未命名'))
-  if (!name) return
-  project.project.meta.name = name
   saveJSON(data2save, `${name}.json`)
   project.dirty = false
   toastSuccess(t('已保存'))

@@ -71,18 +71,15 @@
           <button type="button" class="file-link" :title="t('下载项目文件。设计会自动留在这台浏览器里')" @click="$emit('save')">
             <span aria-hidden="true" v-html="icons.download"></span>{{ t('下载') }}
           </button>
-          <button type="button" class="file-link" :title="t('换个文件名下载')" @click="$emit('save-as')">
-            <span aria-hidden="true" v-html="icons.saveAs"></span>{{ t('下载为') }}
-          </button>
+          <button
+            type="button"
+            class="file-link file-link-danger"
+            :disabled="clearing"
+            :title="t('删除本浏览器里的项目、模板、打印记录与 AI Key')"
+            @click="onClearLocal"
+          >{{ clearing ? t('清除中…') : t('清除本机') }}</button>
         </div>
         <div class="foot-note">{{ t('自动保存在这台浏览器，下载才是文件') }}</div>
-        <button
-          type="button"
-          class="clear-local"
-          :disabled="clearing"
-          :title="t('删除本浏览器里的项目、模板、打印记录与 AI Key')"
-          @click="onClearLocal"
-        >{{ clearing ? t('清除中…') : t('清除本机数据') }}</button>
       </div>
     </div>
   </div>
@@ -100,15 +97,14 @@ defineProps({
   /** 嵌入 LeftDock 时只渲染内容，不自带收起窄条 */
   embedded: { type: Boolean, default: false }
 })
-defineEmits(['new', 'open', 'save', 'save-as', 'switch'])
+defineEmits(['new', 'open', 'save', 'switch'])
 const clearing = ref(false)
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const icons = {
   plus: S('<path d="M12 5v14M5 12h14"/>'),
   open: S('<path d="M4 7.5h6l1.5 2H20v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-10z"/>'),
-  download: S('<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h14"/>'),
-  saveAs: S('<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h9M17 16v4M15 18h4"/>')
+  download: S('<path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 18h14"/>')
 }
 
 async function onClearLocal() {
@@ -374,6 +370,18 @@ function onRemove(p) {
   display: block;
   opacity: 0.85;
 }
+.file-link-danger {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+.file-link-danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+.file-link-danger:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
 
 .proj-list {
   flex: 1;
@@ -463,24 +471,5 @@ function onRemove(p) {
   color: var(--text-muted);
   text-align: center;
   line-height: 1.4;
-}
-.clear-local {
-  font-size: 11px;
-  padding: 5px 8px;
-  border-radius: 5px;
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: var(--danger);
-  background: rgba(239, 68, 68, 0.06);
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-.clear-local:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: var(--danger);
-}
-.clear-local:disabled { opacity: 0.5; cursor: wait; }
-.clear-local:focus-visible {
-  outline: 2px solid var(--danger);
-  outline-offset: 2px;
 }
 </style>
