@@ -57,7 +57,7 @@
                     :disabled="!h.projectId || !hasProject(h.projectId)"
                     :title="hasProject(h.projectId) ? t('切换到该项目并打开预览') : t('该项目已不存在')"
                     @click="$emit('reprint', h)"
-                  >{{ t('重打') }}</button>
+                  >{{ t('打开项目') }}</button>
                   <button class="btn btn-sm" @click="printStore.removeHistory(h.id)">{{ t('删除') }}</button>
                 </td>
               </tr>

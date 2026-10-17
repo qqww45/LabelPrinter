@@ -8,8 +8,9 @@
  *
  * 纯函数、无副作用，方便单测。
  */
-import { expandPrintLabels } from './printModel.js'
+import { expandPrintLabels, componentHidden } from './printModel.js'
 import { normalizeMargin } from './pageBox.js'
+import { codePayload, isEncodableCode, resolveRow } from './render.js'
 
 /**
  * 单个组件引用到的所有字段名：
@@ -168,7 +169,38 @@ export function runDiagnostics({
     })
   }
 
-  // ④ 没有数据 —— 只出一张标签
+  // ④ 绑定了条码/二维码，但有的行是空的
+  if (Array.isArray(rows) && rows.length) {
+    const codes = components.filter(c => c && (c.type === 'barcode' || c.type === 'qrcode'))
+    const hits = []
+    if (codes.length) {
+      rows.forEach((row, i) => {
+        const resolved = resolveRow(row, fieldMap)
+        for (const c of codes) {
+          if (componentHidden(c, resolved)) continue
+          if (!isEncodableCode(codePayload(c, resolved))) {
+            hits.push({ rowIndex: i, id: c.id })
+            break
+          }
+        }
+      })
+    }
+    if (hits.length) {
+      const shown = hits.slice(0, 6).map(h => h.rowIndex + 1).join('、')
+      const more = hits.length > 6 ? '…' : ''
+      issues.push({
+        level: 'warn',
+        code: 'empty-code',
+        title: `${hits.length} 行的条码或二维码是空的`,
+        detail: `第 ${shown}${more} 行打出来扫不了。`,
+        fix: 'row',
+        rowIndex: hits[0].rowIndex,
+        ids: [hits[0].id]
+      })
+    }
+  }
+
+  // ⑤ 没有数据 —— 只出一张标签
   if (!rowCount) {
     issues.push({
       level: 'warn',

@@ -109,6 +109,13 @@ export const useDataStore = defineStore('data', () => {
     }
   }
 
+  function stepActive(delta) {
+    const n = displayRows.value.length
+    if (!n) return
+    const next = activeRowIndex.value + (Number(delta) || 0)
+    if (next >= 0 && next < n) activeRowIndex.value = next
+  }
+
   function setFilter(s) {
     filter.value = s
     if (activeRowIndex.value >= displayRows.value.length) {
@@ -259,7 +266,7 @@ export const useDataStore = defineStore('data', () => {
     headers, rows, activeRowIndex, filter, sourcePath, embedded,
     sortKey, sortDir,
     fields, filteredRows, displayRows, activeRow,
-    setData, clear, setActiveIndex, setFilter, setSort,
+    setData, clear, setActiveIndex, stepActive, setFilter, setSort,
     addRow, updateRow, removeRow,
     addColumn, renameColumn, removeColumn
   }

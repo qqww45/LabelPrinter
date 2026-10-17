@@ -17,7 +17,23 @@
       <!-- 纸张 · 当前数据行 · 本页张数（文案在 computed，避免模板里 {n} 被解析器误伤） -->
       <div class="info-bar" :title="infoBarTitle">
         <span>{{ paperHint }}</span>
-        <span v-if="data.displayRows.length" class="info-row">{{ rowHint }}</span>
+        <template v-if="data.displayRows.length">
+          <button
+            type="button"
+            class="info-step"
+            :disabled="data.activeRowIndex <= 0"
+            :aria-label="t('上一条')"
+            @click="data.stepActive(-1)"
+          >‹</button>
+          <span class="info-row">{{ rowHint }}</span>
+          <button
+            type="button"
+            class="info-step"
+            :disabled="data.activeRowIndex >= data.displayRows.length - 1"
+            :aria-label="t('下一条')"
+            @click="data.stepActive(1)"
+          >›</button>
+        </template>
         <span v-else class="info-muted">{{ t('无数据') }}</span>
         <span v-if="labelsPerPage > 1">{{ pageHint }}</span>
       </div>
@@ -670,6 +686,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       const ready = c.type === 'barcode'
         ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, {
           format: c.format,
+          textRatio: c.textRatio,
           targetWidth: boxW * 2,
           targetHeight: boxH * 2
         })))
@@ -1251,6 +1268,20 @@ watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
   backdrop-filter: blur(4px);
 }
 .info-row { color: #bfdbfe; }
+.info-step {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+.info-step:disabled { opacity: 0.35; cursor: default; }
+.info-step:focus-visible { outline: 2px solid #bfdbfe; outline-offset: 1px; }
 .info-muted { color: #94a3b8; font-weight: 500; }
 @media (prefers-reduced-motion: reduce) {
   .info-bar { transition: none; }

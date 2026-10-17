@@ -1,5 +1,5 @@
 <template>
-  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen }">
+  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen || projOpen }">
     <div ref="brandRef" class="group group-brand">
       <div class="logo">
         <span class="logo-mark" aria-hidden="true">
@@ -12,8 +12,29 @@
         <span class="logo-text">{{ t('标签打印工具') }}</span>
       </div>
       <span class="filename" v-if="project.project.meta">
-        <span class="filename-text">{{ project.project.meta.name }}</span>
+        <button
+          type="button"
+          class="filename-btn"
+          :aria-label="t('切换项目')"
+          aria-haspopup="menu"
+          :aria-expanded="projOpen ? 'true' : 'false'"
+          @click="projOpen = !projOpen"
+        >
+          <span class="filename-text">{{ project.project.meta.name }}</span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
         <span v-if="project.dirty" class="dirty">●</span>
+        <div v-if="projOpen" class="proj-menu" role="menu">
+          <button
+            v-for="p in project.projects"
+            :key="p.id"
+            type="button"
+            class="more-item"
+            role="menuitem"
+            :aria-current="p.id === project.currentId ? 'true' : undefined"
+            @click="pickProject(p.id)"
+          >{{ p.name }}</button>
+        </div>
       </span>
     </div>
 
@@ -134,7 +155,7 @@
         <span class="ico" aria-hidden="true" v-html="icons.info"></span>
       </button>
     </div>
-    <div v-if="moreOpen" class="more-mask" @click="moreOpen = false"></div>
+    <div v-if="moreOpen || projOpen" class="more-mask" @click="moreOpen = false; projOpen = false"></div>
   </div>
 </template>
 
@@ -149,7 +170,7 @@ const settings = useSettingsStore()
 const { t } = useI18n()
 
 const emit = defineEmits([
-  'import-data',
+  'import-data', 'switch',
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
   'template-library', 'field-map', 'print-center', 'ai', 'about'
 ])
@@ -172,6 +193,11 @@ const overflowActions = computed(() =>
 )
 
 const moreOpen = ref(false)
+const projOpen = ref(false)
+function pickProject(id) {
+  projOpen.value = false
+  if (id && id !== project.currentId) emit('switch', id)
+}
 function pickMore(ev) {
   moreOpen.value = false
   emit(ev)
@@ -357,11 +383,43 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
 }
 .logo-text { white-space: nowrap; }
 .filename {
+  position: relative;
   color: var(--text-secondary);
   font-size: 13px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+.filename-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 180px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.filename-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.proj-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 31;
+  min-width: 180px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent);
+  overscroll-behavior: contain;
 }
 .filename-text {
   max-width: 160px;

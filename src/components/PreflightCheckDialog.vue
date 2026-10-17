@@ -79,6 +79,7 @@ function fixLabel(it) {
   if (it.fix === 'field-map') return t('去字段映射')
   if (it.fix === 'import') return t('去导入数据')
   if (it.fix === 'select') return t('定位到该元素')
+  if (it.fix === 'row') return t('翻到这一行')
   return t('去处理')
 }
 </script>

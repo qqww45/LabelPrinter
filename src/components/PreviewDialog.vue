@@ -174,7 +174,7 @@ import LayoutEditor from './LayoutEditor.vue'
 import PrintConfig from './PrintConfig.vue'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
-import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText } from '../utils/printModel'
+import { expandPrintLabels, paginateLabels, pageForSourceRow, componentHidden, componentPlainText } from '../utils/printModel'
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
@@ -277,6 +277,13 @@ const printLabels = computed(() => {
     row: resolveRow(item.row, project.project.dataSource?.fieldMap)
   }))
 })
+let previewPageReady = false
+watch(printLabels, (labels) => {
+  if (previewPageReady) return
+  previewPageReady = true
+  const page = pageForSourceRow(labels, data.activeRowIndex, labelsPerPage.value)
+  if (page > 1) currentPage.value = page
+}, { immediate: true })
 const labelCount = computed(() => data.displayRows.length ? printLabels.value.length : 0)
 const pages = computed(() => paginateLabels(printLabels.value, labelsPerPage.value))
 
@@ -384,6 +391,7 @@ const CompRenderer = defineComponent({
           const cv = c.type === 'barcode'
             ? barcodeToCanvas(String(txt), {
               format: c.format || 'CODE128',
+              textRatio: c.textRatio,
               targetWidth: Math.max(1, c.width * S() * 3),
               targetHeight: Math.max(1, c.height * S() * 3)
             })

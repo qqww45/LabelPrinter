@@ -236,6 +236,20 @@
             <option value="CODE39">CODE39</option>
           </select>
         </div>
+        <div class="form-row">
+          <label>{{ t('数字高度') }}</label>
+          <input
+            class="input"
+            type="number"
+            min="12"
+            max="40"
+            step="1"
+            :value="barcodeTextPercent"
+            :aria-label="t('数字高度')"
+            @change="update('textRatio', barcodeTextRatio((+$event.target.value || 22) / 100))"
+          />
+        </div>
+        <div class="hint" :class="{ warn: barcodeScanCode !== 'ok' }">{{ t(barcodeScanText(barcodeScanCode)) }}</div>
       </fieldset>
 
       <!-- 矩形 -->
@@ -551,7 +565,9 @@ const { t } = useI18n()
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { availableFields, componentFields, componentMissingFields } from '../utils/diagnose'
-import { placeholderNames, rewriteBindingText } from '../utils/render'
+import { barcodeTextRatio } from '../utils/barcodeFit'
+import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
+import { placeholderNames, rewriteBindingText, codePayload, resolveRow } from '../utils/render'
 import { heightForFont } from '../utils/textFit'
 import { ref, computed } from 'vue'
 import PropSection from './PropSection.vue'
@@ -563,6 +579,18 @@ const emit = defineEmits(['field-map'])
 
 const selected = computed(() => project.selectedComponent)
 const isMultiSelect = computed(() => project.isMultiSelect)
+const barcodeTextPercent = computed(() => Math.round(barcodeTextRatio(selected.value?.textRatio) * 100))
+const barcodeScanCode = computed(() => {
+  const c = selected.value
+  if (!c || c.type !== 'barcode') return 'ok'
+  const row = resolveRow(data.activeRow, project.project.dataSource?.fieldMap)
+  return barcodeScanIssue({
+    format: c.format,
+    value: codePayload(c, row),
+    widthMm: c.width,
+    heightMm: c.height
+  })
+})
 
 // 选中组件引用了「数据里不存在」的字段 → 即时预警（避免「打出来是空白」的困惑）
 const availFieldSet = computed(() => availableFields(data.fields, project.project.dataSource.fieldMap))
@@ -969,6 +997,7 @@ legend {
   margin: 0 0 8px;
 }
 .hint.indent { padding-left: 60px; }
+.hint.warn { color: var(--warning); }
 .check-line {
   display: flex;
   align-items: flex-start;

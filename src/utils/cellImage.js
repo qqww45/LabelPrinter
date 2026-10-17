@@ -1,6 +1,6 @@
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
-import { BARCODE_QUIET_MODULES, barcodeBarHeight, barcodeFontSize, barcodeModuleWidth } from './barcodeFit.js'
+import { BARCODE_QUIET_MODULES, barcodeBarHeight, barcodeFontSize, barcodeModuleWidth, barcodeTextRatio } from './barcodeFit.js'
 
 /**
  * 同步生成二维码 canvas（用于 canvas 内即时渲染，无需等待异步加载）
@@ -52,7 +52,7 @@ export function barcodeToCanvas(text, opts = {}) {
     const targetW = Number(opts.targetWidth) || 0
     const targetH = Number(opts.targetHeight) || 0
     const moduleWidth = barcodeModuleWidth(probe.width, targetW)
-    const fontSize = showText ? barcodeFontSize(targetH) : 14
+    const fontSize = showText ? barcodeFontSize(targetH, barcodeTextRatio(opts.textRatio)) : 14
     const margin = moduleWidth * BARCODE_QUIET_MODULES
     const cv = document.createElement('canvas')
     JsBarcode(cv, value, {

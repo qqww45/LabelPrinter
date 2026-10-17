@@ -409,6 +409,7 @@ function drawComponent(pdf, c, row, ox, oy) {
     if (typeof document === 'undefined') { drawBarcode(pdf, text, c.format, x, y, w, h); return }
     const cv = barcodeToCanvas(String(text), {
       format: c.format || 'CODE128',
+      textRatio: c.textRatio,
       targetWidth: barcodePrintPx(w),
       targetHeight: barcodePrintPx(h)
     })

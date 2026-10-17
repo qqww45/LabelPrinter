@@ -16,6 +16,7 @@
       @field-map="fieldMapVisible = true"
       @print-center="printCenterVisible = true"
       @preview="previewVisible = true"
+      @switch="switchToProject"
       @ai="openAI"
       @about="aboutVisible = true"
     />
@@ -97,6 +98,9 @@
         <div class="modal-body">
           <p>{{ t('当前 {cur} 条，新文件 {next} 条。', { cur: importPrompt.current, next: importPrompt.next }) }}</p>
           <p class="import-note">{{ t('追加按列名合并。替换会清空当前数据，且不能撤销。') }}</p>
+          <p v-if="importMatch && importMatch.missing.length" class="import-note">{{ t('版式上的「{names}」在新表里没有。', { names: importMatch.missing.join('、') }) }}</p>
+          <p v-else-if="importMatch && importMatch.matched.length" class="import-note">{{ t('版式用到的列都对上了。') }}</p>
+          <p v-if="importMatch && importMatch.extra.length" class="import-note">{{ t('新表多出来的列：{names}', { names: importMatch.extra.slice(0, 8).join('、') }) }}</p>
         </div>
         <div class="modal-footer">
           <button class="btn" @click="importPrompt = null">{{ t('取消') }}</button>
@@ -140,7 +144,8 @@ import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
 import { toastError, toastSuccess, toastInfo } from './utils/toast'
-import { runDiagnostics } from './utils/diagnose'
+import { runDiagnostics, componentFields } from './utils/diagnose'
+import { matchColumns } from './utils/columnMatch'
 import DialogLoading from './components/DialogLoading.vue'
 
 // 画布含 fabric，异步加载让工具栏/侧栏先出屏（改善 LCP）
@@ -302,6 +307,13 @@ const aboutVisible = ref(false)
 const preflightVisible = ref(false)
 const preflightReport = ref(null)
 const importPrompt = ref(null)
+const importMatch = computed(() => {
+  const p = importPrompt.value
+  if (!p) return null
+  const needed = [...new Set((project.project.components || []).flatMap(componentFields))]
+  if (!needed.length) return null
+  return matchColumns(p.headers, needed, project.project.dataSource?.fieldMap)
+})
 
 // 第一次打开先讲清工具并建立项目。看过之后，空画布才进入选样子。
 const onboardingDismissed = ref(localStorage.getItem('labelprint_onboarding_dismissed') === '1')
@@ -546,7 +558,17 @@ function applyImported(mode, payload) {
   healBoundText()
   embedCurrentData()
   project.markDirty()
-  toastSuccess(t('已导入 {n} 条数据', { n: data.rows.length }))
+  const note = columnNote(headers)
+  toastSuccess(note ? `${t('已导入 {n} 条数据', { n: data.rows.length })} ${note}` : t('已导入 {n} 条数据', { n: data.rows.length }))
+}
+
+function columnNote(headers) {
+  const needed = [...new Set((project.project.components || []).flatMap(componentFields))]
+  if (!needed.length) return ''
+  const hit = matchColumns(headers, needed, project.project.dataSource?.fieldMap)
+  if (hit.missing.length) return t('版式上的「{names}」在新表里没有。', { names: hit.missing.join('、') })
+  if (hit.matched.length) return t('版式用到的列都对上了。')
+  return ''
 }
 
 function confirmImport(mode) {
@@ -656,6 +678,9 @@ function preflightFix(issue) {
     onImportData()
   } else if (issue.fix === 'select' && issue.ids?.length) {
     project.selectOne(issue.ids[0])
+  } else if (issue.fix === 'row') {
+    if (Number.isInteger(issue.rowIndex)) data.setActiveIndex(issue.rowIndex)
+    if (issue.ids?.length) project.selectOne(issue.ids[0])
   }
 }
 

@@ -18,11 +18,19 @@ export function barcodeModuleWidth(moduleCount, targetWidth, quietModules = BARC
   return Math.max(1, Math.round(target / span))
 }
 
-/** 条码下方的数字，按格子高度来，避免画成很小再被拉糊。 */
-export function barcodeFontSize(targetHeight) {
+/** 数字占格子高度的比例。没设时用 0.22；大于 1 的数按百分数理解。 */
+export function barcodeTextRatio(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) return 0.22
+  const ratio = n > 1 ? n / 100 : n
+  return Math.min(0.4, Math.max(0.12, ratio))
+}
+
+/** 条码下方的数字，按格子高度和比例来，避免画成很小再被拉糊。 */
+export function barcodeFontSize(targetHeight, ratio) {
   const h = Math.round(Number(targetHeight) || 0)
   if (h <= 0) return 14
-  return Math.max(12, Math.min(64, Math.round(h * 0.22)))
+  return Math.max(12, Math.min(64, Math.round(h * barcodeTextRatio(ratio))))
 }
 
 /** 条的高度（像素）。把数字和左右空白从格子高度里扣掉。 */

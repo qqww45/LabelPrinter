@@ -77,7 +77,7 @@ export function expandPrintLabels(rows, opts = {}) {
       row['序号'] = String(serial)
       serial += 1
     }
-    return { row, serial: serialNo, copyIndex: item.copyIndex, index }
+    return { row, serial: serialNo, copyIndex: item.copyIndex, sourceIndex: item.sourceIndex, index }
   })
 }
 
@@ -170,4 +170,13 @@ export function slotOffsetMm(index, { label, margin, layout } = {}) {
     w: lw,
     h: lh
   }
+}
+
+/** 预览打开时，停在画布正在看的那一行所在的页。 */
+export function pageForSourceRow(labels, sourceIndex, perPage) {
+  const per = Math.max(1, Math.floor(Number(perPage) || 1))
+  const list = Array.isArray(labels) ? labels : []
+  const idx = list.findIndex(item => item && item.sourceIndex === sourceIndex)
+  if (idx < 0) return 1
+  return Math.floor(idx / per) + 1
 }
