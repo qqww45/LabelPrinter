@@ -97,7 +97,7 @@ defineProps({
   /** 嵌入 LeftDock 时只渲染内容，不自带收起窄条 */
   embedded: { type: Boolean, default: false }
 })
-defineEmits(['new', 'open', 'save', 'switch'])
+const emit = defineEmits(['new', 'open', 'save', 'switch'])
 const clearing = ref(false)
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
