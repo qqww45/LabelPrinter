@@ -53,13 +53,13 @@
             </div>
           </template>
           <div class="tool-group tool-actions">
-            <button class="btn btn-primary" type="button" @click="onPrint">{{ t('打印') }}</button>
+            <button class="btn btn-primary" type="button" :disabled="busy" @click="onPrint">{{ t('打印') }}</button>
             <div class="more-wrap">
-              <button class="btn" type="button" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
+              <button class="btn" type="button" :disabled="busy" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
               <div v-if="moreOpen" class="more-menu" @click.stop>
-                <button class="more-item" type="button" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
-                <button class="more-item" type="button" @click="runMore('image')">{{ t('导出图片') }}</button>
-                <button class="more-item" type="button" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
+                <button class="more-item" type="button" :disabled="busy" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
+                <button class="more-item" type="button" :disabled="busy" @click="runMore('image')">{{ t('导出图片') }}</button>
+                <button class="more-item" type="button" :disabled="busy" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
               </div>
             </div>
             <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
@@ -139,6 +139,11 @@
           @applied="onPrintSettingsApplied"
         />
       </div>
+
+      <div v-if="busy" class="job-mask" role="status" aria-live="polite" aria-busy="true">
+        <span class="spinner" aria-hidden="true"></span>
+        <p>{{ busyText }}</p>
+      </div>
     </div>
 
     <!-- 隐藏的完整渲染容器（供打印/导出用） -->
@@ -192,6 +197,7 @@ const { t } = useI18n()
 const props = defineProps({
   autoExport: { type: String, default: '' }
 })
+const emit = defineEmits(['close', 'consumed'])
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -203,6 +209,8 @@ const currentPage = ref(1)
 const scale = ref(1)
 const pageRefs = ref([])
 const moreOpen = ref(false)
+const busy = ref(false)
+const busyText = ref('')
 const activeTab = ref('preview')
 const layoutEditorKey = ref(0)
 const printConfigKey = ref(0)
@@ -225,9 +233,27 @@ function onPrintSettingsApplied() {
 
 function runMore(kind) {
   moreOpen.value = false
+  if (busy.value) return
   if (kind === 'pdf') onExportPDF()
   else if (kind === 'image') onExportImage()
   else if (kind === 'queue') addQueue()
+}
+
+// 先占住 busy，再等一帧把遮罩画出来，避免大文件把主线程占满后转圈才出现
+async function withBusy(text, fn) {
+  if (busy.value) return false
+  busy.value = true
+  busyText.value = text
+  moreOpen.value = false
+  await nextTick()
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+  try {
+    await fn()
+    return true
+  } finally {
+    busy.value = false
+    busyText.value = ''
+  }
 }
 
 function onDocClick(e) {
@@ -737,12 +763,13 @@ onMounted(async () => {
     if (type === 'pdf') onExportPDF()
     else if (type === 'image') onExportImage()
   }
-  if (props.autoExport === 'pdf') {
+  // 用完即清，避免关掉后再开预览时把上一次的 pdf/image 又执行一遍
+  const kind = props.autoExport
+  if (kind === 'pdf' || kind === 'image') {
+    emit('consumed')
     await nextTick()
-    onExportPDF()
-  } else if (props.autoExport === 'image') {
-    await nextTick()
-    onExportImage()
+    if (kind === 'pdf') onExportPDF()
+    else onExportImage()
   }
 })
 
@@ -871,18 +898,20 @@ function currentPrintOpts() {
 }
 
 async function onPrint() {
-  const opts = currentPrintOpts()
-  const ok = await printPages(opts)
-  if (ok) {
-    printStore.addHistory({
-      type: 'print',
-      projectId: project.currentId,
-      projectName: project.project.meta.name,
-      pages: pagesForTask(opts).length,
-      copies: 1,
-      detail: rangeLabel(opts)
-    })
-  }
+  await withBusy(t('正在准备打印…'), async () => {
+    const opts = currentPrintOpts()
+    const ok = await printPages(opts)
+    if (ok) {
+      printStore.addHistory({
+        type: 'print',
+        projectId: project.currentId,
+        projectName: project.project.meta.name,
+        pages: pagesForTask(opts).length,
+        copies: 1,
+        detail: rangeLabel(opts)
+      })
+    }
+  })
 }
 
 // 当前预览的打印设置加入队列
@@ -905,25 +934,28 @@ function addQueue() {
 async function runQueue() {
   const pid = project.currentId
   const tasks = printStore.queue.filter(t => t.status === 'pending' && t.projectId === pid)
-  for (const task of tasks) {
-    printStore.updateTask(task.id, { status: 'printing' })
-    try {
-      const ok = await printPages(task)
-      printStore.updateTask(task.id, { status: ok ? 'done' : 'failed' })
-      if (ok) {
-        printStore.addHistory({
-          type: 'print',
-          projectId: pid,
-          projectName: task.projectName,
-          pages: task.pages || pagesForTask(task).length,
-          copies: 1,
-          detail: task.label || rangeLabel(task)
-        })
+  if (!tasks.length) return
+  await withBusy(t('正在准备打印…'), async () => {
+    for (const task of tasks) {
+      printStore.updateTask(task.id, { status: 'printing' })
+      try {
+        const ok = await printPages(task)
+        printStore.updateTask(task.id, { status: ok ? 'done' : 'failed' })
+        if (ok) {
+          printStore.addHistory({
+            type: 'print',
+            projectId: pid,
+            projectName: task.projectName,
+            pages: task.pages || pagesForTask(task).length,
+            copies: 1,
+            detail: task.label || rangeLabel(task)
+          })
+        }
+      } catch (e) {
+        printStore.updateTask(task.id, { status: 'failed' })
       }
-    } catch (e) {
-      printStore.updateTask(task.id, { status: 'failed' })
     }
-  }
+  })
 }
 
 defineExpose({ runQueue })
@@ -947,39 +979,48 @@ function convertPxToMm(root, factor) {
 }
 
 async function onExportPDF() {
-  try {
-    const fname = (project.project.meta.name || 'label') + '.pdf'
-    const n = await exportVectorPDF({
-      project: project.project,
-      labels: printLabels.value,
-      filename: fname
-    })
-    printStore.addHistory({
-      type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
-      pages: n, copies: 1, detail: '矢量'
-    })
-    toastSuccess(t('PDF 已导出'))
-  } catch (e) {
-    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
-  }
+  await withBusy(t('正在导出 PDF…'), async () => {
+    try {
+      const fname = (project.project.meta.name || 'label') + '.pdf'
+      const n = await exportVectorPDF({
+        project: project.project,
+        labels: printLabels.value,
+        filename: fname,
+        onPage: (i, total) => {
+          if (total > 1) busyText.value = t('正在导出 PDF… {i}/{n}', { i, n: total })
+        }
+      })
+      printStore.addHistory({
+        type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
+        pages: n, copies: 1, detail: '矢量'
+      })
+      toastSuccess(t('PDF 已导出'))
+    } catch (e) {
+      toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+    }
+  })
 }
 
 async function onExportImage() {
+  if (busy.value) return
   const prev = scale.value
   const pageNo = currentPage.value
-  scale.value = 1
   try {
-    await settleImages()
-    const els = pagesForTask({ range: 'current' })
-    if (!els.length) { toastError(t('没有可导出的内容')); return }
-    const base = project.project.meta.name || 'label'
-    const fname = totalPages.value > 1 ? `${base}-p${pageNo}.png` : `${base}.png`
-    await exportElementToImage(els[0], fname)
-    printStore.addHistory({
-      type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
-      pages: 1, copies: 1, detail: `第 ${pageNo} 页`
+    await withBusy(t('正在导出图片…'), async () => {
+      scale.value = 1
+      await nextTick()
+      await settleImages()
+      const els = pagesForTask({ range: 'current' })
+      if (!els.length) { toastError(t('没有可导出的内容')); return }
+      const base = project.project.meta.name || 'label'
+      const fname = totalPages.value > 1 ? `${base}-p${pageNo}.png` : `${base}.png`
+      await exportElementToImage(els[0], fname)
+      printStore.addHistory({
+        type: 'image', projectId: project.currentId, projectName: project.project.meta.name,
+        pages: 1, copies: 1, detail: `第 ${pageNo} 页`
+      })
+      toastSuccess(t('图片已导出'))
     })
-    toastSuccess(t('图片已导出'))
   } catch (e) {
     toastError(t('导出失败：{msg}', { msg: e?.message || e }))
   } finally {
@@ -991,6 +1032,7 @@ async function onExportImage() {
 <style scoped>
 .preview-overlay { background: rgba(0,0,0,0.6); }
 .preview-modal {
+  position: relative;
   background: var(--bg);
   border-radius: 8px;
   width: 92vw;
@@ -998,6 +1040,39 @@ async function onExportImage() {
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+.job-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  color: var(--text);
+  overscroll-behavior: contain;
+}
+.job-mask p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  animation: preview-spin 0.7s linear infinite;
+}
+@keyframes preview-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
 }
 .preview-modal .modal-header {
   padding: 10px 16px;
@@ -1116,7 +1191,15 @@ async function onExportImage() {
   border: 0;
   cursor: pointer;
 }
-.more-item:hover { background: var(--bg-hover); }
+.more-item:hover:not(:disabled) { background: var(--bg-hover); }
+.more-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.more-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
 .preview-brief {
   flex-shrink: 0;
   padding: 8px 14px 10px;

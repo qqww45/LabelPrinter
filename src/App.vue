@@ -15,7 +15,7 @@
       @template-library="templateVisible = true"
       @field-map="fieldMapVisible = true"
       @print-center="printCenterVisible = true"
-      @preview="previewVisible = true"
+      @preview="openPreview"
       @switch="switchToProject"
       @ai="openAI"
       @about="aboutVisible = true"
@@ -76,7 +76,7 @@
     />
     <PrintConfig v-if="printConfigVisible" @close="printConfigVisible = false" />
     <LayoutEditor v-if="layoutEditorVisible" @close="layoutEditorVisible = false" />
-    <PreviewDialog ref="previewRef" v-if="previewVisible" :auto-export="pendingExport" @close="previewVisible = false" />
+    <PreviewDialog ref="previewRef" v-if="previewVisible" :auto-export="pendingExport" @close="closePreview" @consumed="pendingExport = ''" />
     <AISettingsDialog
       v-if="aiSettingsVisible"
       @close="aiSettingsVisible = false"
@@ -628,7 +628,18 @@ async function onLoadSample(sampleId = 'retail') {
 }
 
 // 打印通过预览组件触发，这里只打开预览
+// 只在「导出 PDF / 图片」时带一次动作；预览本身必须是空的，否则上次导出的标记会让下次预览直接下载
 const pendingExport = ref('') // 待执行的导出动作：'' | 'pdf' | 'image'
+
+function openPreview() {
+  pendingExport.value = ''
+  previewVisible.value = true
+}
+
+function closePreview() {
+  previewVisible.value = false
+  pendingExport.value = ''
+}
 
 // ============ 打印 / 导出：先体检，有问题才打扰 ============
 // kind: '' = 打印 | 'pdf' = 导出 PDF | 'image' = 导出图片
@@ -691,6 +702,7 @@ function onExportImage() { requestExport('image') }
 // 打印中心：执行当前项目队列（需要预览 DOM，自动打开预览）
 async function onRunQueue() {
   printCenterVisible.value = false
+  pendingExport.value = ''
   if (!previewVisible.value) previewVisible.value = true
   await nextTick()
   await new Promise(r => setTimeout(r, 800)) // 等页面渲染 + 二维码生成

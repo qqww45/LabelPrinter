@@ -444,7 +444,7 @@ function drawLabelChrome(pdf, project, ox, oy) {
  * @param {{ project: object, labels: Array, filename?: string }} args
  * @returns {Promise<number>} 页数
  */
-export async function exportVectorPDF({ project, labels, filename }) {
+export async function exportVectorPDF({ project, labels, filename, onPage }) {
   const paper = project?.paper || { width: 210, height: 297 }
   const pw = Number(paper.width) || 210
   const ph = Number(paper.height) || 297
@@ -460,7 +460,8 @@ export async function exportVectorPDF({ project, labels, filename }) {
     format: [pw, ph],
     compress: true
   })
-  pages.forEach((page, pi) => {
+  for (let pi = 0; pi < pages.length; pi++) {
+    const page = pages[pi]
     if (pi > 0) pdf.addPage([pw, ph], orient)
     page.slots.forEach((slot, si) => {
       if (slot.empty) return
@@ -468,7 +469,12 @@ export async function exportVectorPDF({ project, labels, filename }) {
       for (const c of project.components || []) drawComponent(pdf, c, slot.row || {}, box.x, box.y)
       drawLabelChrome(pdf, project, box.x, box.y)
     })
-  })
+    // 有进度回调时让出主线程，遮罩上的转圈才能在多页导出时继续动
+    if (typeof onPage === 'function') {
+      await Promise.resolve(onPage(pi + 1, pages.length))
+      await new Promise(r => setTimeout(r, 0))
+    }
+  }
   pdf.save(filename || `${project?.meta?.name || 'label'}.pdf`)
   return pages.length
 }
