@@ -5,25 +5,4 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  <!-- 单页场景锚点：便于站内文档与分享；爬虫仍以首页为主 -->
-  <url>
-    <loc>https://label.s.ci64.com/#use-price-tag</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://label.s.ci64.com/#use-express</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://label.s.ci64.com/#use-asset</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://label.s.ci64.com/#use-shelf</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
 </urlset>
