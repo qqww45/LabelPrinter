@@ -126,6 +126,15 @@
         <thead>
           <tr>
             <th style="width:40px">#</th>
+            <th class="print-col">
+              <input
+                type="checkbox"
+                :checked="allPrint"
+                :aria-label="t('全部打印')"
+                @click.stop
+                @change="toggleAllPrint"
+              />
+            </th>
             <th
               v-for="h in data.headers"
               :key="h"
@@ -183,6 +192,15 @@
             @click="data.setActiveIndex(item.i)"
           >
             <td>{{ item.i + 1 }}</td>
+            <td class="print-col">
+              <input
+                type="checkbox"
+                :checked="item.row.__print !== false"
+                :aria-label="t('打印这一行')"
+                @click.stop
+                @change="data.setRowPrint(item.row.__id, $event.target.checked)"
+              />
+            </td>
             <td
               v-for="h in data.headers"
               :key="h"
@@ -250,7 +268,12 @@ const gridEl = ref(null)
 const scrollTop = ref(0)
 const viewH = ref(400)
 const useVirtual = computed(() => data.displayRows.length > VIRTUAL_MIN)
-const colSpan = computed(() => data.headers.length + 3)
+const colSpan = computed(() => data.headers.length + 4)
+const allPrint = computed(() => !data.displayRows.length || data.displayRows.every(r => r.__print !== false))
+function toggleAllPrint(e) {
+  const on = e.target.checked
+  for (const row of data.displayRows) data.setRowPrint(row.__id, on)
+}
 const startIndex = computed(() => {
   if (!useVirtual.value) return 0
   const raw = Math.floor(scrollTop.value / ROW_H) - OVERSCAN
@@ -809,6 +832,8 @@ tr.active td .cell-input { color: inherit; }
   font-size: 12px;
 }
 .add-col-cell { width: 28px; padding: 2px !important; }
+.print-col { width: 36px; text-align: center; }
+.print-col input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .add-col {
   width: 22px; height: 22px;
   border: 1px dashed var(--border);

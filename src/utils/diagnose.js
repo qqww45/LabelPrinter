@@ -8,7 +8,8 @@
  *
  * 纯函数、无副作用，方便单测。
  */
-import { expandPrintLabels, componentHidden } from './printModel.js'
+import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText } from './printModel.js'
+import { textOverflowsBox } from './textFit.js'
 import { normalizeMargin } from './pageBox.js'
 import { codePayload, isEncodableCode, resolveRow } from './render.js'
 
@@ -175,6 +176,7 @@ export function runDiagnostics({
     const hits = []
     if (codes.length) {
       rows.forEach((row, i) => {
+        if (row?.__print === false) return
         const resolved = resolveRow(row, fieldMap)
         for (const c of codes) {
           if (componentHidden(c, resolved)) continue
@@ -200,7 +202,40 @@ export function runDiagnostics({
     }
   }
 
-  // ⑤ 没有数据 —— 只出一张标签
+  // ⑤ 字折行后高出格子
+  if (Array.isArray(rows) && rows.length) {
+    const texts = components.filter(c => c && (c.type === 'text' || c.type === 'date' || c.type === 'serial'))
+    const hits = []
+    if (texts.length) {
+      rows.forEach((row, i) => {
+        if (row?.__print === false) return
+        const resolved = resolveRow(row, fieldMap)
+        for (const c of texts) {
+          if (componentHidden(c, resolved)) continue
+          const value = componentPlainText(c, resolved)
+          if (textOverflowsBox(value, { fontSize: c.fontSize, widthMm: c.width, heightMm: c.height })) {
+            hits.push({ rowIndex: i, id: c.id })
+            break
+          }
+        }
+      })
+    }
+    if (hits.length) {
+      const shown = hits.slice(0, 6).map(h => h.rowIndex + 1).join('、')
+      const more = hits.length > 6 ? '…' : ''
+      issues.push({
+        level: 'warn',
+        code: 'text-overflow',
+        title: `${hits.length} 行的文字超出格子`,
+        detail: `第 ${shown}${more} 行有字被裁掉。`,
+        fix: 'row',
+        rowIndex: hits[0].rowIndex,
+        ids: [hits[0].id]
+      })
+    }
+  }
+
+  // ⑥ 没有数据 —— 只出一张标签
   if (!rowCount) {
     issues.push({
       level: 'warn',
@@ -219,8 +254,10 @@ export function runDiagnostics({
   let pages = rowCount ? Math.max(1, Math.ceil(rowCount / safePerPage)) : 1
   let copiesShown = copies
   if (Array.isArray(rows)) {
-    const n = rows.length ? expandPrintLabels(rows, printConfig).length : 0
-    pages = n ? Math.max(1, Math.ceil(n / safePerPage)) : 1
+    const labels = rows.length ? expandPrintLabels(rows, printConfig) : []
+    pages = labels.length
+      ? paginateLabels(labels, safePerPage, printConfig?.startSlot).length
+      : 1
     copiesShown = 1
   }
 

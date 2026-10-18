@@ -47,11 +47,14 @@ export function expandPrintLabels(rows, opts = {}) {
 
   const base = []
   list.forEach((row, sourceIndex) => {
+    if (row.__print === false) return
     const n = rowRepeatCount(row, copiesColumn)
     for (let copyIndex = 0; copyIndex < n; copyIndex++) {
       base.push({ row, copyIndex, sourceIndex })
     }
   })
+
+  if (!base.length) return []
 
   const jobCopies = copiesColumn ? 1 : copies
   let seq = base
@@ -81,8 +84,16 @@ export function expandPrintLabels(rows, opts = {}) {
   })
 }
 
-/** 按每页标签数切页。空位 empty=true，调用方不画组件。 */
-export function paginateLabels(labels, perPage) {
+/** 从第几格开始。超出本页格数时收到最后一格。 */
+export function normalizeStartSlot(value, perPage) {
+  const per = Math.max(1, Math.floor(Number(perPage) || 1))
+  const n = Math.floor(Number(value) || 1)
+  if (!Number.isFinite(n) || n < 1) return 1
+  return Math.min(per, n)
+}
+
+/** 按每页标签数切页。空位 empty=true，调用方不画组件。startSlot 把第一页前面的格留空。 */
+export function paginateLabels(labels, perPage, startSlot = 1) {
   const per = clampCopies(perPage ?? 1, 1)
   const list = Array.isArray(labels) ? labels : []
   if (!list.length) {
@@ -90,12 +101,16 @@ export function paginateLabels(labels, perPage) {
       slots: Array.from({ length: per }, (_, j) => ({ row: {}, empty: true, index: j }))
     }]
   }
+  const pad = normalizeStartSlot(startSlot, per) - 1
+  const seq = []
+  for (let i = 0; i < pad; i++) seq.push({ row: {}, empty: true, index: i })
+  for (const item of list) seq.push({ ...item, empty: false })
   const pages = []
-  for (let i = 0; i < list.length; i += per) {
+  for (let i = 0; i < seq.length; i += per) {
     const slots = []
     for (let j = 0; j < per; j++) {
-      const item = list[i + j]
-      if (item) slots.push({ ...item, empty: false })
+      const item = seq[i + j]
+      if (item) slots.push(item)
       else slots.push({ row: {}, empty: true, index: i + j })
     }
     pages.push({ slots })
@@ -173,10 +188,11 @@ export function slotOffsetMm(index, { label, margin, layout } = {}) {
 }
 
 /** 预览打开时，停在画布正在看的那一行所在的页。 */
-export function pageForSourceRow(labels, sourceIndex, perPage) {
+export function pageForSourceRow(labels, sourceIndex, perPage, startSlot = 1) {
   const per = Math.max(1, Math.floor(Number(perPage) || 1))
+  const pad = normalizeStartSlot(startSlot, per) - 1
   const list = Array.isArray(labels) ? labels : []
   const idx = list.findIndex(item => item && item.sourceIndex === sourceIndex)
   if (idx < 0) return 1
-  return Math.floor(idx / per) + 1
+  return Math.floor((idx + pad) / per) + 1
 }

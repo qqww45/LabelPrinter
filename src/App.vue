@@ -105,7 +105,8 @@
         <div class="modal-footer">
           <button class="btn" @click="importPrompt = null">{{ t('取消') }}</button>
           <button class="btn import-replace" @click="confirmImport('replace')">{{ t('替换') }}</button>
-          <button class="btn btn-primary" @click="confirmImport('append')">{{ t('追加') }}</button>
+          <button v-if="importMatch && importMatch.missing.length" class="btn btn-primary" @click="confirmImport('append')">{{ t('追加并去对上') }}</button>
+          <button v-else class="btn btn-primary" @click="confirmImport('append')">{{ t('追加') }}</button>
         </div>
       </div>
     </div>
@@ -573,9 +574,11 @@ function columnNote(headers) {
 
 function confirmImport(mode) {
   const payload = importPrompt.value
+  const missing = (importMatch.value?.missing?.length || 0) > 0
   importPrompt.value = null
   if (!payload) return
   applyImported(mode, payload)
+  if (missing) fieldMapVisible.value = true
 }
 
 // 已有数据时用页面里的三个按钮：追加 / 替换 / 取消

@@ -20,3 +20,41 @@ export function heightForFont(currentHeight, fontSize, lines = 1) {
   const cur = Number(currentHeight) || 0
   return cur + 0.05 < min ? min : cur
 }
+
+function charWidthPx(ch, fontSize) {
+  const c = ch.codePointAt(0) || 0
+  if (c > 0xff) return fontSize
+  return fontSize * 0.55
+}
+
+/** 按预览的折行方式估算：字被格子裁掉时返回 true。空字不算。 */
+export function textOverflowsBox(text, { fontSize = 14, widthMm = 0, heightMm = 0 } = {}) {
+  const raw = String(text ?? '')
+  if (!raw.trim()) return false
+  const size = Math.max(1, Number(fontSize) || 14)
+  const widthPx = Math.max(0, Number(widthMm) || 0) * MM_TO_PX
+  const height = Number(heightMm) || 0
+  if (widthPx <= 0 || height <= 0) return false
+  let lines = 0
+  for (const part of raw.split('\n')) {
+    if (!part) {
+      lines += 1
+      continue
+    }
+    let used = 0
+    let count = 0
+    let rowLines = 1
+    for (const ch of part) {
+      const w = charWidthPx(ch, size)
+      if (used + w > widthPx + 0.01 && count > 0) {
+        rowLines += 1
+        used = 0
+        count = 0
+      }
+      used += w
+      count += 1
+    }
+    lines += rowLines
+  }
+  return minTextHeightMm(size, Math.max(1, lines)) > height + 0.05
+}

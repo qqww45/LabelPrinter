@@ -452,7 +452,7 @@ export async function exportVectorPDF({ project, labels, filename, onPage }) {
     const L = project?.layout || {}
     return L.mode === 'auto' ? Math.max(1, (L.cols || 1) * (L.rows || 1)) : 1
   })()
-  const pages = paginateLabels(labels, per)
+  const pages = paginateLabels(labels, per, project?.printConfig?.startSlot)
   const orient = pw > ph ? 'landscape' : 'portrait'
   const pdf = new jsPDF({
     orientation: orient,

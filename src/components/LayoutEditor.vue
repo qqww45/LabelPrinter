@@ -126,6 +126,18 @@
         <!-- 右侧：表单 -->
         <div class="editor-form">
           <fieldset>
+            <legend>{{ t('整页规格') }}</legend>
+            <div class="form-row">
+              <label for="sheet-preset">{{ t('整页规格') }}</label>
+              <select id="sheet-preset" class="input" @change="applySheetPreset($event)">
+                <option value="">-- {{ t('选择') }} --</option>
+                <option v-for="p in sheetPresets" :key="p.name" :value="p.name">{{ p.name }}</option>
+              </select>
+            </div>
+            <p class="hint">{{ t('一次写上纸张、标签、边距和间隙。行列按标签尺寸现算。') }}</p>
+          </fieldset>
+
+          <fieldset>
             <legend>📦 {{ t('标签尺寸 (mm)') }}</legend>
             <div class="form-row">
               <label>{{ t('预设') }}</label>
@@ -217,6 +229,7 @@
 <script setup>
 import { reactive, ref, computed, onBeforeUnmount } from 'vue'
 import { useProjectStore, PAPER_PRESETS, LABEL_PRESETS } from '../stores/project'
+import { SHEET_PRESETS, sheetPresetPatch } from '../utils/sheetPreset'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
@@ -229,6 +242,7 @@ const props = defineProps({
 const project = useProjectStore()
 const paperPresets = PAPER_PRESETS
 const labelPresets = LABEL_PRESETS
+const sheetPresets = SHEET_PRESETS
 const emit = defineEmits(['close', 'applied'])
 
 const form = reactive(JSON.parse(JSON.stringify(project.project)))
@@ -459,6 +473,26 @@ onBeforeUnmount(() => {
 })
 
 // ============ 应用 ============
+function applySheetPreset(e) {
+  const preset = sheetPresets.find(p => p.name === e.target.value)
+  const patch = sheetPresetPatch(preset)
+  if (!patch) return
+  form.paper.width = patch.paper.width
+  form.paper.height = patch.paper.height
+  form.label.width = patch.label.width
+  form.label.height = patch.label.height
+  form.margin.top = patch.margin.top
+  form.margin.right = patch.margin.right
+  form.margin.bottom = patch.margin.bottom
+  form.margin.left = patch.margin.left
+  form.layout.mode = patch.layout.mode
+  form.layout.sizingMode = patch.layout.sizingMode
+  form.layout.cols = patch.layout.cols
+  form.layout.rows = patch.layout.rows
+  form.layout.hGap = patch.layout.hGap
+  form.layout.vGap = patch.layout.vGap
+}
+
 function applyPaperPreset(e) {
   const p = paperPresets.find(p => p.name === e.target.value)
   if (!p) return

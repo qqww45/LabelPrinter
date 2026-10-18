@@ -57,6 +57,7 @@ import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
+import { readSceneGeometry } from '../utils/sceneGeom'
 import { heightForFont } from '../utils/textFit'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { useI18n } from '../utils/i18n'
@@ -275,15 +276,13 @@ function bindCanvasEvents() {
     const obj = e.target
     if (!obj) return
     // 优先：obj 自身有 __id → 普通组件（含自建 fabric.Group，如表格/图片占位）
-    // 注意：fabric 6 中 ActiveSelection 的 type 也是 'group'，不能用 type 区分
+    // Fabric 7 里多选的 type 是 activeselection，不能靠旧的 activeSelection/group 判断。
     if (obj.__id) {
       pj.updateComponent(obj.__id, geometryPatch(obj))
       return
     }
-    // 无 __id 的 group/activeSelection → 多选整体：遍历子对象（各有独立 __id）
-    if (obj.type === 'activeSelection' || obj.type === 'group') {
-      const children = (typeof obj.getObjects === 'function') ? obj.getObjects() : []
-      children.forEach(child => {
+    if (typeof obj.getObjects === 'function') {
+      obj.getObjects().forEach(child => {
         if (!child?.__id) return
         pj.updateComponent(child.__id, geometryPatch(child))
       })
@@ -451,6 +450,27 @@ let isRendering = false
 // 同步回写 store（否则会把图层多选覆盖成单选）
 let syncingSelection = false
 
+// store → fabric：把 selectedIds 同步为画布选中（含多选 ActiveSelection）
+// 注意：fabric 事件是同步派发的，因此 syncingSelection 同步设置/复位即可拦截回写
+function applyCanvasSelection() {
+  if (!fabricCanvas) return
+  syncingSelection = true
+  try {
+    const objs = fabricCanvas.getObjects().filter(o => pj.selectedIds.includes(o.__id))
+    if (objs.length > 1) {
+      const sel = new fabric.ActiveSelection(objs, { canvas: fabricCanvas })
+      fabricCanvas.setActiveObject(sel)
+    } else if (objs.length === 1) {
+      fabricCanvas.setActiveObject(objs[0])
+    } else {
+      fabricCanvas.discardActiveObject()
+    }
+    fabricCanvas.requestRenderAll()
+  } finally {
+    syncingSelection = false
+  }
+}
+
 function renderAll() {
   if (!fabricCanvas) return
   let grew = false
@@ -467,26 +487,25 @@ function renderAll() {
   if (grew) return
   const gen = ++renderGeneration
   isRendering = true
-  // 保留当前选中（clear 会触发 selection:cleared 清空 selectedId）
-  const selId = pj.selectedId
-  fabricCanvas.clear()
-  fabricCanvas.backgroundColor = pj.project.label.backgroundColor || '#fff'
-  pj.project.components.forEach(c => {
-    if (c.hidden) return
-    const obj = buildFabricObject(c, gen)
-    if (obj) fabricCanvas.add(obj)
-  })
-  // 恢复选中状态，避免属性面板丢失
-  if (selId) {
-    const obj = fabricCanvas.getObjects().find(o => o.__id === selId)
-    if (obj) fabricCanvas.setActiveObject(obj)
+  try {
+    // clear 会触发 selection:cleared；isRendering 期间不要把 store 里的多选清掉
+    fabricCanvas.clear()
+    fabricCanvas.backgroundColor = pj.project.label.backgroundColor || '#fff'
+    pj.project.components.forEach(c => {
+      if (c.hidden) return
+      const obj = buildFabricObject(c, gen)
+      if (obj) fabricCanvas.add(obj)
+    })
+    fabricCanvas.renderAll()
+    // 按数组顺序校正 z-order（同步 add 顺序已正确，但异步对象插入后会乱）
+    syncZOrder()
+    // renderAll 内部用 clear() 会把 grid 一起清掉，末尾补画一次
+    if (pj.showGrid) drawGrid()
+    // 重画会拆掉多选。按 store 把整组选中补回去，避免只剩一个之后拖动把其余控件带偏。
+    applyCanvasSelection()
+  } finally {
+    isRendering = false
   }
-  fabricCanvas.renderAll()
-  // 按数组顺序校正 z-order（同步 add 顺序已正确，但异步对象插入后会乱）
-  syncZOrder()
-  // renderAll 内部用 clear() 会把 grid 一起清掉，末尾补画一次
-  if (pj.showGrid) drawGrid()
-  isRendering = false
 }
 
 // ============ z-order 同步：fabric 对象层叠顺序 = store 组件数组顺序 ============
@@ -810,21 +829,23 @@ function dressHandles(obj) {
 }
 
 function geometryPatch(obj) {
-  const sx = obj.scaleX || 1
-  const sy = obj.scaleY || 1
+  const scene = readSceneGeometry(obj)
   const patch = {
-    left: obj.left / MM_TO_PX,
-    top: obj.top / MM_TO_PX,
-    width: obj.width * sx / MM_TO_PX,
-    height: obj.height * sy / MM_TO_PX,
-    angle: obj.angle
+    left: scene.left / MM_TO_PX,
+    top: scene.top / MM_TO_PX,
+    width: scene.width / MM_TO_PX,
+    height: scene.height / MM_TO_PX,
+    angle: scene.angle
   }
   const c = pj.project.components.find(x => x.id === obj.__id)
-  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') && Math.abs(sy - 1) > 0.02) {
-    patch.fontSize = Math.max(6, Math.min(96, Math.round((c.fontSize || 12) * sy)))
+  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') && Math.abs(scene.scaleY - 1) > 0.02) {
+    patch.fontSize = Math.max(6, Math.min(96, Math.round((c.fontSize || 12) * scene.scaleY)))
   }
-  obj.scaleX = 1
-  obj.scaleY = 1
+  // 还在多选组里时不能把子对象缩放清成 1，否则拆组时其余控件会被再挪一次。
+  if (!scene.inGroup) {
+    obj.scaleX = 1
+    obj.scaleY = 1
+  }
   return patch
 }
 
@@ -1156,25 +1177,9 @@ watch(() => pj.zoom, () => {
     })
   })
 })
-// store → fabric：把 selectedIds 同步为画布选中（含多选 ActiveSelection）
-// 注意：fabric 事件是同步派发的，因此 syncingSelection 同步设置/复位即可拦截回写
 watch([() => pj.selectedId, () => pj.selectedIds.length], () => {
-  if (!fabricCanvas) return
-  syncingSelection = true
-  try {
-    const objs = fabricCanvas.getObjects().filter(o => pj.selectedIds.includes(o.__id))
-    if (objs.length > 1) {
-      const sel = new fabric.ActiveSelection(objs, { canvas: fabricCanvas })
-      fabricCanvas.setActiveObject(sel)
-    } else if (objs.length === 1) {
-      fabricCanvas.setActiveObject(objs[0])
-    } else {
-      fabricCanvas.discardActiveObject()
-    }
-    fabricCanvas.requestRenderAll()
-  } finally {
-    syncingSelection = false
-  }
+  if (isRendering) return
+  applyCanvasSelection()
 })
 </script>
 

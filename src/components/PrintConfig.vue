@@ -35,7 +35,7 @@
         <div v-show="activeTab === 'general'" class="tab-pane" role="tabpanel">
           <fieldset>
             <legend>{{ t('输出') }}</legend>
-            <p class="hint">{{ t('打印机在点「打印」后的系统对话框里选。这里选不了具体设备。') }}</p>
+            <p class="hint">{{ t('打印机在点「打印」后的系统对话框里选。这里选不了具体设备。请关「适应页面」，按纸张实际尺寸。') }}</p>
             <div class="form-row">
               <label for="pc-copies">{{ t('份数') }}</label>
               <input id="pc-copies" class="input" type="number" min="1" v-model.number="form.copies" style="width:80px" />
@@ -66,6 +66,19 @@
                 <button class="btn btn-sm" type="button" :class="{active: form.range === 'range'}" @click="form.range = 'range'">{{ t('区间') }}</button>
               </div>
             </div>
+            <div v-if="slotMax > 1" class="form-row">
+              <label for="pc-start-slot">{{ t('从第几格') }}</label>
+              <input
+                id="pc-start-slot"
+                class="input"
+                type="number"
+                min="1"
+                :max="slotMax"
+                :value="startSlot"
+                @input="setStartSlot($event.target.value)"
+              />
+            </div>
+            <p v-if="slotMax > 1" class="hint">{{ t('用过的格子留空。预览、打印、PDF 和图片从同一格开始。') }}</p>
             <div v-if="form.range === 'range'" class="form-row">
               <label for="pc-rstart">{{ t('从') }}</label>
               <input id="pc-rstart" class="input" type="number" min="1" v-model.number="form.rangeStart" style="width:80px" />
@@ -208,7 +221,6 @@
               <button class="btn btn-sm" type="button" @click="downloadCmd('zpl')">{{ t('下载 ZPL') }}</button>
             </div>
             <p class="hint">{{ t('指令是 UTF-8 文本，中文能否打出取决于打印机字库。文件下载到本机，不经过服务器。图片不会写进指令。') }}</p>
-            <p class="hint">{{ t('浏览器打印请关「适应页面」。热敏优先用指令文件。') }}</p>
           </fieldset>
 
           <details class="thermal-help">
@@ -247,7 +259,7 @@ import { saveAs } from 'file-saver'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
-import { expandPrintLabels } from '../utils/printModel'
+import { expandPrintLabels, normalizeStartSlot } from '../utils/printModel'
 import { resolveRow } from '../utils/render'
 import { buildTSPL, buildZPL } from '../utils/printerCmd'
 import { normalizeCalibrate } from '../utils/thermalCalibrate'
@@ -367,6 +379,14 @@ onBeforeUnmount(() => window.removeEventListener('labelprint-printer-profile', s
 
 const labelW = computed(() => Number(project.project.label?.width) || 0)
 const labelH = computed(() => Number(project.project.label?.height) || 0)
+const slotMax = computed(() => Math.max(1, project.labelsPerPage || 1))
+const startSlot = computed(() => normalizeStartSlot(project.project.printConfig?.startSlot, slotMax.value))
+function setStartSlot(value) {
+  const next = normalizeStartSlot(value, slotMax.value)
+  if (project.project.printConfig.startSlot === next) return
+  project.project.printConfig.startSlot = next
+  project.markDirty()
+}
 
 function pickMedia(id) {
   const next = applyMediaLook(id, form)

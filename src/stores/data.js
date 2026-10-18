@@ -29,7 +29,7 @@ export const useDataStore = defineStore('data', () => {
     if (!filter.value.trim()) return rows.value
     const kw = filter.value.toLowerCase()
     return rows.value.filter(row =>
-      Object.values(row).some(v => String(v).toLowerCase().includes(kw))
+      Object.entries(row).some(([k, v]) => k !== '__id' && k !== '__print' && String(v).toLowerCase().includes(kw))
     )
   })
 
@@ -131,6 +131,15 @@ export const useDataStore = defineStore('data', () => {
   function _findIndexById(id) {
     if (id == null) return -1
     return rows.value.findIndex(r => r.__id === id)
+  }
+
+  function setRowPrint(id, on) {
+    const i = _findIndexById(id)
+    if (i < 0) return
+    const row = { ...rows.value[i] }
+    if (on) delete row.__print
+    else row.__print = false
+    rows.value[i] = row
   }
 
   function updateRow(idOrIndex, patch) {
@@ -266,7 +275,7 @@ export const useDataStore = defineStore('data', () => {
     headers, rows, activeRowIndex, filter, sourcePath, embedded,
     sortKey, sortDir,
     fields, filteredRows, displayRows, activeRow,
-    setData, clear, setActiveIndex, stepActive, setFilter, setSort,
+    setData, clear, setActiveIndex, stepActive, setRowPrint, setFilter, setSort,
     addRow, updateRow, removeRow,
     addColumn, renameColumn, removeColumn
   }

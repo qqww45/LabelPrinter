@@ -45,6 +45,19 @@
               <button class="btn btn-sm" type="button" @click="prevPage">←</button>
               <button class="btn btn-sm" type="button" @click="nextPage">→</button>
             </div>
+            <div v-if="labelsPerPage > 1" class="tool-group">
+              <label for="preview-start-slot">{{ t('从第几格') }}</label>
+              <input
+                id="preview-start-slot"
+                class="input page-input"
+                type="number"
+                min="1"
+                :max="labelsPerPage"
+                :value="startSlot"
+                :aria-label="t('从第几格')"
+                @input="setStartSlot($event.target.value)"
+              />
+            </div>
             <div class="tool-group">
               <button class="btn btn-sm" type="button" @click="zoomOut">−</button>
               <span class="zoom-label">{{ Math.round(scale*100) }}%</span>
@@ -91,11 +104,16 @@
             </div>
           </div>
           <p v-else class="brief-ok">{{ t('摘要正常：纸张与份数如下，预览比例可用 1:1 对照实物') }}</p>
+          <p class="brief-note">{{ t('系统对话框请关「适应页面」，按这一页的实际尺寸。') }}</p>
         </div>
 
         <div class="preview-body">
           <div class="pages">
-            <template v-if="currentPageData">
+            <div v-if="nothingChecked" class="empty-page">
+              <div class="empty-title">{{ t('没有勾选要打的行') }}</div>
+              <div class="empty-sub">{{ t('在数据表勾上要打的行，预览、打印、PDF 和图片会一起跟上。') }}</div>
+            </div>
+            <template v-else-if="currentPageData">
               <div class="page-meta">
                 {{ t('第 {n}/{m} 页', { n: currentPage, m: totalPages }) }}
                 · {{ previewBrief.summary.paperText }}
@@ -179,7 +197,7 @@ import LayoutEditor from './LayoutEditor.vue'
 import PrintConfig from './PrintConfig.vue'
 import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
 import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
-import { expandPrintLabels, paginateLabels, pageForSourceRow, componentHidden, componentPlainText } from '../utils/printModel'
+import { expandPrintLabels, paginateLabels, pageForSourceRow, normalizeStartSlot, componentHidden, componentPlainText } from '../utils/printModel'
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
@@ -307,11 +325,19 @@ let previewPageReady = false
 watch(printLabels, (labels) => {
   if (previewPageReady) return
   previewPageReady = true
-  const page = pageForSourceRow(labels, data.activeRowIndex, labelsPerPage.value)
+  const page = pageForSourceRow(labels, data.activeRowIndex, labelsPerPage.value, project.project.printConfig?.startSlot)
   if (page > 1) currentPage.value = page
 }, { immediate: true })
 const labelCount = computed(() => data.displayRows.length ? printLabels.value.length : 0)
-const pages = computed(() => paginateLabels(printLabels.value, labelsPerPage.value))
+const nothingChecked = computed(() => data.displayRows.length > 0 && !printLabels.value.length)
+const startSlot = computed(() => normalizeStartSlot(project.project.printConfig?.startSlot, labelsPerPage.value))
+function setStartSlot(value) {
+  const next = normalizeStartSlot(value, labelsPerPage.value)
+  if (project.project.printConfig.startSlot === next) return
+  project.project.printConfig.startSlot = next
+  project.markDirty()
+}
+const pages = computed(() => paginateLabels(printLabels.value, labelsPerPage.value, startSlot.value))
 
 const totalPages = computed(() => Math.max(1, pages.value.length))
 const currentPageData = computed(() => {
@@ -898,6 +924,7 @@ function currentPrintOpts() {
 }
 
 async function onPrint() {
+  if (nothingChecked.value) { toastError(t('没有勾选要打的行')); return }
   await withBusy(t('正在准备打印…'), async () => {
     const opts = currentPrintOpts()
     const ok = await printPages(opts)
@@ -979,6 +1006,7 @@ function convertPxToMm(root, factor) {
 }
 
 async function onExportPDF() {
+  if (nothingChecked.value) { toastError(t('没有勾选要打的行')); return }
   await withBusy(t('正在导出 PDF…'), async () => {
     try {
       const fname = (project.project.meta.name || 'label') + '.pdf'
@@ -1003,6 +1031,7 @@ async function onExportPDF() {
 
 async function onExportImage() {
   if (busy.value) return
+  if (nothingChecked.value) { toastError(t('没有勾选要打的行')); return }
   const prev = scale.value
   const pageNo = currentPage.value
   try {
@@ -1232,7 +1261,8 @@ async function onExportImage() {
   font-variant-numeric: tabular-nums;
 }
 .fact-v.accent { color: var(--primary); }
-.brief-ok {
+.brief-ok,
+.brief-note {
   margin: 6px 0 0;
   font-size: 11px;
   color: var(--text-muted);

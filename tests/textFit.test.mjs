@@ -1,5 +1,5 @@
 import { MM_TO_PX } from '../src/utils/canvasFit.js'
-import { heightForFont, minTextHeightMm } from '../src/utils/textFit.js'
+import { heightForFont, minTextHeightMm, textOverflowsBox } from '../src/utils/textFit.js'
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -15,5 +15,8 @@ const grown = heightForFont(2, 18)
 assert(grown === minTextHeightMm(18), '框比一行字矮时加高')
 assert(heightForFont(40, 12) === 40, '已经够高的框不改')
 assert(heightForFont(0, 10) === minTextHeightMm(10), '没有高度时按一行补上')
+assert(textOverflowsBox('', { fontSize: 14, widthMm: 40, heightMm: 8 }) === false, '空字不算超出')
+assert(textOverflowsBox('有机鸡蛋', { fontSize: 14, widthMm: 40, heightMm: 8 }) === false, '短品名放得下')
+assert(textOverflowsBox('有机鸡蛋'.repeat(8), { fontSize: 14, widthMm: 30, heightMm: 6 }) === true, '长品名高出格子')
 
 console.log('textFit ok')
