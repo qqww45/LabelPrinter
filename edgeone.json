@@ -9,6 +9,12 @@
       "destination": "/index.html"
     }
   ],
+  "caches": [
+    {
+      "source": "/theme-boot.js",
+      "cacheTtl": 604800
+    }
+  ],
   "headers": [
     {
       "source": "/*",
@@ -45,6 +51,23 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    },
+    {
+      "source": "/theme-boot.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        },
+        {
+          "key": "Pages-Cache-Control",
+          "value": "s-maxage=604800"
         },
         {
           "key": "X-Content-Type-Options",

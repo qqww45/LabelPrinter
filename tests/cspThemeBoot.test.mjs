@@ -30,4 +30,20 @@ assert(nginx.includes("script-src 'self'"), 'script-src stays self')
 assert(!/script-src[^;]*unsafe-inline/.test(nginx), 'script-src must not allow unsafe-inline')
 assert(!nginx.includes('sha256-'), 'do not pin a script hash; the boot file is external')
 
+// EdgeOne：/theme-boot.js 是静态文件，二次访问要直接走缓存，不能被 /* 的 no-cache 覆盖
+const eo = JSON.parse(fs.readFileSync(new URL('../edgeone.json', import.meta.url), 'utf8'))
+const bootRuleIdx = eo.headers.findIndex((h) => h.source === '/theme-boot.js')
+const catchAllIdx = eo.headers.findIndex((h) => h.source === '/*')
+assert(bootRuleIdx >= 0, 'edgeone.json must add a /theme-boot.js header rule')
+assert(bootRuleIdx > catchAllIdx, 'the boot rule must come after /* so it overrides the catch-all')
+
+const bootCache = eo.headers[bootRuleIdx].headers.find((h) => h.key === 'Cache-Control')
+assert(bootCache, 'boot rule needs a Cache-Control header')
+assert(/max-age=[1-9]/.test(bootCache.value), 'boot file must have a positive max-age')
+assert(!/\bno-cache\b|\bno-store\b/.test(bootCache.value), 'boot file must not be no-cache')
+
+const bootEdge = (eo.caches || []).find((c) => c.source === '/theme-boot.js')
+assert(bootEdge && bootEdge.cacheTtl > 0, 'edge cacheTtl for the boot file is missing')
+assert(nginx.includes('location = /theme-boot.js'), 'nginx should cache the boot file too')
+
 console.log('cspThemeBoot ok')
