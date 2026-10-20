@@ -9,7 +9,7 @@
             <path d="M8 13v3M10.5 12v4M13 13.5v2.5M15.5 12v4" stroke-linecap="round" />
           </svg>
         </span>
-        <span class="logo-text">{{ t('标签打印工具') }}</span>
+        <span class="logo-text">{{ t('签立方') }}<span class="logo-sub">{{ t('标签设计与打印工具') }}</span></span>
       </div>
       <span class="filename" v-if="project.project.meta">
         <button
@@ -382,6 +382,7 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   color: var(--primary);
 }
 .logo-text { white-space: nowrap; }
+.logo-sub { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-left: 6px; }
 .filename {
   position: relative;
   color: var(--text-secondary);

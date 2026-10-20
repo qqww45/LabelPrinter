@@ -1,10 +1,10 @@
-# 标签打印工具 (Label Printer)
+# 签立方 (LabelCube)
 
 把表格里的每一行，印成一张可以贴出去的标签。价签、快递面单、资产贴都在浏览器里排，然后批量打印或导出 PDF。
 
 Turn each row of a spreadsheet into a label you can stick on something. Lay out price tags, shipping labels, and asset tags in the browser, then batch-print them or export a PDF.
 
-**在线使用 / Try it:** https://label.s.ci64.com
+**在线使用 / Try it:** https://labelcube.ci64.com
 
 开源，不用安装。项目和表格留在这台浏览器里。AI 排版用你自己的密钥，支持 DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama。不用 AI 时，表格不会发出去。
 

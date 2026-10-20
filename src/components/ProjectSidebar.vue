@@ -108,7 +108,7 @@ const icons = {
 }
 
 async function onClearLocal() {
-  if (!confirm(t('确定清除本浏览器内的全部标签打印数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。'))) return
+  if (!confirm(t('确定清除签立方在本浏览器的全部数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。'))) return
   clearing.value = true
   try {
     await clearAllLocalData()

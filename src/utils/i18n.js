@@ -28,7 +28,8 @@ export function setI18nLang(v) {
 
 const EN = {
   // 工具栏（按钮文字不带 emoji，emoji 保留在模板里）
-  '标签打印工具': 'Label Printer',
+  '签立方': 'LabelCube',
+  '标签设计与打印工具': 'Label design & printing tool',
   '模板库': 'Templates',
   '字段映射': 'Field Mapping',
   '排版': 'Layout',
@@ -42,7 +43,7 @@ const EN = {
   '导出 PDF': 'Export PDF',
   '导出图片': 'Export Image',
   // 兼容完整按钮文字的键
-  '🏷️ 标签打印工具': '🏷️ Label Printer',
+  '🏷️ 签立方': '🏷️ LabelCube',
   '📚 模板库': 'Templates',
   '🔀 字段映射': 'Field Mapping',
   '内置模板与我的模板': 'Built-in & my templates',
@@ -897,7 +898,7 @@ const EN = {
   '清除本机': 'Clear local',
   '清除中…': 'Clearing…',
   '删除本浏览器里的项目、模板、打印记录与 AI Key': 'Remove projects, templates, print history, and AI Key from this browser',
-  '确定清除本浏览器内的全部标签打印数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。': 'Clear all Label Printer data in this browser?\nThis includes projects, templates, print history, and AI Key. This cannot be undone.',
+  '确定清除签立方在本浏览器的全部数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。': 'Clear all LabelCube data in this browser?\nThis includes projects, templates, print history, and AI Key. This cannot be undone.',
   '已清除，即将刷新': 'Cleared. Reloading…',
   '清除失败': 'Clear failed',
   '加载示例': 'Load sample',

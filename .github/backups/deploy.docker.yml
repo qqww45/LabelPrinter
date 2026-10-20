@@ -1,0 +1,184 @@
+# ============================================================================
+# 【备份】GitHub Actions 工作流：构建镜像 → 推送到 GHCR → SSH 到服务器重启容器
+#
+# 本文件为旧流水线的存档，已移出 .github/workflows/ 目录，不会被 GitHub 执行。
+# 如需回退到 Docker + 自建服务器部署，可把本文件复制回 .github/workflows/deploy.yml。
+#
+# 文件位置要求：必须放在仓库根目录的 .github/workflows/ 下（子目录不被识别）
+#
+# 整体流程：
+#   1) build  阶段：在 GitHub 的临时虚拟机上跑 npm ci / build / 测试，
+#                  然后用 docker buildx 构建镜像并推送到 GHCR（GitHub 容器仓库）
+#   2) deploy 阶段：用 SSH 私钥连上你自己的服务器，
+#                  调用服务器上的 restart.sh 拉取新镜像并重启容器
+#
+# 需要在仓库 Settings → Secrets and variables → Actions 里预置的机密：
+#   SERVER_HOST / SERVER_USER / SERVER_SSH_KEY   （部署阶段使用）
+#   GITHUB_TOKEN 为 Actions 自动注入，无需手动创建
+# ============================================================================
+
+# 工作流名称，会显示在仓库的 Actions 页面上
+name: Deploy
+
+# ---------------------------------------------------------------------------
+# on：定义「什么事件会触发这个工作流」
+# ---------------------------------------------------------------------------
+on:
+  # 推送到 main 分支时自动触发（最常见的 CI/CD 入口）
+  push:
+    branches: [main]
+
+  # 允许在 Actions 页面手动点击 "Run workflow" 触发
+  workflow_dispatch:
+    inputs:
+      # 手动触发时可以填一个自定义输入项，用于回滚到历史镜像
+      tag:
+        description: '回滚到的镜像 tag（留空 = latest）'
+        # 非必填：不填时用下面的 default
+        required: false
+        # 默认空字符串；代码里用 inputs.tag || needs.build.outputs.tag 做兜底
+        default: ''
+
+# ---------------------------------------------------------------------------
+# concurrency：并发控制，防止同一分支的多次部署同时跑导致互相覆盖
+# ---------------------------------------------------------------------------
+concurrency:
+  # group：并发分组名。同一个 group 内的工作流不会并行执行
+  #   github.ref 是触发时的分支/标签引用（如 refs/heads/main），
+  #   即「同一分支的部署串行执行，不同分支互不影响」
+  group: deploy-${{ github.ref }}
+  # false = 排队等待上一个跑完（true 表示直接取消正在运行的那个）
+  # 部署场景一般不希望中途取消，所以设为 false
+  cancel-in-progress: false
+
+# ---------------------------------------------------------------------------
+# permissions：为本次运行自动注入的 GITHUB_TOKEN 授予的最小权限
+# 不显式声明时权限由仓库默认设置决定，显式声明更安全、更可控
+# ---------------------------------------------------------------------------
+permissions:
+  # 只读拉取代码
+  contents: read
+  # 允许向 GHCR（ghcr.io）推送镜像包，这是 push 镜像的必要权限
+  packages: write
+
+# ---------------------------------------------------------------------------
+# jobs：工作流由一个或多个 job 组成，默认并行执行
+# ---------------------------------------------------------------------------
+jobs:
+  # ======================= 第 1 个 job：构建并推送镜像 =======================
+  build:
+    # 显示在 UI 上的任务名
+    name: Build & Push Image
+    # 运行环境：GitHub 提供的 Ubuntu 最新版虚拟机
+    runs-on: ubuntu-latest
+    # outputs：把本 job 中步骤产出的值暴露给其他 job（下面的 deploy 会用到）
+    # 这里读取 id 为 meta 的步骤写入的输出
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag }}
+    # steps：按顺序执行的步骤列表
+    steps:
+      # 把仓库代码检出到运行器的当前目录，否则后续 npm/docker 都拿不到源码
+      - name: 检出
+        uses: actions/checkout@v4
+
+      # 安装并配置 Node.js 运行时
+      - name: 设置 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # 自动缓存 npm 全局下载目录，加速后续 npm ci
+          cache: npm
+
+      # npm ci：严格按 package-lock.json 安装依赖，比 npm install 更快更可复现
+      - name: 安装依赖
+        run: npm ci
+
+      # 执行 package.json 里定义的 build 脚本，产出静态资源/打包产物
+      - name: 构建产物
+        run: npm run build
+
+      # 跑最基本的单元测试，失败会让整个工作流中断（后续步骤不再执行）
+      - name: 单元测试
+        run: node tests/basic.test.mjs
+
+      # 登录镜像仓库，之后 docker push 才有权限
+      - name: 登录 ghcr.io
+        uses: docker/login-action@v3
+        with:
+          # 镜像仓库地址：GitHub Container Registry
+          registry: ghcr.io
+          # github.actor 是触发本次运行的用户名（用于记录推送者身份）
+          username: ${{ github.actor }}
+          # 推送镜像固定用仓库内置 GITHUB_TOKEN（jobs 级 packages:write 已授权）
+          # 服务器拉取用的是 read-only PAT（GHCR_TOKEN），已存在服务器 /home/ubuntu/label-printer/.ghcr_token
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 启用 Docker Buildx（支持 BuildKit 特性，如 gha 缓存导入导出）
+      - name: 设置 buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 计算后面要用的镜像地址和 tag，写入 $GITHUB_OUTPUT 供步骤间引用
+      # id: meta 使其他步骤/输出可以通过 steps.meta.outputs.* 读取
+      - name: 计算镜像元数据
+        id: meta
+        run: |
+          echo "image=ghcr.io/${{ github.repository_owner }}/label-printer" >> $GITHUB_OUTPUT
+          echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      # 构建镜像并推送到 GHCR
+      - name: 构建并推送
+        uses: docker/build-push-action@v5
+        with:
+          # 构建上下文目录（. 表示仓库根目录，Dockerfile 中的 COPY 相对此目录）
+          context: .
+          file: ./Dockerfile
+          # true = 构建完成后直接推送；false 则只在本地生成（用于仅校验构建）
+          push: true
+          # 同时打两个标签：具体 commit sha（可精确回滚）+ latest（最新版）
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          # 从 GitHub Actions 缓存读取上次的构建层，显著加速重复构建
+          cache-from: type=gha
+          # mode=max 表示缓存所有中间层（而不只是最终镜像层），缓存更全但占用更多空间
+          cache-to: type=gha,mode=max
+          # 关闭 attestation/provenance 元数据生成，避免产生额外的 manifest 影响部分镜像仓库/拉取工具
+          provenance: false
+
+  # ======================= 第 2 个 job：部署到服务器 =======================
+  deploy:
+    name: Deploy to Server
+    # needs：声明依赖关系，必须等 build 成功后才开始（同时也能读取 build 的 outputs）
+    needs: build
+    runs-on: ubuntu-latest
+    # 关联 GitHub 的 Environment（可用于配置审批、环境级 Secrets、部署记录）
+    environment: production
+    steps:
+      # 启动 ssh-agent 并加载私钥，后续 ssh 命令即可免密码连接
+      # 私钥内容来自仓库 Secret SERVER_SSH_KEY
+      - name: 加载 SSH 私钥
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+      # 通过 SSH 在服务器上执行重启脚本，让服务器拉取刚推送的镜像
+      - name: 部署到服务器
+        # env：把值先放进环境变量，shell 里再用 ${VAR} 引用
+        # 这样做可以避免把 Secret 直接拼进命令行（减少日志泄露风险）
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          USER: ${{ secrets.SERVER_USER }}
+          # inputs.tag 是手动触发时的回滚参数；
+          # 若为空则回退到 build job 输出的 commit sha 作为部署 tag
+          TAG: ${{ inputs.tag || needs.build.outputs.tag }}
+        run: |
+          # 连接服务器并执行远程命令
+          # -o StrictHostKeyChecking=accept-new：首次连接自动信任服务器指纹（免去手动确认）
+          # -o ServerAliveInterval=30：每 30 秒发心跳包，防止长时间任务因空闲被断开
+          ssh -o StrictHostKeyChecking=accept-new \
+              -o ServerAliveInterval=30 \
+              ${USER}@${HOST} \
+              "TAG='${TAG}' /home/ubuntu/label-printer/restart.sh"
+          # 远程执行的 restart.sh 以 TAG 作为目标镜像版本（默认由脚本内处理为 latest），
+          # 负责 docker pull + 重新创建容器，从而完成本次部署

@@ -150,6 +150,15 @@
         </div>
       </aside>
     </div>
+
+    <footer class="gate-beian">
+      <a
+        href="https://beian.miit.gov.cn/#/Integrated/recordQuery"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="工业和信息化部 ICP/IP 地址/域名信息备案管理系统"
+      >粤ICP备20041194号-2</a>
+    </footer>
   </div>
 </template>
 
@@ -277,6 +286,28 @@ onMounted(() => {
 .gate-close:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* 欢迎页底部备案号：极淡、固定贴底，不挤占主视觉 */
+.gate-beian {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: linear-gradient(to top, color-mix(in srgb, var(--bg) 86%, transparent), transparent);
+}
+.gate-beian a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.gate-beian a:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .frame {

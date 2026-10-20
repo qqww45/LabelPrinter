@@ -13,7 +13,8 @@
         <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="close">×</button>
       </div>
       <div class="modal-body">
-        <p class="name">{{ t('标签打印工具') }}</p>
+        <p class="name">{{ t('签立方') }}</p>
+        <p class="name-sub">{{ t('标签设计与打印工具') }}</p>
         <p class="ver">{{ t('版本 {v}', { v: version }) }}</p>
         <p class="lead">{{ t('在浏览器里用 AI 或亲手排好标签，按表格批量打印，并导出 PDF 和图片。') }}</p>
 
@@ -27,6 +28,14 @@
           <li>{{ t('没有统计和埋点。') }}</li>
           <li>{{ t('使用「AI 调整」并填写密钥后，相关内容会发给你选择的服务商。不用 AI 就不会发送。') }}</li>
         </ul>
+
+        <h3>{{ t('备案') }}</h3>
+        <a
+          class="beian"
+          href="https://beian.miit.gov.cn/#/Integrated/recordQuery"
+          target="_blank"
+          rel="noopener noreferrer"
+        >粤ICP备20041194号-2</a>
       </div>
       <div class="modal-footer">
         <button class="btn" type="button" @click="close">{{ t('关闭') }}</button>
@@ -65,6 +74,12 @@ onMounted(() => {
   font-weight: 650;
   color: var(--text);
 }
+.name-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
 .ver {
   margin: 4px 0 0;
   font-size: 13px;
@@ -102,5 +117,16 @@ li + li { margin-top: 6px; }
 .repo:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+.beian {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.beian:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 </style>
