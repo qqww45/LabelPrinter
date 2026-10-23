@@ -328,7 +328,7 @@ function scrollChat() {
 function planTouchesData(next) {
   const d = next?.data
   if (!d) return false
-  return !!(d.addColumns?.length || d.renameColumns?.length || d.removeColumns?.length || d.setColumn?.length || d.setCells?.length)
+  return !!(d.addColumns?.length || d.renameColumns?.length || d.removeColumns?.length || d.addRows?.length || d.setColumn?.length || d.setCells?.length || d.removeRows?.length)
 }
 
 async function onAdjust() {
@@ -420,6 +420,10 @@ function applyDataOps(ops) {
   for (const name of ops.removeColumns || []) {
     try { data.removeColumn(name) } catch (e) { notes.push(e.message) }
   }
+  // 先加行，setCells 的行号才能写到新行上
+  for (const row of ops.addRows || []) {
+    try { data.addRow(row) } catch (e) { notes.push(e.message) }
+  }
   for (const item of ops.setColumn || []) {
     if (!data.headers.includes(item.column)) { notes.push(item.column); continue }
     for (const row of data.rows) data.updateRow(row.__id, { [item.column]: item.value })
@@ -428,6 +432,11 @@ function applyDataOps(ops) {
     const row = data.rows[cell.row - 1]
     if (!row || !data.headers.includes(cell.column)) continue
     data.updateRow(row.__id, { [cell.column]: cell.value })
+  }
+  // 删行放最后（行号按删除前算），从大到小删避免位移
+  for (const r of [...(ops.removeRows || [])].sort((a, b) => b - a)) {
+    const row = data.rows[r - 1]
+    if (row) data.removeRow(row.__id)
   }
   return notes
 }

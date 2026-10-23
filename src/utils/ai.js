@@ -632,8 +632,10 @@ ${JSON.stringify(ctx.layout)}
     "addColumns": ["份数"],
     "renameColumns": [{ "from": "价格", "to": "单价" }],
     "removeColumns": [],
+    "addRows": [{ "编码": "TEST0001" }, { "编码": "TEST0002" }],
     "setColumn": [{ "column": "份数", "value": "1" }],
     "setCells": [{ "row": 1, "column": "份数", "value": "2" }],
+    "removeRows": [3, 5],
     "fieldMap": { "商品名称": "产品名称" }
   }
 }
@@ -656,7 +658,11 @@ ${JSON.stringify(ctx.layout)}
 - 用户消息若附图（实打照片），优先根据照片估计校准，并在 summary 里用中文说明你看到的偏差（例如「偏右约 2mm」）
 - 排版只在用户提到纸张、每页几张、间距时才写入 sheet
 - row 从 1 开始。setColumn 会改这一列的每一行，只在用户明确说「每一行都……」时使用
+- 用户让你生成 / 补充 / 造测试数据、批量填充时，用 data.addRows：每行一个对象，键是列名，一次最多 100 行。要用的列还没建就先写进 addColumns。数据行不够或还没有行时，setCells 帮不上忙，必须用 addRows
+- 生成有条理的内容（TEST0001…递增、日期递增、成组的价格）直接把每一行的值逐个写进 addRows，不要指望前端帮你算
+- 删除指定的几行用 data.removeRows，行号从 1 开始、按当前数据算。同一份计划里尽量别把 removeRows 和 setCells 混在一起
 - 不要发明数据列。新列必须先出现在 addColumns
+- summary 只能描述计划里真实存在的操作：没写 data.addRows 就绝不能说「已生成数据」；做不到就直说缺什么（比如「这列还不存在」），不要假装成功
 - 用户没提到的打印项和排版不要改`
 }
 
@@ -737,8 +743,12 @@ function projectedFields(fields, data) {
   return set
 }
 
+const ADD_ROWS_CAP = 100
+const REMOVE_ROWS_CAP = 200
+const SET_CELLS_CAP = 80
+
 function normalizeDataOps(raw, fields, rowCount, warnings) {
-  const data = { addColumns: [], renameColumns: [], removeColumns: [], setColumn: [], setCells: [] }
+  const data = { addColumns: [], renameColumns: [], removeColumns: [], addRows: [], setColumn: [], setCells: [], removeRows: [] }
   const existing = new Set(fields || [])
   const added = new Set()
   for (const name of (raw.addColumns || []).slice(0, 8)) {
@@ -773,6 +783,29 @@ function normalizeDataOps(raw, fields, rowCount, warnings) {
     data.removeColumns.push(n)
   }
   const after = projectedFields(fields, data)
+
+  // 新增行：每行一个对象，键必须是「现有列 + 本次加的列」
+  const missingColWarned = new Set()
+  for (const row of (Array.isArray(raw.addRows) ? raw.addRows : []).slice(0, ADD_ROWS_CAP)) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+    const clean = {}
+    for (const [k, v] of Object.entries(row).slice(0, 20)) {
+      const col = cleanName(k)
+      if (!col) continue
+      if (!after.has(col)) {
+        if (!missingColWarned.has(col)) {
+          missingColWarned.add(col)
+          warnings.push(`新行里的列「${col}」不存在（新列要先写进 addColumns），已跳过`)
+        }
+        continue
+      }
+      clean[col] = String(v ?? '').slice(0, 500)
+    }
+    if (Object.keys(clean).length && Object.values(clean).some(v => v !== '')) data.addRows.push(clean)
+  }
+
+  // setCells 的行号按「加完新行之后」算：旧行 1..rowCount，新行接着往后
+  const maxRow = Math.max(0, (Number(rowCount) || 0) + data.addRows.length)
   for (const item of (raw.setColumn || []).slice(0, 8)) {
     const column = cleanName(item?.column)
     if (!column || !after.has(column)) {
@@ -781,8 +814,7 @@ function normalizeDataOps(raw, fields, rowCount, warnings) {
     }
     data.setColumn.push({ column, value: String(item?.value ?? '').slice(0, 500) })
   }
-  const maxRow = Math.max(0, Number(rowCount) || 0)
-  for (const item of (raw.setCells || []).slice(0, 80)) {
+  for (const item of (raw.setCells || []).slice(0, SET_CELLS_CAP)) {
     const column = cleanName(item?.column)
     const row = Math.floor(Number(item?.row))
     if (!column || !after.has(column) || !Number.isFinite(row) || row < 1 || (maxRow && row > maxRow)) {
@@ -791,6 +823,20 @@ function normalizeDataOps(raw, fields, rowCount, warnings) {
     }
     data.setCells.push({ row, column, value: String(item?.value ?? '').slice(0, 500) })
   }
+  // 删行：行号按当前数据（加行之前）从 1 开始
+  const seenRows = new Set()
+  for (const r of (Array.isArray(raw.removeRows) ? raw.removeRows : []).slice(0, REMOVE_ROWS_CAP)) {
+    const n = Math.floor(Number(r))
+    if (!Number.isFinite(n) || n < 1 || (rowCount && n > rowCount)) {
+      warnings.push(`要删除的第 ${r} 行不存在，已跳过`)
+      continue
+    }
+    if (!seenRows.has(n)) {
+      seenRows.add(n)
+      data.removeRows.push(n)
+    }
+  }
+  data.removeRows.sort((a, b) => a - b)
   data.fieldMap = []
   if (raw.fieldMap && typeof raw.fieldMap === 'object' && !Array.isArray(raw.fieldMap)) {
     for (const [from, to] of Object.entries(raw.fieldMap).slice(0, 20)) {
@@ -1165,8 +1211,10 @@ export function adjustPlanIsEmpty(plan) {
     && !d.addColumns?.length
     && !d.renameColumns?.length
     && !d.removeColumns?.length
+    && !d.addRows?.length
     && !d.setColumn?.length
     && !d.setCells?.length
+    && !d.removeRows?.length
     && !d.fieldMap?.length
     && !plan.order?.length
 }
@@ -1206,6 +1254,8 @@ export function describeAdjustPlan(plan) {
   if (d.addColumns?.length) lines.push('新增列：' + d.addColumns.join('、'))
   if (d.renameColumns?.length) lines.push('重命名列：' + d.renameColumns.map(x => `${x.from}→${x.to}`).join('、'))
   if (d.removeColumns?.length) lines.push('删除列：' + d.removeColumns.join('、'))
+  if (d.addRows?.length) lines.push(`新增 ${d.addRows.length} 行数据`)
+  if (d.removeRows?.length) lines.push(`删除第 ${d.removeRows.join('、')} 行`)
   if (d.setColumn?.length) lines.push('整列填写：' + d.setColumn.map(x => x.column).join('、'))
   if (d.setCells?.length) lines.push(`修改 ${d.setCells.length} 个单元格`)
   if (d.fieldMap?.length) lines.push('字段映射：' + d.fieldMap.map(x => `${x.from}→${x.to}`).join('、'))
