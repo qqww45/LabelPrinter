@@ -28,14 +28,6 @@
           <li>{{ t('没有统计和埋点。') }}</li>
           <li>{{ t('使用「AI 调整」并填写密钥后，相关内容会发给你选择的服务商。不用 AI 就不会发送。') }}</li>
         </ul>
-
-        <h3>{{ t('备案') }}</h3>
-        <a
-          class="beian"
-          href="https://beian.miit.gov.cn/#/Integrated/recordQuery"
-          target="_blank"
-          rel="noopener noreferrer"
-        >粤ICP备20041194号-2</a>
       </div>
       <div class="modal-footer">
         <button class="btn" type="button" @click="close">{{ t('关闭') }}</button>
@@ -117,16 +109,5 @@ li + li { margin-top: 6px; }
 .repo:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
-}
-.beian {
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-decoration: none;
-}
-.beian:hover {
-  color: var(--primary);
-  text-decoration: underline;
 }
 </style>
