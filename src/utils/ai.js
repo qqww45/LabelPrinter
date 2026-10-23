@@ -9,6 +9,11 @@
 import { normalizeCalibrate } from './thermalCalibrate.js'
 import { getPrinterProfile } from './printerProfile.js'
 import { clampGapMm } from './thermalMedia.js'
+import {
+  BUILTIN_SOURCE,
+  BUILTIN_DEFAULT_ENDPOINT,
+  normalizeBuiltinEndpoint
+} from './aiModels.js'
 
 const FONT = 'Microsoft YaHei'
 
@@ -111,6 +116,99 @@ export async function callChat(cfg, messages) {
     content: data.choices?.[0]?.message?.content || '',
     usage: data.usage
   }
+}
+
+export const BUILTIN_UNREACHABLE =
+  '内置 AI 不可用（本地预览没有这个端点，线上刚部署也请稍等）。可在 AI 设置里换成「自定义」，填自己的 API Key'
+
+/**
+ * 决定这一发请求走哪条路（纯函数，单测覆盖）
+ * @param {{source?:string, builtinEndpoint?:string, baseUrl?:string, apiKey?:string, model?:string}} cfg
+ * @returns {{kind:'builtin'|'custom', url:string, apiKey?:string, model?:string}}
+ */
+export function resolveChatTarget(cfg = {}) {
+  if (cfg.source === BUILTIN_SOURCE) {
+    return { kind: 'builtin', url: normalizeBuiltinEndpoint(cfg.builtinEndpoint) }
+  }
+  return {
+    kind: 'custom',
+    url: (String(cfg.baseUrl || '').replace(/\/+$/, '')) + '/chat/completions',
+    apiKey: cfg.apiKey || '',
+    model: cfg.model || ''
+  }
+}
+
+let conversationIdCache = ''
+/** 平台约定：AI 端点要收到 makers-conversation-id；本端点无状态，一次会话一个即可 */
+function conversationId() {
+  if (conversationIdCache) return conversationIdCache
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      conversationIdCache = crypto.randomUUID()
+    }
+  } catch (e) { /* 非安全上下文没有 crypto.randomUUID */ }
+  if (!conversationIdCache) {
+    conversationIdCache = 'lp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10)
+  }
+  return conversationIdCache
+}
+
+/**
+ * 调站点自带的内置端点（同源，不携带任何 Key）
+ * @param {{builtinEndpoint?:string, temperature?:number, maxTokens?:number}} cfg
+ */
+export async function callBuiltin(cfg, messages) {
+  const url = normalizeBuiltinEndpoint(cfg?.builtinEndpoint) || BUILTIN_DEFAULT_ENDPOINT
+  let resp
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'makers-conversation-id': conversationId()
+      },
+      body: JSON.stringify({
+        messages,
+        temperature: Number.isFinite(cfg?.temperature) ? cfg.temperature : 0.4,
+        maxTokens: Number.isFinite(cfg?.maxTokens) ? cfg.maxTokens : 4096
+      })
+    })
+  } catch (e) {
+    throw new Error(BUILTIN_UNREACHABLE)
+  }
+  // 站点把 /ai-chat 重写到 index.html 时会拿到 HTML；提前认出来，别让用户对着一堆标签发懵
+  const ctype = String(resp.headers?.get?.('content-type') || '')
+  const isJson = /json/i.test(ctype)
+  if (!isJson) throw new Error(BUILTIN_UNREACHABLE)
+  if (!resp.ok) {
+    let msg = ''
+    try {
+      const j = await resp.json()
+      msg = j?.error || j?.message || ''
+    } catch (e) { /* 已确认是 JSON 类型，解析失败就当没消息 */ }
+    if (!msg || resp.status === 404 || resp.status === 405) throw new Error(BUILTIN_UNREACHABLE)
+    throw new Error(`HTTP ${resp.status}: ${msg}`)
+  }
+  let data = {}
+  try {
+    data = await resp.json()
+  } catch (e) {
+    throw new Error(BUILTIN_UNREACHABLE)
+  }
+  if (typeof data?.content !== 'string') throw new Error(BUILTIN_UNREACHABLE)
+  return {
+    content: data.content,
+    usage: data.usage,
+    model: data.model
+  }
+}
+
+/**
+ * 统一入口：按来源分发到内置端点或用户自定义的 OpenAI 兼容端点
+ */
+export async function callChatAuto(cfg, messages) {
+  if (cfg?.source === BUILTIN_SOURCE) return callBuiltin(cfg, messages)
+  return callChat(cfg, messages)
 }
 
 /**

@@ -10,6 +10,9 @@
         {{ t('对着已有项目微调。AI 会先读布局、已导入的数据、打印设置和纸张排版，再只改你提到的地方。') }}
       </p>
       <p v-if="!chat.length" class="hint soft">{{ adjustReads }}</p>
+      <p v-if="!chat.length && isBuiltin" class="hint soft">
+        {{ t('正在用内置 AI（免 Key）。想「看图纠偏」或换更强模型，去设置里切成自定义。') }}
+      </p>
       <div v-for="(m, i) in chat" :key="i" class="bubble" :class="m.role">
         <img v-if="m.image" class="bubble-img" :src="m.image" alt="" />
         <span>{{ m.text }}</span>
@@ -80,7 +83,7 @@
             </svg>
           </button>
 
-          <label class="model-pick">
+          <label v-if="!isBuiltin" class="model-pick">
             <span class="sr-only">{{ t('模型') }}</span>
             <select
               class="model-select"
@@ -131,7 +134,7 @@ import {
   buildAdjustPrompt,
   buildAdjustMessages,
   packAdjustContext,
-  callChat,
+  callChatAuto,
   parseAIPlan,
   normalizeAdjustPlan,
   adjustPlanIsEmpty,
@@ -140,7 +143,13 @@ import {
 } from '../utils/ai'
 import { savePrinterProfile } from '../utils/printerProfile'
 import { fileToVisionDataUrl, visionCalibrateHint } from '../utils/aiImage'
-import { AI_MODEL_CATALOG, isKnownModel, modelSupportsVision, modelsForBaseUrl } from '../utils/aiModels'
+import {
+  AI_MODEL_CATALOG,
+  BUILTIN_SUPPORTS_VISION,
+  isKnownModel,
+  modelSupportsVision,
+  modelsForBaseUrl
+} from '../utils/aiModels'
 
 const { t } = useI18n()
 defineProps({
@@ -181,7 +190,9 @@ const unknownDialogModel = computed(() => {
   return id
 })
 
-const currentModelVision = computed(() => modelSupportsVision(ai.model))
+const isBuiltin = computed(() => ai.isBuiltin())
+// 内置默认走纯文本模型；网关换成视觉模型后服务端会传回来，这里暂按不能看图处理
+const currentModelVision = computed(() => (isBuiltin.value ? !!BUILTIN_SUPPORTS_VISION : modelSupportsVision(ai.model)))
 
 const dataFields = computed(() => data.fields.filter((h) => h && h !== '__id'))
 
@@ -219,7 +230,9 @@ async function attachFile(file) {
   if (!file) return
   try {
     attachDataUrl.value = await fileToVisionDataUrl(file)
-    if (!currentModelVision.value) {
+    if (isBuiltin.value) {
+      toastInfo(t('内置 AI 看不了图。要「看图纠偏」请到设置里切成自定义，并选带「可看图」的模型'), 4200)
+    } else if (!currentModelVision.value) {
       toastInfo(t('已附图。当前模型不能看图，请换成带「可看图」的模型'), 4200)
     }
   } catch (err) {
@@ -329,6 +342,10 @@ async function onAdjust() {
     error.value = t('先写要改什么，或附上实打照片')
     return
   }
+  if (imageDataUrl && isBuiltin.value) {
+    error.value = t('内置 AI 看不了图。请到设置里切成自定义，并选带「可看图」的模型')
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -346,7 +363,9 @@ async function onAdjust() {
       return
     }
     if (imageDataUrl) userText += '\n\n' + visionCalibrateHint(project.project.label)
-    const { content } = await callChat({
+    const { content } = await callChatAuto({
+      source: ai.source,
+      builtinEndpoint: ai.builtinEndpoint,
       baseUrl: ai.baseUrl,
       apiKey: ai.apiKey,
       model: ai.model,

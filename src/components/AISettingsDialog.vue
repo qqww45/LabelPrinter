@@ -8,13 +8,43 @@
 
       <div class="modal-body">
         <div class="hint">
-          {{ t('本工具使用 OpenAI 兼容协议，支持 DeepSeek / 智谱 GLM / 阿里 Qwen / OpenAI / Ollama 等。') }}<br>
-          {{ t('API Key 默认只存在本标签页会话，不上传服务器。勾选「记住」才会写入本机。') }}<br>
-          {{ t('附图看实打效果请选带「可看图」的模型。DeepSeek 推荐 deepseek-flash。') }}<br>
-          {{ t('一次只配置一家服务商的 API Key。换厂商请先改「服务商」，再填对应的 Key。') }}
+          {{ t('内置 AI 走站点自己的 EdgeOne 端点，开箱即用、不用填 Key，但看不了图。') }}<br>
+          {{ t('想用自己更强的模型或「看图纠偏」，就切成自定义：支持 DeepSeek / 智谱 GLM / 阿里 Qwen / OpenAI / Ollama 等 OpenAI 兼容协议。') }}
         </div>
 
         <fieldset>
+          <legend>🧩 {{ t('AI 来源') }}</legend>
+          <div class="seg" role="group" :aria-label="t('AI 来源')">
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ on: local.source === BUILTIN_SOURCE }"
+              @click="local.source = BUILTIN_SOURCE"
+            >{{ t('内置（免 Key）') }}</button>
+            <button
+              type="button"
+              class="seg-btn"
+              :class="{ on: local.source === CUSTOM_SOURCE }"
+              @click="local.source = CUSTOM_SOURCE"
+            >{{ t('自定义（自带 Key）') }}</button>
+          </div>
+          <div v-if="local.source === BUILTIN_SOURCE" class="mt">
+            <div class="row">
+              <label class="lbl">{{ t('端点') }}</label>
+              <input
+                v-model="local.builtinEndpoint"
+                class="input"
+                :placeholder="BUILTIN_DEFAULT_ENDPOINT"
+                autocomplete="off"
+                spellcheck="false"
+                :aria-label="t('内置端点路径')"
+              />
+            </div>
+            <p class="muted mt">{{ t('模型由服务端决定。本地预览时该端点不存在，会提示走自定义。') }}</p>
+          </div>
+        </fieldset>
+
+        <fieldset v-if="local.source === CUSTOM_SOURCE">
           <legend>🔑 {{ t('API Key') }}</legend>
           <div class="row">
             <input
@@ -33,7 +63,7 @@
           </label>
         </fieldset>
 
-        <fieldset>
+        <fieldset v-if="local.source === CUSTOM_SOURCE">
           <legend>🌐 {{ t('服务商') }}</legend>
           <select class="input" :value="providerSelect" :aria-label="t('服务商')" @change="onProviderChange">
             <option v-for="p in providers" :key="p.id" :value="p.id">{{ p.name }}</option>
@@ -49,7 +79,7 @@
           <p v-else class="muted url-line">{{ local.baseUrl }}</p>
         </fieldset>
 
-        <fieldset>
+        <fieldset v-if="local.source === CUSTOM_SOURCE">
           <legend>🧠 {{ t('模型') }}</legend>
           <select class="input" :value="modelSelect" :aria-label="t('模型')" @change="onModelSelectChange">
             <optgroup v-if="providerModels.length" :label="providerGroupLabel">
@@ -92,7 +122,7 @@
       <div class="modal-foot">
         <span class="muted small">{{ t('设置已自动保存') }}</span>
         <div class="spacer" />
-        <button class="btn" @click="onTest" :disabled="!local.apiKey || testing">
+        <button class="btn" @click="onTest" :disabled="testing || (local.source === CUSTOM_SOURCE && !local.apiKey)">
           <span v-if="testing" class="spin">⏳</span>
           {{ t('测试连接') }}
         </button>
@@ -107,15 +137,19 @@
 import { computed, ref } from 'vue'
 import { useAIStore } from '../stores/ai'
 import { useI18n } from '../utils/i18n'
-import { callChat } from '../utils/ai'
+import { callChatAuto } from '../utils/ai'
 import {
   AI_PROVIDERS,
+  BUILTIN_SOURCE,
+  BUILTIN_DEFAULT_ENDPOINT,
+  CUSTOM_SOURCE,
   CUSTOM_MODEL_VALUE,
   applyProviderChoice,
   findModel,
   isKnownModel,
   modelSupportsVision,
   modelsForProvider,
+  normalizeBuiltinEndpoint,
   providerByBaseUrl
 } from '../utils/aiModels'
 
@@ -129,6 +163,8 @@ const testResult = ref(null)
 const customModelMode = ref(!isKnownModel(ai.model))
 
 const local = ref({
+  source: ai.source,
+  builtinEndpoint: ai.builtinEndpoint,
   apiKey: ai.apiKey,
   baseUrl: ai.baseUrl,
   model: ai.model,
@@ -200,7 +236,9 @@ async function onTest() {
   testing.value = true
   testResult.value = { kind: 'pending', msg: t('正在测试…') }
   try {
-    const { content } = await callChat({
+    const { content } = await callChatAuto({
+      source: local.value.source,
+      builtinEndpoint: local.value.builtinEndpoint,
       baseUrl: local.value.baseUrl,
       apiKey: local.value.apiKey,
       model: local.value.model,
@@ -218,6 +256,8 @@ async function onTest() {
 }
 
 function onSave() {
+  ai.setSource(local.value.source)
+  ai.builtinEndpoint = normalizeBuiltinEndpoint(local.value.builtinEndpoint)
   ai.apiKey = local.value.apiKey
   ai.baseUrl = local.value.baseUrl
   ai.model = local.value.model
@@ -254,6 +294,11 @@ legend { padding: 0 6px; font-size: 12px; font-weight: 600; }
 .input { flex: 1; width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-soft); color: var(--text); border: 1px solid var(--border); border-radius: 3px; font: inherit; }
 .input:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .input-num { max-width: 120px; }
+.seg { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.seg-btn { flex: 1; padding: 6px 8px; background: var(--bg-soft); color: var(--text); border: 0; cursor: pointer; font: inherit; font-size: 12px; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn.on { background: rgba(37,99,235,0.15); color: var(--primary); font-weight: 600; }
+.seg-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .btn-mini { padding: 4px 8px; background: var(--bg-soft); color: var(--text); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 12px; }
 .status { padding: 8px 12px; border-radius: 4px; font-size: 13px; margin-top: 8px; }
 .status.ok { background: rgba(34,197,94,0.1); color: #15803d; border: 1px solid rgba(34,197,94,0.3); }

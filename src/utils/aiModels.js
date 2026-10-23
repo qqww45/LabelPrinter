@@ -5,6 +5,26 @@
 
 export const CUSTOM_MODEL_VALUE = '__custom__'
 
+/** AI 来源：内置（站点自带的 EdgeOne 端点，免 Key）或自定义（用户自带 Key） */
+export const BUILTIN_SOURCE = 'builtin'
+export const CUSTOM_SOURCE = 'custom'
+/** 新用户默认用内置；读不出来来源时不乱改老用户的自定义配置 */
+export const DEFAULT_AI_SOURCE = BUILTIN_SOURCE
+/** 内置端点路径：与 agents/ai-chat/index.ts 的路由一致，同源，CSP 无需放行 */
+export const BUILTIN_DEFAULT_ENDPOINT = '/ai-chat'
+export const BUILTIN_MODEL_LABEL = '内置模型（EdgeOne AI）'
+/** 内置默认走纯文本模型；支持看图的网关模型要在服务端配 AI_GATEWAY_MODEL */
+export const BUILTIN_SUPPORTS_VISION = false
+
+export function normalizeSource(v) {
+  return v === BUILTIN_SOURCE ? BUILTIN_SOURCE : CUSTOM_SOURCE
+}
+
+export function normalizeBuiltinEndpoint(v) {
+  const s = String(v || '').trim()
+  return s || BUILTIN_DEFAULT_ENDPOINT
+}
+
 export const AI_PROVIDERS = [
   {
     id: 'deepseek',
