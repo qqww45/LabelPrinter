@@ -2,7 +2,7 @@
 
 > 免费的在线标签设计与打印工具。导入 Excel 或 CSV，按行生成价签、条码、二维码和快递面单。默认可免费 AI排版，不用填密钥。可批量打印或导出 PDF。数据留在浏览器。
 
-签立方是一个开源、免费的浏览器工具。网址：https://labelcube.ci64.com/
+签立方是一个开源、免费的浏览器工具。网址：https://ci64.com/
 源码：https://github.com/qqww45/LabelPrinter
 许可证：MIT。不用安装，不用注册。
 
