@@ -9,17 +9,46 @@
 .site-main {
   flex: 1;
   width: 100%;
-  max-width: 1080px;
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 32px 24px 64px;
 }
 .site-section {
-  margin-bottom: 48px;
+  margin-bottom: 64px;
+}
+.site-section--band {
+  margin-left: calc(-1 * clamp(12px, 4vw, 24px));
+  margin-right: calc(-1 * clamp(12px, 4vw, 24px));
+  padding: 48px clamp(12px, 4vw, 24px);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg-hover));
+  border: 1px solid var(--border);
 }
 .site-section h2 {
-  font-size: 22px;
-  margin: 0 0 16px;
+  font-size: clamp(22px, 3vw, 28px);
+  margin: 0 0 20px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.site-reveal {
+  animation: site-reveal 0.45s ease both;
+}
+@keyframes site-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 .site-lede {
   font-size: 16px;
@@ -33,11 +62,33 @@
   gap: 20px;
 }
 .hero-block h1 {
-  font-size: clamp(28px, 5vw, 40px);
-  line-height: 1.15;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.12;
   margin: 0;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+.hero-photo-wrap {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.hero-photo-wrap .mkt-img {
+  box-shadow: 0 16px 48px rgba(37, 99, 235, 0.12);
+}
+.hero-chip-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  backdrop-filter: blur(6px);
 }
 .hero-actions {
   display: flex;
@@ -62,8 +113,28 @@
 .step-card {
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.step-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.08);
+}
+.step-card-body {
+  padding: 14px 16px 18px;
+}
+.step-card-photo {
+  aspect-ratio: 16 / 10;
+  border-bottom: 1px solid var(--border);
+}
+.step-card-photo .mkt-img {
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
 }
 .step-card b {
   display: inline-flex;
@@ -83,17 +154,27 @@
 }
 .scene-card {
   display: block;
-  padding: 18px;
-  border-radius: 12px;
+  padding: 0;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--bg-panel);
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.2s ease;
 }
 .scene-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.12);
+  transform: translateY(-2px);
+}
+.scene-card-photo {
+  aspect-ratio: 4 / 3;
+}
+.scene-card-photo .mkt-img {
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
 }
 .scene-card strong {
   display: block;
@@ -104,6 +185,48 @@
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.45;
+}
+.scene-text {
+  padding: 14px 16px 16px;
+}
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.trust-grid li {
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-size: 15px;
+}
+.tpl-photo-cover {
+  aspect-ratio: 4 / 3;
+  border-bottom: 1px solid var(--border);
+}
+.tpl-photo-cover .mkt-img {
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+}
+.help-band {
+  margin: 0 0 40px;
+  border-radius: 16px;
+  overflow: hidden;
+  max-height: 220px;
+}
+.help-band .mkt-img {
+  max-height: 220px;
+}
+.help-band .mkt-img img {
+  object-fit: cover;
+  max-height: 220px;
 }
 .cap-strip {
   display: flex;
@@ -130,7 +253,11 @@
   line-height: 1.7;
 }
 @media (prefers-reduced-motion: reduce) {
-  .scene-card {
+  .scene-card,
+  .step-card {
     transition: none;
+  }
+  .scene-card:hover {
+    transform: none;
   }
 }

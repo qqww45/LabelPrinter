@@ -44,11 +44,14 @@
               :class="{ active: selected?.templateId === entry.templateId }"
               @click="selected = entry"
             >
-              <TemplatePreviewThumb
-                :template-id="entry.templateId"
-                :max-width="140"
-                :max-height="96"
-              />
+              <div class="tpl-photo-cover">
+                <MarketingImage
+                  :src="coverFor(entry.templateId).src"
+                  :alt="coverFor(entry.templateId).alt"
+                  aspect="4 / 3"
+                  radius="0"
+                />
+              </div>
               <div class="tpl-meta">
                 <strong>{{ entry.name }}</strong>
                 <span>{{ entry.size }} mm · {{ entry.group }}</span>
@@ -89,6 +92,8 @@ import { useRoute, useRouter } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
 import TemplatePreviewThumb from '../components/site/TemplatePreviewThumb.vue'
+import MarketingImage from '../components/site/MarketingImage.vue'
+import { resolveMarketingAsset } from '../content/marketingAssets'
 import {
   filterTemplateCatalog,
   getPurposeFilterOptions,
@@ -159,6 +164,10 @@ function syncQuery() {
   router.replace({ query })
 }
 
+function coverFor(templateId) {
+  return resolveMarketingAsset('template', templateId)
+}
+
 function applySelected() {
   if (!selected.value) return
   const entry = selected.value
@@ -197,13 +206,13 @@ function applySelected() {
 }
 .tpl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
 }
 .tpl-card {
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 16px;
   background: var(--bg-panel);
   padding: 0;
   cursor: pointer;
@@ -231,7 +240,8 @@ function applySelected() {
   color: var(--text-secondary);
 }
 .tpl-meta strong {
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text);
 }
 .tpl-detail {
