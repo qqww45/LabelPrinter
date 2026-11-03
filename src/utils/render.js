@@ -12,7 +12,7 @@ import {
   expandTemplateText,
   fieldRefsFromText,
   fieldRefsFromPlaceholder,
-  isSimpleFieldPlaceholder
+  mapPlaceholders
 } from './templateExpr.js'
 
 /**
@@ -147,28 +147,19 @@ export function renderTextWithAlert(text, row, availableSet) {
   if (rowIsEmpty(row)) return { text, missing: [] }
   const canAlert = !!(availableSet && availableSet.size)
   const missing = []
-  const out = String(text).replace(/\{\{([^}]+)\}\}/g, (_, inner) => {
-    const k = inner.trim()
-    if (isSimpleFieldPlaceholder(inner)) {
-      if (row[k] !== undefined && row[k] !== null) return row[k]
-      if (canAlert && !availableSet.has(k)) {
-        if (!missing.includes(k)) missing.push(k)
-        return `⚠${k}`
-      }
-      return ''
+  if (canAlert) {
+    for (const rf of fieldRefsFromText(text)) {
+      if (rf && !availableSet.has(rf) && !missing.includes(rf)) missing.push(rf)
     }
+  }
+  if (!canAlert || !missing.length) {
+    return { text: expandTemplateText(text, row), missing: [] }
+  }
+  const out = mapPlaceholders(text, (inner, token) => {
     const refs = fieldRefsFromPlaceholder(inner)
-    let missingHit = false
-    if (canAlert) {
-      for (const rf of refs) {
-        if (rf && !availableSet.has(rf)) {
-          if (!missing.includes(rf)) missing.push(rf)
-          missingHit = true
-        }
-      }
-    }
-    if (missingHit) return `⚠${refs[0] || k}`
-    return expandTemplateText(`{{${inner}}}`, row)
+    const bad = refs.find(rf => rf && !availableSet.has(rf))
+    if (bad) return `⚠${bad}`
+    return expandTemplateText(token, row)
   })
   return { text: out, missing }
 }

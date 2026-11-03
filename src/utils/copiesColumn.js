@@ -2,7 +2,14 @@
  * 按列份数：导入 / 打印设置里识别常见的数量列名。
  */
 const COPY_ALIASES = new Set([
-  '数量', '份数', '打印份数', '打印数量', 'copies', 'copy', 'qty', 'quantity', 'count', 'num'
+  '份数',
+  '打印份数',
+  '打印数量',
+  '标签份数',
+  'copies',
+  'copy',
+  'qty',
+  'quantity'
 ])
 
 function normHeader(s) {
@@ -19,7 +26,8 @@ export function guessCopiesColumn(headers = [], current = '') {
   for (const h of list) {
     const n = normHeader(h)
     if (n.includes('qty') || n.includes('copies') || n.includes('quantity')) return h
-    if (n.endsWith('数量') || n.endsWith('份数')) return h
+    if (n.endsWith('份数')) return h
+    if (n === '打印数量' || n === '标签份数') return h
   }
   return current || ''
 }

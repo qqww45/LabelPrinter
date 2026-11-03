@@ -234,6 +234,29 @@ export function expandTemplateText(text, row, depth = 0) {
   return out
 }
 
+export function mapPlaceholders(text, replacer) {
+  if (typeof text !== 'string' || !text.includes('{{')) return text
+  let out = ''
+  let i = 0
+  while (i < text.length) {
+    const start = text.indexOf('{{', i)
+    if (start === -1) {
+      out += text.slice(i)
+      break
+    }
+    out += text.slice(i, start)
+    const end = findPlaceholderEnd(text, start)
+    if (end === -1) {
+      out += text.slice(start)
+      break
+    }
+    const inner = text.slice(start + 2, end - 2)
+    out += replacer(inner, text.slice(start, end))
+    i = end
+  }
+  return out
+}
+
 /** 内层是否为「纯字段名」占位（设计态 ⚠ 用） */
 export function isSimpleFieldPlaceholder(inner) {
   const s = String(inner || '').trim()

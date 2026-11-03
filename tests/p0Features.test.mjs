@@ -28,7 +28,8 @@ assert.ok(renderTextHtml('{{名称}}', { 名称: xss }).includes('&lt;img'))
 assert.deepEqual(fieldRefsFromText('{{if 价格|{{名称}}|}}'), ['价格', '名称'])
 
 assert.equal(guessCopiesColumn(['品名', 'Qty']), 'Qty')
-assert.equal(guessCopiesColumn(['品名', '数量']), '数量')
+assert.equal(guessCopiesColumn(['品名', '数量']), '')
+assert.equal(guessCopiesColumn(['品名', '份数']), '份数')
 
 const store = {
   project: { printConfig: { copiesColumn: '' } },
