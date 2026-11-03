@@ -62,19 +62,27 @@ for (const rel of mustUseOfficial) {
 const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 assert(indexHtml.includes(`href="${OFFICIAL_SITE_URL}"`), 'canonical must use trailing-slash official URL')
 assert(indexHtml.includes(`"url": "${OFFICIAL_SITE_URL}"`), 'JSON-LD url must match official site')
+assert(
+  indexHtml.includes(`${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.webp`),
+  'index.html must include absolute og:image URL'
+)
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 assert(pkg.homepage === OFFICIAL_SITE_URL, 'package.json homepage must match official site')
 
-const PUBLIC_PATHS = ['/', '/templates', '/help', '/app']
+const SITEMAP_PATHS = ['/', '/templates', '/help']
 const sitemap = fs.readFileSync(path.join(root, 'public/sitemap.xml'), 'utf8')
 const sitemapLocs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
-const expectedLocs = PUBLIC_PATHS.map(p =>
+const expectedLocs = SITEMAP_PATHS.map(p =>
   p === '/' ? `${OFFICIAL_SITE_ORIGIN}/` : `${OFFICIAL_SITE_ORIGIN}${p}`
 )
 assert(
   expectedLocs.every(loc => sitemapLocs.includes(loc)),
-  `sitemap.xml must list all public routes: missing ${expectedLocs.filter(l => !sitemapLocs.includes(l)).join(', ')}`
+  `sitemap.xml must list marketing routes: missing ${expectedLocs.filter(l => !sitemapLocs.includes(l)).join(', ')}`
+)
+assert(
+  !sitemapLocs.some(loc => loc.endsWith('/app')),
+  'sitemap.xml must not list /app (editor is noindex)'
 )
 assert(
   sitemapLocs.every(loc => loc.startsWith(OFFICIAL_SITE_ORIGIN)),

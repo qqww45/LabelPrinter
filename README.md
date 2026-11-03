@@ -1,4 +1,4 @@
-# 签立方 (LabelCube)
+# 签立方（Label Cube）
 
 把表格里的每一行，印成一张可以贴出去的标签。价签、快递面单、资产贴都在浏览器里排，然后批量打印或导出 PDF。
 
@@ -6,9 +6,9 @@ Turn each row of a spreadsheet into a label you can stick on something. Lay out 
 
 **在线使用 / Try it:** https://ci64.com/
 
-开源，不用安装。项目和表格留在这台浏览器里。AI 排版用你自己的密钥，支持 DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama。不用 AI 时，表格不会发出去。
+开源，不用安装。项目和表格留在这台浏览器里。AI 排版默认使用站点内置模型，可免费排版，不用填密钥；想换更强模型或看图纠偏时，再填自己的 API Key（DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama）。不用 AI 时，表格不会发出去。
 
-Open source, nothing to install. The project and the table stay in this browser. AI layout uses your own key: DeepSeek, Zhipu GLM, Qwen, OpenAI, or Ollama. Skip AI, and the table is not sent.
+Open source, nothing to install. The project and the table stay in this browser. AI layout defaults to the site’s built-in model at no key required; bring your own API key for stronger models or photo-based layout fixes (DeepSeek, Zhipu GLM, Qwen, OpenAI, or Ollama). Skip AI, and the table is not sent.
 
 ## 标签不好排
 
@@ -28,9 +28,9 @@ Names, shipments, and asset IDs already sit in a spreadsheet. Copying them onto 
 
 ## 让 AI 先排一张
 
-把品名、价格、条码这些字段，加上想要的风格说出来。AI 排出布局、样式和字段绑定。标签已经在画布上时，可以说「价格改成红色大字」或「规格为空时不打印」，也可以附一张实拍照片让它照着改。
+把品名、价格、条码这些字段，加上想要的风格说出来。默认可免费 AI 排版（不用填密钥），会排出布局、样式和字段绑定。标签已经在画布上时，可以说「价格改成红色大字」或「规格为空时不打印」。想换更强模型或对着实拍照片纠偏时，再填自己的 API Key。
 
-Name the fields and the look, such as a product name, a price, and a barcode. AI places the layout, the styling, and the field bindings. On a label already on the canvas, say "make the price large and red" or "hide the spec when it is empty." You can attach a photo of the printed label for it to match.
+Name the fields and the look, such as a product name, a price, and a barcode. Free AI layout is available by default with no API key. On a label already on the canvas, say "make the price large and red" or "hide the spec when it is empty." Bring your own key for stronger models or photo-based fixes.
 
 ## 适合拿来做
 
@@ -70,7 +70,7 @@ Name the fields and the look, such as a product name, a price, and a barcode. AI
 ### 效率工具
 - **模板库**：6 个内置模板 + 自定义保存的"我的模板"
 - **打印前体检**：字段失效预警、越界提醒
-- **AI 排版**：说出字段和风格，生成布局并绑定字段。也可对着现有标签逐项改，或附一张实拍照片让它照着改（需自备 API 密钥）
+- **AI 排版**：说出字段和风格，生成布局并绑定字段；默认可免费排版，不用填密钥。也可对着现有标签逐项改；换更强模型或附实拍照片纠偏时需自备 API Key
 - **主题**：亮色 / 暗色
 - **多语言**：简体中文 / English；首次打开按系统/浏览器语言自动选择，之后可在工具栏切换
 - **自动保存**：项目自动存到浏览器本地，刷新不丢

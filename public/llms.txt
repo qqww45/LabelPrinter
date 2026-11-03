@@ -1,4 +1,6 @@
-# 签立方 (LabelCube)
+# 签立方（Label Cube）
+
+对外产品名：签立方（Label Cube）。开源仓库名 LabelPrinter：https://github.com/qqww45/LabelPrinter
 
 > 免费的在线标签设计与打印工具。导入 Excel 或 CSV，按行生成价签、条码、二维码和快递面单。默认可免费 AI排版，不用填密钥。可批量打印或导出 PDF。数据留在浏览器。
 
@@ -11,7 +13,7 @@
 - https://ci64.com/ — 首页与产品介绍
 - https://ci64.com/templates — 模板库
 - https://ci64.com/help — 帮助与常见问题
-- https://ci64.com/app — 在线标签设计与打印工作台
+- https://ci64.com/app — 在线标签设计与打印工作台（编辑器，非内容页；sitemap 未收录）
 
 ## 能做什么
 
