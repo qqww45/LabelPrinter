@@ -1,6 +1,12 @@
 /**
- * Capture real 签立方 /app UI and label canvas exports for public/marketing/.
- * Usage: BASE=http://127.0.0.1:5173 node scripts/capture-marketing.mjs
+ * Capture 签立方 marketing WebPs from /app (and optional print preview).
+ *
+ * Preferred workflow:
+ * - Drop production Print Preview crops into public/marketing/ (sample-price-tag, etc.)
+ * - Use this script for hero-app-editor.webp with white desk + grid off:
+ *     BASE=http://127.0.0.1:5173 node scripts/capture-marketing.mjs --hero-only
+ *
+ * Requires one-off: npm install --no-save playwright && npx playwright install chromium
  */
 import { chromium } from 'playwright'
 import { execFileSync } from 'node:child_process'
@@ -12,7 +18,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 const OUT = path.join(ROOT, 'public/marketing')
 const BASE = process.env.BASE || 'http://127.0.0.1:5173'
+const heroOnly = process.argv.includes('--hero-only')
+const MARKETING_QS = 'marketingCapture=1'
 
+/** Scene pack id → output filename (canvas fallback when no print preview asset) */
 const SPECIMENS = [
   ['retail-price', 'sample-price-tag.webp'],
   ['express', 'sample-waybill.webp'],
@@ -20,6 +29,13 @@ const SPECIMENS = [
   ['warehouse', 'sample-bin-label.webp'],
   ['jewelry', 'sample-jewelry-tag.webp'],
   ['apparel', 'sample-apparel-tag.webp']
+]
+
+/** Print preview capture: open preview dialog and screenshot first label slot */
+const PREVIEW_SPECIMENS = [
+  ['retail-price', 'sample-price-tag.webp'],
+  ['express', 'sample-waybill.webp'],
+  ['asset', 'sample-asset-tag.webp']
 ]
 
 function pngToWebp(pngPath, webpPath, quality = 88) {
@@ -32,13 +48,41 @@ function pngToWebp(pngPath, webpPath, quality = 88) {
   fs.unlinkSync(pngPath)
 }
 
+function rebuildStickerStrip() {
+  const stripNames = ['sample-price-tag', 'sample-waybill', 'sample-asset-tag', 'sample-bin-label']
+  const stripParts = []
+  for (const name of stripNames) {
+    const src = path.join(OUT, `${name}.webp`)
+    if (!fs.existsSync(src)) continue
+    const p = path.join(OUT, `_${name}-pad.png`)
+    execFileSync('ffmpeg', [
+      '-y', '-i', src,
+      '-vf', 'scale=280:280:force_original_aspect_ratio=decrease,pad=280:280:(ow-iw)/2:(oh-ih)/2:color=white',
+      p
+    ], { stdio: 'pipe' })
+    stripParts.push(p)
+  }
+  if (stripParts.length < 2) return
+  const stickersPng = path.join(OUT, '_stickers.png')
+  const inputs = stripParts.flatMap((p, i) => ['-i', p])
+  execFileSync('ffmpeg', [
+    '-y',
+    ...inputs,
+    '-filter_complex', `${stripParts.map((_, i) => `[${i}:v]`).join('')}hstack=inputs=${stripParts.length}`,
+    '-frames:v', '1', '-update', '1', stickersPng
+  ], { stdio: 'pipe' })
+  for (const p of stripParts) fs.unlinkSync(p)
+  pngToWebp(stickersPng, path.join(OUT, 'hero-label-stickers.webp'), 85)
+  console.log('wrote hero-label-stickers.webp')
+}
+
 async function waitForCanvas(page) {
   await page.waitForSelector('.label-canvas-wrapper canvas', { timeout: 90000 })
   await page.waitForFunction(() => {
     const cv = document.querySelector('.label-canvas-wrapper canvas')
     return cv && cv.width > 10 && cv.height > 10
   }, { timeout: 60000 })
-  await page.waitForTimeout(800)
+  await page.waitForTimeout(900)
 }
 
 async function dismissOverlays(page) {
@@ -46,10 +90,50 @@ async function dismissOverlays(page) {
   if (await skip.first().isVisible({ timeout: 1500 }).catch(() => false)) {
     await skip.first().click()
   }
-  const onboardClose = page.locator('.onboarding-card button:has-text("×"), .onboarding-card .btn-primary')
-  if (await onboardClose.first().isVisible({ timeout: 500 }).catch(() => false)) {
-    await onboardClose.first().click()
+}
+
+async function captureHero(page) {
+  const url = `${BASE}/app?applyTemplate=tpl_price_tag&${MARKETING_QS}`
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await dismissOverlays(page)
+  await waitForCanvas(page)
+  const heroPng = path.join(OUT, '_hero-tmp.png')
+  await page.locator('.app-shell').screenshot({ path: heroPng })
+  pngToWebp(heroPng, path.join(OUT, 'hero-app-editor.webp'), 90)
+  console.log('wrote hero-app-editor.webp (marketingCapture=1, white desk, grid off)')
+}
+
+async function capturePrintPreview(page, packId, outName) {
+  const url = `${BASE}/app?applyPack=${packId}&${MARKETING_QS}`
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await dismissOverlays(page)
+  await waitForCanvas(page)
+  await page.locator('button').filter({ hasText: /^预览$/ }).first().click()
+  await page.waitForSelector('.preview-dialog, .preview-sheet', { timeout: 30000 }).catch(() => null)
+  await page.waitForTimeout(1200)
+  const slot = page.locator('.preview-label, .preview-sheet .label-slot, .preview-page .label-cell').first()
+  if (await slot.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const tmp = path.join(OUT, `_prev-${packId}.png`)
+    await slot.screenshot({ path: tmp })
+    pngToWebp(tmp, path.join(OUT, outName), 93)
+    console.log('wrote', outName, '(print preview)')
+    await page.keyboard.press('Escape').catch(() => {})
+    return true
   }
+  return false
+}
+
+async function captureCanvasSpecimen(page, packId, outName) {
+  const url = `${BASE}/app?applyPack=${packId}&${MARKETING_QS}`
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await dismissOverlays(page)
+  await page.evaluate(() => document.body.classList.add('marketing-capture-specimen'))
+  await waitForCanvas(page)
+  const tmp = path.join(OUT, `_spec-${packId}.png`)
+  await page.locator('.label-canvas-wrapper').screenshot({ path: tmp })
+  pngToWebp(tmp, path.join(OUT, outName), 92)
+  console.log('wrote', outName, '(canvas)')
+  await page.evaluate(() => document.body.classList.remove('marketing-capture-specimen'))
 }
 
 async function main() {
@@ -69,48 +153,25 @@ async function main() {
 
   const page = await context.newPage()
 
-  // Hero: real editor chrome with grocery price template
-  await page.goto(`${BASE}/app?applyPack=retail-price`, { waitUntil: 'networkidle' })
-  await dismissOverlays(page)
-  await waitForCanvas(page)
-  const heroPng = path.join(OUT, '_hero-tmp.png')
-  await page.locator('.app-shell').screenshot({ path: heroPng })
-  pngToWebp(heroPng, path.join(OUT, 'hero-app-editor.webp'), 90)
-  console.log('wrote hero-app-editor.webp')
+  if (heroOnly) {
+    await captureHero(page)
+    await browser.close()
+    return
+  }
+
+  await captureHero(page)
+
+  for (const [packId, outName] of PREVIEW_SPECIMENS) {
+    const ok = await capturePrintPreview(page, packId, outName)
+    if (!ok) await captureCanvasSpecimen(page, packId, outName)
+  }
 
   for (const [packId, outName] of SPECIMENS) {
-    await page.goto(`${BASE}/app?applyPack=${packId}`, { waitUntil: 'networkidle' })
-    await dismissOverlays(page)
-    await waitForCanvas(page)
-    const tmp = path.join(OUT, `_spec-${packId}.png`)
-    await page.locator('.label-canvas-wrapper').screenshot({ path: tmp })
-    pngToWebp(tmp, path.join(OUT, outName), 92)
-    console.log('wrote', outName)
+    if (PREVIEW_SPECIMENS.some(([id]) => id === packId)) continue
+    await captureCanvasSpecimen(page, packId, outName)
   }
 
-  // Help band collage from real canvas specimen exports
-  const stripNames = ['sample-price-tag', 'sample-waybill', 'sample-asset-tag', 'sample-bin-label']
-  const stripParts = []
-  for (const name of stripNames) {
-    const p = path.join(OUT, `_${name}-pad.png`)
-    execFileSync('ffmpeg', [
-      '-y', '-i', path.join(OUT, `${name}.webp`),
-      '-vf', 'scale=280:280:force_original_aspect_ratio=decrease,pad=280:280:(ow-iw)/2:(oh-ih)/2:color=white',
-      p
-    ], { stdio: 'pipe' })
-    stripParts.push(p)
-  }
-  const stickersPng = path.join(OUT, '_stickers.png')
-  execFileSync('ffmpeg', [
-    '-y',
-    '-i', stripParts[0], '-i', stripParts[1], '-i', stripParts[2], '-i', stripParts[3],
-    '-filter_complex', '[0:v][1:v][2:v][3:v]hstack=inputs=4',
-    '-frames:v', '1', '-update', '1', stickersPng
-  ], { stdio: 'pipe' })
-  for (const p of stripParts) fs.unlinkSync(p)
-  pngToWebp(stickersPng, path.join(OUT, 'hero-label-stickers.webp'), 85)
-  console.log('wrote hero-label-stickers.webp')
-
+  rebuildStickerStrip()
   await browser.close()
 }
 

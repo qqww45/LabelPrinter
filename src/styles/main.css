@@ -296,3 +296,17 @@ input, select, textarea {
   min-width: 80px;
   color: var(--text-secondary);
 }
+
+/* 营销截图：白底工作台、关闭设计网格（?marketingCapture=1） */
+body.marketing-capture .design-canvas-wrap {
+  --canvas-desk: #ffffff;
+  --canvas-checker: #ffffff;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+body.marketing-capture-specimen .design-canvas-wrap .info-bar {
+  display: none !important;
+}
+body.marketing-capture-specimen .label-canvas-wrapper {
+  box-shadow: 0 1px 10px rgba(15, 23, 42, 0.08);
+}

@@ -1,6 +1,6 @@
 /**
  * 营销壳资产（public/marketing/*.webp）
- * 截自本地 /app 画布与界面（与 ci64.com 同源），非 AI 假图。
+ * 优先使用 ci64.com 打印预览/界面截图；标本图为真实模板 + 示例数据输出。
  */
 import { SCENE_PACKS } from '../utils/scenePacks.js'
 import { getTemplateCatalog } from '../utils/templatesCatalog.js'
@@ -10,15 +10,15 @@ const BASE = '/marketing'
 const SPECIMEN = {
   priceTag: {
     src: `${BASE}/sample-price-tag.webp`,
-    alt: '签立方画布导出的生鲜价签预览（示例数据）'
+    alt: '签立方打印预览：60×40 价签（有机鸡蛋示例）'
   },
   waybill: {
     src: `${BASE}/sample-waybill.webp`,
-    alt: '签立方画布导出的快递面单预览（示例数据）'
+    alt: '签立方打印预览：快递面单'
   },
   assetTag: {
     src: `${BASE}/sample-asset-tag.webp`,
-    alt: '签立方画布导出的资产贴预览（示例数据）'
+    alt: '签立方打印预览：固定资产贴'
   },
   binLabel: {
     src: `${BASE}/sample-bin-label.webp`,

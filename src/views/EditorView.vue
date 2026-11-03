@@ -336,7 +336,11 @@ async function consumeApplyQuery() {
     toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
   } finally {
     applyingFromQuery = false
-    router.replace({ path: '/app' })
+    const query = {}
+    if (route.query.pick === '1') query.pick = '1'
+    if (route.query.marketingCapture === '1') query.marketingCapture = '1'
+    router.replace({ path: '/app', query })
+    if (route.query.marketingCapture === '1') syncMarketingCaptureMode()
   }
 }
 
@@ -344,6 +348,28 @@ watch(
   () => [route.query.applyPack, route.query.applyTemplate, storageReady.value],
   () => { void consumeApplyQuery() }
 )
+
+function syncMarketingCaptureMode() {
+  const on = route.query.marketingCapture === '1'
+  if (on) {
+    document.body.classList.add('marketing-capture')
+    project.showGrid = false
+  } else {
+    document.body.classList.remove('marketing-capture')
+  }
+}
+
+watch(
+  () => [route.query.marketingCapture, storageReady.value],
+  () => {
+    if (storageReady.value) syncMarketingCaptureMode()
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  document.body.classList.remove('marketing-capture')
+})
 
 const paperConfigVisible = ref(false)
 const printConfigVisible = ref(false)

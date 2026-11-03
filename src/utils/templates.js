@@ -21,6 +21,11 @@ const qrcode = (id, name, { left, top, width, height, binding = '', text: t = ''
   text: t, binding
 })
 
+const rect = (id, name, { left, top, width, height, fill = '#2563eb', stroke = '', strokeWidth = 0 }) => ({
+  id, type: 'rect', name, left, top, width, height, angle: 0,
+  fill, stroke, strokeWidth, binding: ''
+})
+
 const table = (id, name, { left, top, width, height, rows, cols, fontSize = 8, cells = {}, colWidths = [], cellPadding = 1 }) => ({
   id, type: 'table', name, left, top, width, height, angle: 0,
   rows, cols, cellPadding, borderColor: '#333', borderWidth: 0.2,
@@ -45,10 +50,10 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      text('tpl_price_tag-c1', '商品名', { left: 3, top: 2, width: 54, height: 7, text: '{{产品名称}}', fontSize: 11, fontWeight: 'bold' }),
-      text('tpl_price_tag-c2', '规格', { left: 3, top: 9, width: 54, height: 5, text: '{{规格}}', fontSize: 8, fill: '#64748b' }),
-      text('tpl_price_tag-c3', '价格', { left: 3, top: 15, width: 54, height: 10, text: '¥{{价格}}', fontSize: 18, fontWeight: 'bold', fill: '#d0021b' }),
-      barcode('tpl_price_tag-c4', '条码', { left: 3, top: 27, width: 54, height: 11, binding: '条码' })
+      text('tpl_price_tag-c1', '商品名', { left: 4, top: 3, width: 52, height: 8, text: '{{产品名称}}', fontSize: 12, fontWeight: 'bold' }),
+      text('tpl_price_tag-c2', '规格', { left: 4, top: 11, width: 52, height: 5, text: '{{规格}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_price_tag-c3', '价格', { left: 4, top: 17, width: 52, height: 12, text: '¥{{价格}}', fontSize: 22, fontWeight: 'bold', fill: '#d0021b' }),
+      barcode('tpl_price_tag-c4', '条码', { left: 4, top: 30, width: 52, height: 9, binding: '条码' })
     ]
   },
   {
@@ -136,11 +141,13 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      text('tpl_express-c1', '收件人', { left: 4, top: 4, width: 92, height: 8, text: '收件人：{{收件人}}', fontSize: 13, fontWeight: 'bold' }),
-      text('tpl_express-c2', '电话', { left: 4, top: 13, width: 92, height: 6, text: '电话：{{电话}}', fontSize: 10 }),
-      text('tpl_express-c3', '地址', { left: 4, top: 20, width: 92, height: 14, text: '地址：{{地址}}', fontSize: 10 }),
+      rect('tpl_express-r1', '标题栏', { left: 0, top: 0, width: 100, height: 10, fill: '#2563eb' }),
+      text('tpl_express-h1', '标题', { left: 4, top: 2.5, width: 92, height: 5, text: '快递面单', fontSize: 11, fontWeight: 'bold', fill: '#ffffff', textAlign: 'center' }),
+      text('tpl_express-c1', '收件人', { left: 5, top: 13, width: 90, height: 7, text: '{{收件人}}', fontSize: 14, fontWeight: 'bold' }),
+      text('tpl_express-c2', '电话', { left: 5, top: 21, width: 90, height: 5, text: '电话 {{电话}}', fontSize: 9, fill: '#475569' }),
+      text('tpl_express-c3', '地址', { left: 5, top: 27, width: 90, height: 12, text: '{{地址}}', fontSize: 9, fill: '#334155' }),
       table('tpl_express-c4', '明细', {
-        left: 4, top: 38, width: 92, height: 40, rows: 3, cols: 3, fontSize: 9,
+        left: 5, top: 42, width: 90, height: 36, rows: 3, cols: 3, fontSize: 8,
         colWidths: [12, 58, 30],
         cells: {
           '0,0': { text: '序号', binding: '' },
@@ -154,9 +161,9 @@ export const BUILTIN_TEMPLATES = [
           '2,2': { text: '', binding: '' }
         }
       }),
-      qrcode('tpl_express-c5', '面单二维码', { left: 4, top: 84, width: 28, height: 28, binding: '单号' }),
-      text('tpl_express-c6', '单号', { left: 36, top: 86, width: 60, height: 7, text: '单号：{{单号}}', fontSize: 10 }),
-      text('tpl_express-c7', '备注', { left: 36, top: 96, width: 60, height: 14, text: '签收：____________', fontSize: 9, fill: '#64748b' })
+      qrcode('tpl_express-c5', '面单二维码', { left: 5, top: 82, width: 26, height: 26, binding: '单号' }),
+      text('tpl_express-c6', '单号', { left: 34, top: 84, width: 61, height: 6, text: '运单 {{单号}}', fontSize: 9, fontWeight: 'bold' }),
+      text('tpl_express-c7', '备注', { left: 34, top: 92, width: 61, height: 12, text: '签收：________', fontSize: 8, fill: '#64748b' })
     ]
   },
   {
@@ -170,11 +177,13 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      text('tpl_grocery_price-c1', '品名', { left: 3, top: 2, width: 64, height: 7, text: '{{品名}}', fontSize: 12, fontWeight: 'bold' }),
-      text('tpl_grocery_price-c2', '规格', { left: 3, top: 9, width: 64, height: 5, text: '{{规格}}', fontSize: 8, fill: '#64748b' }),
-      text('tpl_grocery_price-c3', '单价', { left: 3, top: 15, width: 42, height: 10, text: '¥{{单价}}', fontSize: 20, fontWeight: 'bold', fill: '#d0021b' }),
-      text('tpl_grocery_price-c4', '单位', { left: 46, top: 20, width: 21, height: 5, text: '/{{单位}}', fontSize: 9, fill: '#64748b' }),
-      barcode('tpl_grocery_price-c5', '条码', { left: 3, top: 27, width: 64, height: 11, binding: '条码' })
+      rect('tpl_grocery_price-r1', '顶栏', { left: 0, top: 0, width: 70, height: 7, fill: '#2563eb' }),
+      text('tpl_grocery_price-h1', '顶栏字', { left: 3, top: 1.5, width: 64, height: 4, text: '生鲜价签', fontSize: 7, fontWeight: 'bold', fill: '#ffffff' }),
+      text('tpl_grocery_price-c1', '品名', { left: 4, top: 9, width: 62, height: 7, text: '{{品名}}', fontSize: 11, fontWeight: 'bold' }),
+      text('tpl_grocery_price-c2', '规格', { left: 4, top: 16, width: 62, height: 4.5, text: '{{规格}}', fontSize: 7.5, fill: '#64748b' }),
+      text('tpl_grocery_price-c3', '单价', { left: 4, top: 21, width: 40, height: 11, text: '¥{{单价}}', fontSize: 22, fontWeight: 'bold', fill: '#d0021b' }),
+      text('tpl_grocery_price-c4', '单位', { left: 44, top: 26, width: 22, height: 4, text: '/{{单位}}', fontSize: 8, fill: '#94a3b8' }),
+      barcode('tpl_grocery_price-c5', '条码', { left: 4, top: 30, width: 62, height: 9, binding: '条码' })
     ]
   },
   {
@@ -188,10 +197,11 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      text('tpl_jewelry-c1', '品名', { left: 1.5, top: 1, width: 28, height: 4, text: '{{品名}}', fontSize: 7, fontWeight: 'bold' }),
-      text('tpl_jewelry-c2', '克重', { left: 1.5, top: 5, width: 28, height: 3.5, text: '{{克重}}g', fontSize: 6, fill: '#475569' }),
-      text('tpl_jewelry-c3', '工费', { left: 1.5, top: 8.5, width: 28, height: 3.5, text: '工费 ¥{{工费}}', fontSize: 6, fill: '#d0021b' }),
-      barcode('tpl_jewelry-c4', '条码', { left: 30, top: 2, width: 18, height: 16, binding: '条码' })
+      rect('tpl_jewelry-r1', '顶条', { left: 0, top: 0, width: 50, height: 3.5, fill: '#1e293b' }),
+      text('tpl_jewelry-c1', '品名', { left: 2, top: 4.5, width: 28, height: 4.5, text: '{{品名}}', fontSize: 7.5, fontWeight: 'bold' }),
+      text('tpl_jewelry-c2', '克重', { left: 2, top: 9, width: 28, height: 3.5, text: '{{克重}} g', fontSize: 6.5, fill: '#475569' }),
+      text('tpl_jewelry-c3', '工费', { left: 2, top: 12.5, width: 28, height: 3.5, text: '工费 ¥{{工费}}', fontSize: 6.5, fill: '#d0021b', fontWeight: 'bold' }),
+      barcode('tpl_jewelry-c4', '条码', { left: 31, top: 3, width: 17, height: 15, binding: '条码' })
     ]
   },
   {
@@ -205,11 +215,13 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      text('tpl_apparel_hang-c1', '款号', { left: 3, top: 3, width: 34, height: 6, text: '{{款号}}', fontSize: 11, fontWeight: 'bold', textAlign: 'center' }),
-      text('tpl_apparel_hang-c2', '尺码', { left: 3, top: 11, width: 34, height: 5, text: '尺码 {{尺码}}', fontSize: 9, textAlign: 'center' }),
-      text('tpl_apparel_hang-c3', '颜色', { left: 3, top: 17, width: 34, height: 5, text: '{{颜色}}', fontSize: 9, textAlign: 'center', fill: '#64748b' }),
-      text('tpl_apparel_hang-c4', '吊牌价', { left: 3, top: 25, width: 34, height: 9, text: '¥{{吊牌价}}', fontSize: 16, fontWeight: 'bold', fill: '#d0021b', textAlign: 'center' }),
-      barcode('tpl_apparel_hang-c5', '条码', { left: 4, top: 37, width: 32, height: 18, binding: '条码' })
+      rect('tpl_apparel_hang-r1', '品牌条', { left: 0, top: 0, width: 40, height: 8, fill: '#2563eb' }),
+      text('tpl_apparel_hang-h1', '品牌', { left: 3, top: 2, width: 34, height: 4, text: '吊牌价', fontSize: 7, fill: '#ffffff', textAlign: 'center', fontWeight: 'bold' }),
+      text('tpl_apparel_hang-c1', '款号', { left: 3, top: 10, width: 34, height: 6, text: '{{款号}}', fontSize: 10, fontWeight: 'bold', textAlign: 'center' }),
+      text('tpl_apparel_hang-c2', '尺码', { left: 3, top: 17, width: 34, height: 5, text: '尺码 {{尺码}}', fontSize: 8.5, textAlign: 'center' }),
+      text('tpl_apparel_hang-c3', '颜色', { left: 3, top: 22, width: 34, height: 5, text: '{{颜色}}', fontSize: 8.5, textAlign: 'center', fill: '#64748b' }),
+      text('tpl_apparel_hang-c4', '吊牌价', { left: 3, top: 29, width: 34, height: 9, text: '¥{{吊牌价}}', fontSize: 17, fontWeight: 'bold', fill: '#d0021b', textAlign: 'center' }),
+      barcode('tpl_apparel_hang-c5', '条码', { left: 5, top: 40, width: 30, height: 16, binding: '条码' })
     ]
   },
   {
@@ -239,12 +251,14 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      qrcode('tpl_asset_fixed-c1', '二维码', { left: 2, top: 4, width: 20, height: 20, binding: '资产编号' }),
-      text('tpl_asset_fixed-c2', '资产编号', { left: 24, top: 2, width: 34, height: 5, text: '{{资产编号}}', fontSize: 8, fontWeight: 'bold' }),
-      text('tpl_asset_fixed-c3', '名称', { left: 24, top: 9, width: 34, height: 7, text: '{{名称}}', fontSize: 10 }),
-      text('tpl_asset_fixed-c4', '部门', { left: 24, top: 18, width: 34, height: 5, text: '{{部门}}', fontSize: 8, fill: '#64748b' }),
-      text('tpl_asset_fixed-c5', '保管人', { left: 24, top: 25, width: 34, height: 5, text: '保管 {{保管人}}', fontSize: 8, fill: '#64748b' }),
-      text('tpl_asset_fixed-c6', '底栏', { left: 2, top: 32, width: 56, height: 5, text: '固定资产', fontSize: 7, fill: '#94a3b8', textAlign: 'center' })
+      rect('tpl_asset_fixed-r1', '顶栏', { left: 0, top: 0, width: 60, height: 6, fill: '#0f172a' }),
+      text('tpl_asset_fixed-h1', '顶栏字', { left: 2, top: 1.2, width: 56, height: 3.5, text: '固定资产', fontSize: 7, fill: '#ffffff', textAlign: 'center', fontWeight: 'bold' }),
+      qrcode('tpl_asset_fixed-c1', '二维码', { left: 3, top: 8, width: 18, height: 18, binding: '资产编号' }),
+      text('tpl_asset_fixed-c2', '资产编号', { left: 23, top: 8, width: 34, height: 5, text: '{{资产编号}}', fontSize: 8, fontWeight: 'bold' }),
+      text('tpl_asset_fixed-c3', '名称', { left: 23, top: 14, width: 34, height: 6, text: '{{名称}}', fontSize: 9.5, fontWeight: 'bold' }),
+      text('tpl_asset_fixed-c4', '部门', { left: 23, top: 21, width: 34, height: 4.5, text: '{{部门}}', fontSize: 7.5, fill: '#64748b' }),
+      text('tpl_asset_fixed-c5', '保管人', { left: 23, top: 26, width: 34, height: 4.5, text: '保管 {{保管人}}', fontSize: 7.5, fill: '#64748b' }),
+      rect('tpl_asset_fixed-r2', '底条', { left: 0, top: 34, width: 60, height: 6, fill: '#f1f5f9' })
     ]
   },
   {
@@ -258,10 +272,11 @@ export const BUILTIN_TEMPLATES = [
     margin: zeroMargin,
     layout: { ...singleLayout },
     components: [
-      qrcode('tpl_warehouse_bin-c1', '库位码', { left: 4, top: 5, width: 28, height: 28, binding: '库位' }),
-      text('tpl_warehouse_bin-c2', '库位', { left: 36, top: 5, width: 40, height: 10, text: '{{库位}}', fontSize: 16, fontWeight: 'bold' }),
-      text('tpl_warehouse_bin-c3', 'SKU', { left: 36, top: 18, width: 40, height: 7, text: 'SKU {{SKU}}', fontSize: 10 }),
-      text('tpl_warehouse_bin-c4', '品名', { left: 36, top: 28, width: 40, height: 14, text: '{{品名}}', fontSize: 10, fill: '#475569' })
+      rect('tpl_warehouse_bin-r1', '侧条', { left: 0, top: 0, width: 4, height: 50, fill: '#2563eb' }),
+      qrcode('tpl_warehouse_bin-c1', '库位码', { left: 7, top: 8, width: 26, height: 26, binding: '库位' }),
+      text('tpl_warehouse_bin-c2', '库位', { left: 36, top: 8, width: 40, height: 11, text: '{{库位}}', fontSize: 18, fontWeight: 'bold' }),
+      text('tpl_warehouse_bin-c3', 'SKU', { left: 36, top: 21, width: 40, height: 6, text: 'SKU {{SKU}}', fontSize: 9, fill: '#475569' }),
+      text('tpl_warehouse_bin-c4', '品名', { left: 36, top: 28, width: 40, height: 14, text: '{{品名}}', fontSize: 10, fill: '#334155' })
     ]
   }
 ]
