@@ -615,7 +615,10 @@ function applyPlan(opts = {}) {
   box-shadow: none;
 }
 .shell-ta:focus,
-.shell-ta:focus-visible { outline: none; }
+.shell-ta:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 .shell-bar {
   display: flex;
   align-items: center;

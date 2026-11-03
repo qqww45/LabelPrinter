@@ -10,10 +10,10 @@
       @export-pdf="onExportPDF"
       @export-image="onExportImage"
       @paper-config="paperConfigVisible = true"
-      @print-config="printConfigVisible = true"
+      @print-config="openPrintConfig"
       @layout-editor="layoutEditorVisible = true"
       @template-library="templateVisible = true"
-      @field-map="fieldMapVisible = true"
+      @field-map="openFieldMapManual"
       @print-center="printCenterVisible = true"
       @preview="openPreview"
       @switch="switchToProject"
@@ -59,7 +59,7 @@
           <span v-else class="right-title-v">{{ t('属性') }}</span>
         </div>
         <div v-show="!panelHidden" class="right-body">
-          <PropertyPanel @field-map="fieldMapVisible = true" />
+          <PropertyPanel @field-map="openFieldMapManual" />
         </div>
       </div>
     </div>
@@ -67,14 +67,19 @@
 
     <PaperConfig v-if="paperConfigVisible" @close="paperConfigVisible = false" />
     <TemplateDialog v-if="templateVisible" @close="templateVisible = false" />
-    <FieldMapDialog v-if="fieldMapVisible" @close="fieldMapVisible = false" />
+    <FieldMapDialog v-if="fieldMapVisible" :import-wizard="fieldMapImportMode" @close="closeFieldMap" />
     <PrintCenterDialog
       v-if="printCenterVisible"
       @close="printCenterVisible = false"
       @run-queue="onRunQueue"
       @reprint="onReprint"
+      @thermal-calibrate="onThermalCalibrateFromCenter"
     />
-    <PrintConfig v-if="printConfigVisible" @close="printConfigVisible = false" />
+    <PrintConfig
+      v-if="printConfigVisible"
+      :initial-tab="printConfigInitialTab"
+      @close="closePrintConfig"
+    />
     <LayoutEditor v-if="layoutEditorVisible" @close="layoutEditorVisible = false" />
     <PreviewDialog ref="previewRef" v-if="previewVisible" :auto-export="pendingExport" @close="closePreview" @consumed="pendingExport = ''" />
     <AISettingsDialog
@@ -116,12 +121,14 @@
       v-if="showWelcome"
       @skip="skipWelcome"
       @create="onWelcomeCreate"
+      @quickstart="onWelcomeQuickStart"
     />
     <OnboardingGuide
       v-if="showOnboarding"
       @close="dismissOnboarding"
       @import="onOnboardingImport"
       @load-sample="onOnboardingSample"
+      @finished="onOnboardingFinished"
     />
     <ToastHost />
   </div>
@@ -145,7 +152,7 @@ import PropertyPanel from './components/PropertyPanel.vue'
 import DataPanel from './components/DataPanel.vue'
 import ToastHost from './components/ToastHost.vue'
 import { toastError, toastSuccess, toastInfo } from './utils/toast'
-import { runDiagnostics, componentFields } from './utils/diagnose'
+import { componentFields, missingFieldsByComponent, runDiagnostics } from './utils/diagnose'
 import { matchColumns } from './utils/columnMatch'
 import DialogLoading from './components/DialogLoading.vue'
 
@@ -172,6 +179,8 @@ const AISettingsDialog = lazyDialog(() => import('./components/AISettingsDialog.
 const AboutDialog = lazyDialog(() => import('./components/AboutDialog.vue'))
 const PreflightCheckDialog = lazyDialog(() => import('./components/PreflightCheckDialog.vue'))
 const OnboardingGuide = lazyDialog(() => import('./components/OnboardingGuide.vue'))
+
+import { applyQuickStartPack } from './utils/quickStart'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -299,7 +308,9 @@ const layoutEditorVisible = ref(false)
 const previewVisible = ref(false)
 const templateVisible = ref(false)
 const fieldMapVisible = ref(false)
+const fieldMapImportMode = ref(false)
 const printCenterVisible = ref(false)
+const printConfigInitialTab = ref('general')
 const previewRef = ref(null)
 const leftDockRef = ref(null)
 const aiSettingsVisible = ref(false)
@@ -353,9 +364,64 @@ function onOnboardingImport() {
 }
 
 function onOnboardingSample(sampleId) {
-  // 引导内会先预览再确认；确认后只关引导。保留此入口以防旧事件。
   dismissOnboarding()
   if (sampleId) onLoadSample(sampleId)
+}
+
+async function onOnboardingFinished({ openPreview } = {}) {
+  dismissOnboarding()
+  embedCurrentData()
+  if (openPreview) {
+    await nextTick()
+    previewVisible.value = true
+  }
+}
+
+async function onWelcomeQuickStart() {
+  project.renameCurrentProject(t('门店价签'))
+  markIntroDone()
+  onboardingLatched.value = false
+  dismissOnboarding()
+  try {
+    await applyQuickStartPack({ project, data })
+    embedCurrentData()
+    await nextTick()
+    previewVisible.value = true
+  } catch (e) {
+    toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
+  }
+}
+
+function openPrintConfig() {
+  printConfigInitialTab.value = 'general'
+  printConfigVisible.value = true
+}
+
+function closeFieldMap() {
+  fieldMapVisible.value = false
+  fieldMapImportMode.value = false
+}
+
+function closePrintConfig() {
+  printConfigVisible.value = false
+  printConfigInitialTab.value = 'general'
+}
+
+function onThermalCalibrateFromCenter() {
+  printCenterVisible.value = false
+  printConfigInitialTab.value = 'thermal'
+  printConfigVisible.value = true
+}
+
+function maybeOpenImportFieldMap() {
+  const miss = missingFieldsByComponent(
+    project.project.components,
+    data.fields,
+    project.project.dataSource?.fieldMap || {}
+  )
+  if (!miss.length) return
+  fieldMapImportMode.value = true
+  fieldMapVisible.value = true
 }
 
 // 切项目时从目标项目自己的行取列名。不能沿用上一份表的 headers，否则列对不上会被写成空字符串再存回去。
@@ -476,21 +542,10 @@ async function onOpen() {
     const json = await readJSONFile(file)
     // 加进列表再切过去。当前项目留在列表里，不整份换掉。
     project.importAsNewProject(json, file.name)
-    if (json.dataSource?.path && !(json.dataSource?.embedded && json.dataSource?.data)) {
-      // 外置：尝试加载
-      try {
-        const df = await pickFile('.xlsx,.xls,.csv,.txt')
-        const { parseExcelFile } = await import('./utils/excel')
-        const parsed = await parseExcelFile(df)
-        data.setData({
-          headers: parsed.headers,
-          rows: parsed.rows,
-          sourcePath: json.dataSource.path,
-          embedded: false
-        })
-      } catch (e) {
-        toastError(t('数据源未加载：{msg}\n可在数据面板手动导入。', { msg: e.message }))
-      }
+    applyProjectData(project.project)
+    const ds = project.project.dataSource
+    if (ds?.path && !(Array.isArray(ds.data) && ds.data.length)) {
+      toastInfo(t('此项目曾引用外置表格。请在底部数据面板重新导入，数据会保存在项目内。'))
     }
     project.setFilePath(file.name)
     toastSuccess(t('已作为新项目打开，原来的还在列表里'))
@@ -561,6 +616,7 @@ function applyImported(mode, payload) {
   project.markDirty()
   const note = columnNote(headers)
   toastSuccess(note ? `${t('已导入 {n} 条数据', { n: data.rows.length })} ${note}` : t('已导入 {n} 条数据', { n: data.rows.length }))
+  maybeOpenImportFieldMap()
 }
 
 function columnNote(headers) {
@@ -684,10 +740,15 @@ function preflightProceed() {
 }
 
 // 从体检结果跳到对应修复入口
+function openFieldMapManual() {
+  fieldMapImportMode.value = false
+  fieldMapVisible.value = true
+}
+
 function preflightFix(issue) {
   preflightVisible.value = false
   if (issue.fix === 'field-map') {
-    fieldMapVisible.value = true
+    openFieldMapManual()
   } else if (issue.fix === 'import') {
     onImportData()
   } else if (issue.fix === 'select' && issue.ids?.length) {

@@ -592,11 +592,12 @@ async function doExport(fmt) {
   background: var(--bg-soft, var(--bg));
   color: var(--text);
   font-size: 12px;
-  outline: none;
 }
 .filter-input:focus-visible {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 .count {
   font-size: 11px;
@@ -750,11 +751,14 @@ tr.active td .cell-input { color: inherit; }
   border: none;
   background: transparent;
   width: 100%;
-  outline: none;
   padding: 2px;
   color: inherit;
 }
-.cell-input:focus { background: var(--bg-panel); }
+.cell-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+  background: var(--bg-panel);
+}
 
 /* 列头：可点击重命名 + 悬停显示删除 */
 .col-h {
@@ -824,12 +828,15 @@ tr.active td .cell-input { color: inherit; }
 .col-input {
   width: 100%;
   border: 1px solid var(--primary);
-  outline: none;
   padding: 1px 3px;
   background: var(--bg-panel);
   color: inherit;
   border-radius: 3px;
   font-size: 12px;
+}
+.col-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 .add-col-cell { width: 28px; padding: 2px !important; }
 .print-col { width: 36px; text-align: center; }

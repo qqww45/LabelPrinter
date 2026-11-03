@@ -203,13 +203,14 @@ npm run build
 
 ```bash
 npm run dev        # 开发服务器
-npm run build      # 生产构建
+npm run build      # 生产构建（EdgeOne / 静态托管用 dist/）
 npm run preview    # 预览构建产物
-
-# 单元测试
-node tests/basic.test.mjs
-node tests/dataMerge.test.mjs
+npm test           # 全部单元测试
 ```
+
+生产部署见 `edgeone.json` 与 `.github/workflows/deploy.yml`（EdgeOne 边缘部署）。不推荐 Docker 自建。
+
+```bash
 
 ---
 

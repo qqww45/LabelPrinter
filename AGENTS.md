@@ -29,7 +29,8 @@
 ## 部署
 
 GitHub Actions 自动部署（`.github/workflows/deploy.yml`）：
-- push 到 `main` → 构建 Docker 镜像 → 推 GHCR → SSH 服务器 `restart.sh`
+- push 到 `main` → `npm ci` / `npm run build` / **`npm test`** → POST **EdgeOne** 部署钩子（Secret `EDGEONE_DEPLOY_HOOK`）
+- 官方演示 [ci64.com](https://ci64.com/) 仅边缘托管；配置见 `edgeone.json`。旧 Docker 流水线在 `.github/backups/deploy.docker.yml`，**不推荐**自建 Docker 部署
 - **用户约定**：功能修好后直接 `git push`，**不等 CI 部署验证**（推送成功即可）
 - 推送偶发网络抖动（github 443 间歇性不通），push 失败时脚本会自动重试 4-5 次
 

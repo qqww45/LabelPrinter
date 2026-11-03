@@ -15,6 +15,11 @@
       <!-- Step 1: 选类型 -->
       <section v-if="step === 1" class="body step-enter">
         <p class="tip">{{ t('项目已经在了。选一个最接近的样子，尺寸、文字、条码之后都能改。') }}</p>
+        <div class="quick-row">
+          <button class="btn btn-primary btn-sm" type="button" :disabled="quickBusy" @click="runQuickRetail">
+            {{ t('30 秒体验：价签示例 → 预览') }}
+          </button>
+        </div>
         <div class="grid">
           <button
             v-for="tpl in templates"
@@ -176,6 +181,12 @@
             :disabled="!samplePreview || previewLoading"
             @click="confirmSample"
           >{{ t('用这份数据开始') }}</button>
+          <button
+            v-if="samplePreview && !previewLoading"
+            class="btn btn-primary"
+            type="button"
+            @click="confirmAndPreview"
+          >{{ t('开始并打开预览') }}</button>
         </div>
       </section>
     </div>
@@ -189,6 +200,7 @@ import { useDataStore } from '../stores/data'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
 import { SAMPLE_DATASETS, findSampleIdForTemplate, getSampleDataset, loadSampleDataset } from '../utils/samples'
 import { autoMatchFieldMap, extractTemplateFields } from '../utils/render'
+import { applyQuickStartPack } from '../utils/quickStart'
 import { useI18n } from '../utils/i18n'
 import { toastError } from '../utils/toast'
 
@@ -196,8 +208,9 @@ const { t } = useI18n()
 const project = useProjectStore()
 const projectName = computed(() => project.project?.meta?.name || t('未命名项目'))
 const data = useDataStore()
-const emit = defineEmits(['close', 'import', 'load-sample'])
+const emit = defineEmits(['close', 'import', 'load-sample', 'finished'])
 const sampleSets = SAMPLE_DATASETS
+const quickBusy = ref(false)
 const pickedId = ref('')
 const pickedTpl = ref(null)
 const recommendedSampleId = computed(() => findSampleIdForTemplate(pickedTpl.value?.id) || '')
@@ -226,6 +239,14 @@ async function previewSample(id) {
 }
 
 function confirmSample() {
+  finishSample(false)
+}
+
+function confirmAndPreview() {
+  finishSample(true)
+}
+
+function finishSample(openPreview) {
   const p = samplePreview.value
   if (!p) return
   data.setData({
@@ -241,7 +262,21 @@ function confirmSample() {
     project.updateFieldMap(autoMatchFieldMap(tplFields, data.fields, {}))
   }
   project.markDirty()
-  emit('close')
+  if (openPreview) emit('finished', { openPreview: true })
+  else emit('close')
+}
+
+async function runQuickRetail() {
+  if (quickBusy.value) return
+  quickBusy.value = true
+  try {
+    await applyQuickStartPack({ project, data })
+    emit('finished', { openPreview: true })
+  } catch (e) {
+    toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
+  } finally {
+    quickBusy.value = false
+  }
 }
 
 // 去重并排序，作为尺寸下拉的可选值
@@ -455,6 +490,7 @@ function dismiss() {
 
 .body { padding: 16px 20px 20px; overflow-y: auto; }
 .tip { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.6; }
+.quick-row { margin-bottom: 12px; }
 .tip.muted { color: var(--text-muted); margin-top: -4px; }
 .tip b { color: var(--text); }
 .sample-row {

@@ -12,6 +12,7 @@ import { expandPrintLabels, paginateLabels, componentHidden, componentPlainText 
 import { textOverflowsBox } from './textFit.js'
 import { normalizeMargin } from './pageBox.js'
 import { codePayload, isEncodableCode, resolveRow } from './render.js'
+import { barcodeScanIssue, barcodeScanText } from './barcodeScan.js'
 
 /**
  * 单个组件引用到的所有字段名：
@@ -198,6 +199,46 @@ export function runDiagnostics({
         fix: 'row',
         rowIndex: hits[0].rowIndex,
         ids: [hits[0].id]
+      })
+    }
+  }
+
+  // ④b 条码格式 / 校验（EAN-13 等）
+  if (Array.isArray(rows) && rows.length) {
+    const bars = components.filter((c) => c && c.type === 'barcode')
+    const bad = []
+    if (bars.length) {
+      rows.forEach((row, i) => {
+        if (row?.__print === false) return
+        const resolved = resolveRow(row, fieldMap)
+        for (const c of bars) {
+          if (componentHidden(c, resolved)) continue
+          const payload = codePayload(c, resolved)
+          if (!payload) continue
+          const issue = barcodeScanIssue({
+            format: c.format,
+            value: payload,
+            widthMm: c.width,
+            heightMm: c.height
+          })
+          if (issue !== 'ok' && issue !== 'empty') {
+            bad.push({ rowIndex: i, id: c.id, issue })
+            break
+          }
+        }
+      })
+    }
+    if (bad.length) {
+      const shown = bad.slice(0, 4).map((h) => h.rowIndex + 1).join('、')
+      const sample = barcodeScanText(bad[0].issue)
+      issues.push({
+        level: 'warn',
+        code: 'barcode-format',
+        title: `${bad.length} 行的条形码可能扫不过`,
+        detail: `第 ${shown}${bad.length > 4 ? '…' : ''} 行：${sample}。请改数据或条码格式/尺寸。`,
+        fix: 'row',
+        rowIndex: bad[0].rowIndex,
+        ids: [bad[0].id]
       })
     }
   }

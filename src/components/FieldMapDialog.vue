@@ -2,7 +2,8 @@
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal map-modal">
       <div class="modal-header">
-        <span>🔀 {{ t('字段映射') }} <span class="sub">{{ t('模板字段 ← 数据源字段') }}</span></span>
+        <span>🔀 {{ importWizard ? t('导入后核对字段') : t('字段映射') }}
+          <span class="sub">{{ t('模板字段 ← 数据源字段') }}</span></span>
         <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
       </div>
 
@@ -15,7 +16,10 @@
         </div>
 
         <template v-else>
-          <div class="tip">
+          <div v-if="importWizard && unmapped.length" class="tip warn">
+            {{ t('新表与模板字段未完全对上。请为每一行选择数据源列，或点自动匹配同名。') }}
+          </div>
+          <div v-else class="tip">
             {{ t('模板中用了 {n} 个字段，', { n: templateFields.length }) }}
             <b :class="{ bad: unmapped.length }">{{ t('未匹配 {n} 个', { n: unmapped.length }) }}</b>
             {{ t('映射后画布、预览、打印、导出会立即生效。') }}
@@ -70,6 +74,9 @@ import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
+defineProps({
+  importWizard: { type: Boolean, default: false }
+})
 defineEmits(['close'])
 
 const project = useProjectStore()

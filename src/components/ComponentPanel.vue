@@ -556,13 +556,16 @@ function onLayerDrop(e, target) {
 .field-input {
   flex: 1;
   border: 1px solid var(--primary);
-  outline: none;
   padding: 1px 4px;
   background: var(--bg-panel);
   color: inherit;
   border-radius: 3px;
   font-size: 12px;
   min-width: 0;
+}
+.field-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 .section-add {
   width: 22px; height: 22px;

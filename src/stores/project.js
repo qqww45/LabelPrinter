@@ -61,7 +61,7 @@ const createDefaultProject = () => {
   components: [],
   dataSource: {
     path: '',
-    embedded: false,
+    embedded: true,
     data: [],
     // 字段映射：{ 模板字段: 数据源字段 }，用于模板字段名与数据列名不一致的情况
     fieldMap: {}

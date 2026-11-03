@@ -69,6 +69,7 @@
 
       <div class="modal-footer">
         <template v-if="tab === 'queue'">
+          <button class="btn" type="button" @click="$emit('thermal-calibrate')">{{ t('热敏本机校准') }}</button>
           <button class="btn" :disabled="!printStore.queue.length" @click="printStore.clearQueue()">{{ t('清空队列') }}</button>
           <div class="spacer"></div>
           <button class="btn btn-primary" :disabled="!pendingCount" @click="startPrint">🖨️ {{ t('开始打印当前项目') }}</button>
@@ -90,7 +91,7 @@ import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
-const emit = defineEmits(['close', 'run-queue', 'reprint'])
+const emit = defineEmits(['close', 'run-queue', 'reprint', 'thermal-calibrate'])
 
 const printStore = usePrintStore()
 const project = useProjectStore()

@@ -19,18 +19,17 @@ npm run dev
 
 开发服务器默认是 http://localhost:5173 。改完界面后，在浏览器里把受影响的路径点一遍：设计画布、打印预览、导出 PDF、导出图片。
 
+## 部署
+
+GitHub Actions（`.github/workflows/deploy.yml`）在 push 到 `main` 时：`npm ci` → `npm run build` → **`npm test`** → 触发 **EdgeOne** 部署钩子（Secret `EDGEONE_DEPLOY_HOOK`）。官方站点 [ci64.com](https://ci64.com/) 仅走边缘部署；旧 Docker 流水线仅作备份参考（`.github/backups/deploy.docker.yml`），不在文档中推荐。
+
 ## 测试
 
-测试是 `tests/*.test.mjs` 里可直接用 node 运行的纯函数，不使用第三方测试框架。
-
 ```bash
-node tests/basic.test.mjs
-node tests/dataMerge.test.mjs
-node tests/fieldAndAi.test.mjs
-node tests/printUpgrade.test.mjs
+npm test
 ```
 
-能抽成纯函数的逻辑放到 `src/utils/`，并在 `tests/` 里补对应用例。
+或单独跑例如 `node tests/officialSite.test.mjs`、`node tests/pdfParity.test.mjs`。完整列表见 `package.json` 的 `test` 脚本。
 
 ## 改代码时请注意
 
