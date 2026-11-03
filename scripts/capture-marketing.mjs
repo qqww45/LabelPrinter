@@ -21,6 +21,8 @@ const BASE = process.env.BASE || 'http://127.0.0.1:5173'
 const heroOnly = process.argv.includes('--hero-only')
 const retailSpecimenOnly = process.argv.includes('--retail-specimen-only')
 const MARKETING_QS = 'marketingCapture=1'
+/** Simple retail templates used for marketing specimens (not tpl_retail_shelf_70). */
+const MARKETING_PRICE_TEMPLATE = 'tpl_price_tag'
 
 /** Scene pack id → output filename (canvas fallback when no print preview asset) */
 const SPECIMENS = [
@@ -32,11 +34,9 @@ const SPECIMENS = [
   ['apparel', 'sample-apparel-tag.webp']
 ]
 
-/** Print preview capture: open preview dialog and screenshot first label slot */
-const PREVIEW_SPECIMENS = [
-  ['retail-price', 'sample-price-tag.webp'],
-  ['express', 'sample-waybill.webp'],
-  ['asset', 'sample-asset-tag.webp']
+/** Print preview: template id → output file */
+const PREVIEW_BY_TEMPLATE = [
+  [MARKETING_PRICE_TEMPLATE, 'sample-price-tag.webp'],
 ]
 
 function pngToWebp(pngPath, webpPath, quality = 88) {
@@ -94,17 +94,35 @@ async function dismissOverlays(page) {
 }
 
 async function captureHero(page) {
-  const url = `${BASE}/app?applyPack=retail-price&${MARKETING_QS}`
+  const url = `${BASE}/app?applyTemplate=${MARKETING_PRICE_TEMPLATE}&${MARKETING_QS}`
   await page.goto(url, { waitUntil: 'networkidle' })
   await dismissOverlays(page)
   await waitForCanvas(page)
   const heroPng = path.join(OUT, '_hero-tmp.png')
   await page.locator('.app-shell').screenshot({ path: heroPng })
   pngToWebp(heroPng, path.join(OUT, 'hero-app-editor.webp'), 90)
-  console.log('wrote hero-app-editor.webp (marketingCapture=1, white desk, grid off)')
+  console.log(`wrote hero-app-editor.webp (${MARKETING_PRICE_TEMPLATE}, white desk, grid off)`)
 }
 
-async function capturePrintPreview(page, packId, outName) {
+async function capturePrintPreviewForTemplate(page, templateId, outName) {
+  const url = `${BASE}/app?applyTemplate=${templateId}&${MARKETING_QS}`
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await dismissOverlays(page)
+  await waitForCanvas(page)
+  const previewBtn = page.getByRole('button', { name: '预览' }).first()
+  await previewBtn.click()
+  await page.waitForSelector('.preview-modal .label-slot', { timeout: 45000 })
+  await page.waitForTimeout(1000)
+  const slot = page.locator('.preview-modal .label-slot').first()
+  const tmp = path.join(OUT, `_prev-${templateId}.png`)
+  await slot.screenshot({ path: tmp })
+  pngToWebp(tmp, path.join(OUT, outName), 93)
+  console.log('wrote', outName, `(print preview · ${templateId})`)
+  await page.keyboard.press('Escape').catch(() => {})
+  return true
+}
+
+async function capturePrintPreviewForPack(page, packId, outName) {
   const url = `${BASE}/app?applyPack=${packId}&${MARKETING_QS}`
   await page.goto(url, { waitUntil: 'networkidle' })
   await dismissOverlays(page)
@@ -117,10 +135,14 @@ async function capturePrintPreview(page, packId, outName) {
   const tmp = path.join(OUT, `_prev-${packId}.png`)
   await slot.screenshot({ path: tmp })
   pngToWebp(tmp, path.join(OUT, outName), 93)
-  console.log('wrote', outName, '(print preview)')
+  console.log('wrote', outName, `(print preview · pack ${packId})`)
   await page.keyboard.press('Escape').catch(() => {})
-  return true
 }
+
+const PREVIEW_PACKS = [
+  ['express', 'sample-waybill.webp'],
+  ['asset', 'sample-asset-tag.webp']
+]
 
 async function captureCanvasSpecimen(page, packId, outName) {
   const url = `${BASE}/app?applyPack=${packId}&${MARKETING_QS}`
@@ -153,7 +175,7 @@ async function main() {
   const page = await context.newPage()
 
   if (retailSpecimenOnly) {
-    await capturePrintPreview(page, 'retail-price', 'sample-price-tag.webp')
+    await capturePrintPreviewForTemplate(page, MARKETING_PRICE_TEMPLATE, 'sample-price-tag.webp')
     rebuildStickerStrip()
     await browser.close()
     return
@@ -167,13 +189,17 @@ async function main() {
 
   await captureHero(page)
 
-  for (const [packId, outName] of PREVIEW_SPECIMENS) {
-    const ok = await capturePrintPreview(page, packId, outName)
-    if (!ok) await captureCanvasSpecimen(page, packId, outName)
+  for (const [templateId, outName] of PREVIEW_BY_TEMPLATE) {
+    await capturePrintPreviewForTemplate(page, templateId, outName)
+  }
+
+  for (const [packId, outName] of PREVIEW_PACKS) {
+    await capturePrintPreviewForPack(page, packId, outName)
   }
 
   for (const [packId, outName] of SPECIMENS) {
-    if (PREVIEW_SPECIMENS.some(([id]) => id === packId)) continue
+    if (packId === 'retail-price') continue
+    if (PREVIEW_PACKS.some(([id]) => id === packId)) continue
     await captureCanvasSpecimen(page, packId, outName)
   }
 

@@ -1,6 +1,6 @@
 /**
  * 营销壳资产（public/marketing/*.webp）
- * 优先使用 ci64.com 打印预览/界面截图；标本图为真实模板 + 示例数据输出。
+ * Hero = 真实 /app 界面（白底、无网格）；价签标本 = 简洁内置模板打印预览（tpl_price_tag 等）。
  */
 import { SCENE_PACKS } from '../utils/scenePacks.js'
 import { getTemplateCatalog } from '../utils/templatesCatalog.js'
@@ -10,7 +10,7 @@ const BASE = '/marketing'
 const SPECIMEN = {
   priceTag: {
     src: `${BASE}/sample-price-tag.webp`,
-    alt: '签立方打印预览：货架价签 70×40 分栏版（有机鸡蛋示例）'
+    alt: '签立方打印预览：简洁价签 60×40（有机鸡蛋示例，tpl_price_tag）'
   },
   waybill: {
     src: `${BASE}/sample-waybill.webp`,
@@ -67,7 +67,6 @@ export const SCENES = {
 /** @type {Record<string, { src: string, alt: string }>} */
 export const TEMPLATE_COVERS = {
   tpl_grocery_price: SPECIMEN.priceTag,
-  tpl_retail_shelf_70: SPECIMEN.priceTag,
   tpl_express: SPECIMEN.waybill,
   tpl_asset_fixed: SPECIMEN.assetTag,
   tpl_warehouse_bin: SPECIMEN.binLabel,
