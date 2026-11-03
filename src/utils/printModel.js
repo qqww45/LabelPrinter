@@ -4,6 +4,9 @@
  */
 import dayjs from 'dayjs'
 import { codePayload, renderText, rowIsEmpty } from './render.js'
+import { guessCopiesColumn } from './copiesColumn.js'
+
+export { guessCopiesColumn }
 import { formatCheckboxText, formatSerialText } from './controls.js'
 import { normalizeMargin } from './pageBox.js'
 
@@ -73,7 +76,11 @@ export function expandPrintLabels(rows, opts = {}) {
 
   let serial = serialStart
   return seq.map((item, index) => {
-    const row = { ...item.row }
+    const row = {
+      ...item.row,
+      __labelIndex: index,
+      __sourceIndex: item.sourceIndex
+    }
     let serialNo = null
     if (serialOn) {
       serialNo = serial
@@ -133,6 +140,10 @@ export function componentHidden(c, row) {
   if (c.type === 'checkbox') {
     // 未绑定字段时始终显示空框；绑定后空值才可能隐藏
     if (!c.binding) return false
+    const v = row[c.binding]
+    return v == null || String(v).trim() === ''
+  }
+  if (c.type === 'image' && c.source === 'field' && c.binding) {
     const v = row[c.binding]
     return v == null || String(v).trim() === ''
   }

@@ -567,6 +567,9 @@ function codePlaceholder(c, baseOpts, label) {
 // ============ 构建 fabric 对象（坐标即相对标签 mm） ============
 function designRow() {
   const row = { ...(resolveRow(data.activeRow, pj.project.dataSource.fieldMap) || {}) }
+  const idx = Math.max(0, data.activeRowIndex || 0)
+  row.__labelIndex = idx
+  row.__sourceIndex = idx
   const cfg = pj.project.printConfig || {}
   if (!cfg.serialEnabled || rowIsEmpty(row)) return row
   if (row['序号'] == null || row['序号'] === '') {

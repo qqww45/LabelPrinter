@@ -8,19 +8,20 @@ export function rowIsEmpty(row) {
 }
 
 import { escapeHtmlWithBreaks } from './escapeHtml.js'
+import {
+  expandTemplateText,
+  fieldRefsFromText,
+  fieldRefsFromPlaceholder,
+  isSimpleFieldPlaceholder
+} from './templateExpr.js'
 
 /**
- * 模板渲染：把 {{字段}} 占位符替换为实际数据。
+ * 模板渲染：{{字段}} 与轻量表达式（见 templateExpr.js / 属性面板说明）。
  * 还没有数据行时保留原文，让版式上能看见字段名。
  */
 export function renderText(text, row) {
   if (!text) return ''
-  if (rowIsEmpty(row)) return text
-  return text.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
-    const k = key.trim()
-    if (row[k] !== undefined && row[k] !== null) return row[k]
-    return ''
-  })
+  return expandTemplateText(text, row)
 }
 
 /** 预览 HTML 文本：与 PDF 相同先 renderText，再 escape（防 XSS） */
@@ -83,13 +84,7 @@ export function resolveRow(row, fieldMap) {
 export function extractTemplateFields(components = []) {
   const set = new Set()
   const addPlaceholders = (text) => {
-    if (typeof text !== 'string') return
-    const re = /\{\{([^}]+)\}\}/g
-    let m
-    while ((m = re.exec(text))) {
-      const k = m[1].trim()
-      if (k) set.add(k)
-    }
+    for (const k of fieldRefsFromText(text)) set.add(k)
   }
 
   for (const c of components) {
@@ -152,14 +147,28 @@ export function renderTextWithAlert(text, row, availableSet) {
   if (rowIsEmpty(row)) return { text, missing: [] }
   const canAlert = !!(availableSet && availableSet.size)
   const missing = []
-  const out = String(text).replace(/\{\{([^}]+)\}\}/g, (_, key) => {
-    const k = key.trim()
-    if (row[k] !== undefined && row[k] !== null) return row[k]
-    if (canAlert && !availableSet.has(k)) {
-      if (!missing.includes(k)) missing.push(k)
-      return `⚠${k}`
+  const out = String(text).replace(/\{\{([^}]+)\}\}/g, (_, inner) => {
+    const k = inner.trim()
+    if (isSimpleFieldPlaceholder(inner)) {
+      if (row[k] !== undefined && row[k] !== null) return row[k]
+      if (canAlert && !availableSet.has(k)) {
+        if (!missing.includes(k)) missing.push(k)
+        return `⚠${k}`
+      }
+      return ''
     }
-    return ''
+    const refs = fieldRefsFromPlaceholder(inner)
+    let missingHit = false
+    if (canAlert) {
+      for (const rf of refs) {
+        if (rf && !availableSet.has(rf)) {
+          if (!missing.includes(rf)) missing.push(rf)
+          missingHit = true
+        }
+      }
+    }
+    if (missingHit) return `⚠${refs[0] || k}`
+    return expandTemplateText(`{{${inner}}}`, row)
   })
   return { text: out, missing }
 }

@@ -12,9 +12,15 @@
 - 预览「更多」与打印中心：下载 TSPL / ZPL（不替代浏览器打印 / PDF）
 - 打印历史：**重打这一批**（恢复 `printSnapshot` 打印范围）
 - 纸张配置：热敏常用尺寸快捷 chip + mm 与浏览器边距说明
+- **轻量表达式**：文本 `{{字段}}` 扩展 join / price / if / ifempty / hide（`templateExpr.js`，预览与 PDF 共用 `renderText`）
+- **按列份数**：导入时识别 数量/份数/qty/copies 等列并写入 `printConfig.copiesColumn`
+- **数据图片**：图片组件「数据字段」绑定 http(s) / data:image；preflight 校验无效地址
+- **序号组件**：`source: sequence` 支持起始/步长/补零，按张或按行递增（不依赖打印流水号）
 
 ## 仍待排期
 
+- **表达式**：国际化函数名、更多数字格式；不做完整公式语言
+- **图片字段**：preflight 仅校验 URL 协议，不预加载远程图（离线/跨域）
 - **Golden 回归**：扩展 `pdfParity.test.mjs` → 固定组件夹具 PNG/PDF 哈希（CI）
 - **无账号协作深链**：ci64.com 带项目快照参数（仍无登录）
 - **浏览器 Raw Print 实验**：在 TSPL/ZPL 之外探索 WebUSB（风险高、机型杂）
