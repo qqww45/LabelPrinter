@@ -14,6 +14,7 @@ export const SAMPLE_DATASETS = [
     path: '/samples/sample-retail.csv',
     fileName: 'sample-retail.csv',
     suggestedTemplateIds: [
+      'tpl_retail_shelf_70',
       'tpl_grocery_price',
       'tpl_shelf_strip',
       'tpl_price_tag',

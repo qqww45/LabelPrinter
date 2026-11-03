@@ -6,7 +6,7 @@ export const SCENE_PACKS = [
   {
     id: 'retail-price',
     name: '生鲜价签',
-    templateId: 'tpl_grocery_price',
+    templateId: 'tpl_retail_shelf_70',
     sampleId: 'retail',
     blurb: '品名、规格、价格、条码 — 适合超市与生鲜价签',
     mergeKeyHints: ['条码', '货号'],

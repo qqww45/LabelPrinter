@@ -19,6 +19,7 @@ const ROOT = path.join(__dirname, '..')
 const OUT = path.join(ROOT, 'public/marketing')
 const BASE = process.env.BASE || 'http://127.0.0.1:5173'
 const heroOnly = process.argv.includes('--hero-only')
+const retailSpecimenOnly = process.argv.includes('--retail-specimen-only')
 const MARKETING_QS = 'marketingCapture=1'
 
 /** Scene pack id → output filename (canvas fallback when no print preview asset) */
@@ -93,7 +94,7 @@ async function dismissOverlays(page) {
 }
 
 async function captureHero(page) {
-  const url = `${BASE}/app?applyTemplate=tpl_price_tag&${MARKETING_QS}`
+  const url = `${BASE}/app?applyPack=retail-price&${MARKETING_QS}`
   await page.goto(url, { waitUntil: 'networkidle' })
   await dismissOverlays(page)
   await waitForCanvas(page)
@@ -108,19 +109,17 @@ async function capturePrintPreview(page, packId, outName) {
   await page.goto(url, { waitUntil: 'networkidle' })
   await dismissOverlays(page)
   await waitForCanvas(page)
-  await page.locator('button').filter({ hasText: /^预览$/ }).first().click()
-  await page.waitForSelector('.preview-dialog, .preview-sheet', { timeout: 30000 }).catch(() => null)
-  await page.waitForTimeout(1200)
-  const slot = page.locator('.preview-label, .preview-sheet .label-slot, .preview-page .label-cell').first()
-  if (await slot.isVisible({ timeout: 5000 }).catch(() => false)) {
-    const tmp = path.join(OUT, `_prev-${packId}.png`)
-    await slot.screenshot({ path: tmp })
-    pngToWebp(tmp, path.join(OUT, outName), 93)
-    console.log('wrote', outName, '(print preview)')
-    await page.keyboard.press('Escape').catch(() => {})
-    return true
-  }
-  return false
+  const previewBtn = page.getByRole('button', { name: '预览' }).first()
+  await previewBtn.click()
+  await page.waitForSelector('.preview-modal .label-slot', { timeout: 45000 })
+  await page.waitForTimeout(1000)
+  const slot = page.locator('.preview-modal .label-slot').first()
+  const tmp = path.join(OUT, `_prev-${packId}.png`)
+  await slot.screenshot({ path: tmp })
+  pngToWebp(tmp, path.join(OUT, outName), 93)
+  console.log('wrote', outName, '(print preview)')
+  await page.keyboard.press('Escape').catch(() => {})
+  return true
 }
 
 async function captureCanvasSpecimen(page, packId, outName) {
@@ -152,6 +151,13 @@ async function main() {
   })
 
   const page = await context.newPage()
+
+  if (retailSpecimenOnly) {
+    await capturePrintPreview(page, 'retail-price', 'sample-price-tag.webp')
+    rebuildStickerStrip()
+    await browser.close()
+    return
+  }
 
   if (heroOnly) {
     await captureHero(page)

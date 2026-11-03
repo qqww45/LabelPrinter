@@ -21,9 +21,14 @@ const qrcode = (id, name, { left, top, width, height, binding = '', text: t = ''
   text: t, binding
 })
 
-const rect = (id, name, { left, top, width, height, fill = '#2563eb', stroke = '', strokeWidth = 0 }) => ({
+const rect = (id, name, { left, top, width, height, fill = '#2563eb', stroke = '', strokeWidth = 0, rx = 0 }) => ({
   id, type: 'rect', name, left, top, width, height, angle: 0,
-  fill, stroke, strokeWidth, binding: ''
+  fill, stroke, strokeWidth, rx, binding: ''
+})
+
+const line = (id, name, { left, top, width, stroke = '#cbd5e1', strokeWidth = 0.2, angle = 0 }) => ({
+  id, type: 'line', name, left, top, width, height: 0.2, angle,
+  stroke, strokeWidth, binding: ''
 })
 
 const table = (id, name, { left, top, width, height, rows, cols, fontSize = 8, cells = {}, colWidths = [], cellPadding = 1 }) => ({
@@ -184,6 +189,37 @@ export const BUILTIN_TEMPLATES = [
       text('tpl_grocery_price-c3', '单价', { left: 4, top: 21, width: 40, height: 11, text: '¥{{单价}}', fontSize: 22, fontWeight: 'bold', fill: '#d0021b' }),
       text('tpl_grocery_price-c4', '单位', { left: 44, top: 26, width: 22, height: 4, text: '/{{单位}}', fontSize: 8, fill: '#94a3b8' }),
       barcode('tpl_grocery_price-c5', '条码', { left: 4, top: 30, width: 62, height: 9, binding: '条码' })
+    ]
+  },
+  {
+    id: 'tpl_retail_shelf_70',
+    name: '货架价签 70×40（分栏）',
+    group: '零售',
+    desc: '蓝顶栏 · 左侧品名与条码 · 右侧大字价格/净重/保质期（超市货架）',
+    fields: ['品名', '规格', '单价', '单位', '价格', '条码', '净重', '保质期', '货位', '产地'],
+    paper: labelPaper(70, 40),
+    label: { width: 70, height: 40, backgroundColor: '#ffffff', showBorder: false, borderColor: '#000000', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      rect('tpl_retail_shelf_70-r1', '顶栏', { left: 0, top: 0, width: 70, height: 8, fill: '#1d4ed8' }),
+      text('tpl_retail_shelf_70-h1', '顶栏左', { left: 3, top: 1.8, width: 28, height: 4, text: '生鲜专柜', fontSize: 7, fontWeight: 'bold', fill: '#ffffff' }),
+      text('tpl_retail_shelf_70-h2', '顶栏右', {
+        left: 32, top: 2, width: 35, height: 4, text: '单价 ¥{{单价}}/{{单位}}', fontSize: 6.5, fill: '#e0f2fe', textAlign: 'right'
+      }),
+      line('tpl_retail_shelf_70-v1', '分栏线', { left: 45.2, top: 8.5, width: 24, stroke: '#cbd5e1', strokeWidth: 0.25, angle: 90 }),
+      text('tpl_retail_shelf_70-c1', '品名', { left: 3, top: 10, width: 41, height: 7, text: '{{品名}}', fontSize: 10.5, fontWeight: 'bold', fill: '#0f172a' }),
+      text('tpl_retail_shelf_70-c2', '规格', { left: 3, top: 17, width: 41, height: 4.5, text: '{{规格}}', fontSize: 7, fill: '#64748b' }),
+      rect('tpl_retail_shelf_70-r2', '产地框', { left: 3, top: 22, width: 41, height: 5, fill: '#f8fafc', stroke: '#e2e8f0', strokeWidth: 0.2, rx: 1 }),
+      text('tpl_retail_shelf_70-c3', '产地', { left: 4, top: 23, width: 39, height: 3.5, text: '产地 {{产地}}', fontSize: 6, fill: '#475569', textAlign: 'center' }),
+      barcode('tpl_retail_shelf_70-c4', '条码', { left: 3, top: 29, width: 41, height: 9, binding: '条码' }),
+      text('tpl_retail_shelf_70-c5', '价格', {
+        left: 46, top: 10, width: 23, height: 12, text: '¥{{价格}}', fontSize: 19, fontWeight: 'bold', fill: '#1e3a8a', textAlign: 'center'
+      }),
+      line('tpl_retail_shelf_70-hr', '价区分隔', { left: 47, top: 24, width: 21, stroke: '#e2e8f0', strokeWidth: 0.2 }),
+      text('tpl_retail_shelf_70-c6', '净重', { left: 46, top: 26, width: 23, height: 4, text: '净重 {{净重}}', fontSize: 6.5, fill: '#334155', textAlign: 'center' }),
+      text('tpl_retail_shelf_70-c7', '保质期', { left: 46, top: 30.5, width: 23, height: 4, text: '保质 {{保质期}}', fontSize: 6.5, fill: '#334155', textAlign: 'center' }),
+      text('tpl_retail_shelf_70-c8', '货位', { left: 46, top: 35, width: 23, height: 3.5, text: '货位 {{货位}}', fontSize: 6, fill: '#94a3b8', textAlign: 'center' })
     ]
   },
   {

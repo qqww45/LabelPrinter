@@ -10,7 +10,7 @@ const BASE = '/marketing'
 const SPECIMEN = {
   priceTag: {
     src: `${BASE}/sample-price-tag.webp`,
-    alt: '签立方打印预览：60×40 价签（有机鸡蛋示例）'
+    alt: '签立方打印预览：货架价签 70×40 分栏版（有机鸡蛋示例）'
   },
   waybill: {
     src: `${BASE}/sample-waybill.webp`,
@@ -67,6 +67,7 @@ export const SCENES = {
 /** @type {Record<string, { src: string, alt: string }>} */
 export const TEMPLATE_COVERS = {
   tpl_grocery_price: SPECIMEN.priceTag,
+  tpl_retail_shelf_70: SPECIMEN.priceTag,
   tpl_express: SPECIMEN.waybill,
   tpl_asset_fixed: SPECIMEN.assetTag,
   tpl_warehouse_bin: SPECIMEN.binLabel,
