@@ -57,7 +57,7 @@ for (const s of SAMPLE_DATASETS) {
 }
 
 const retail = parseCSVText(readFileSync(join(root, fileMap.retail), 'utf8'))
-for (const col of ['品名', '产品名称', '规格', '单价', '单位', '条码', '价格', '货位', '产地']) {
+for (const col of ['品名', '产品名称', '规格', '单价', '单位', '条码', '价格', '货位', '产地', '净重', '保质期']) {
   assert(retail.headers.includes(col), `retail has column ${col}`)
 }
 

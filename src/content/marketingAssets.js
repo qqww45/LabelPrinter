@@ -1,53 +1,84 @@
 /**
- * 营销壳摄影资产映射（public/marketing/*.webp）
+ * 营销壳资产（public/marketing/*.webp）
+ * Hero = 真实 /app 界面（白底、无网格）；价签标本 = 简洁内置模板打印预览（tpl_price_tag 等）。
  */
 import { SCENE_PACKS } from '../utils/scenePacks.js'
 import { getTemplateCatalog } from '../utils/templatesCatalog.js'
 
 const BASE = '/marketing'
 
-export const HERO = {
-  src: `${BASE}/hero-shelf-price.webp`,
-  alt: '超市货架上的生鲜价签贴在商品旁'
+const SPECIMEN = {
+  priceTag: {
+    src: `${BASE}/sample-price-tag.webp`,
+    alt: '签立方打印预览：简洁价签 60×40（有机鸡蛋示例，tpl_price_tag）'
+  },
+  waybill: {
+    src: `${BASE}/sample-waybill.webp`,
+    alt: '签立方打印预览：快递面单'
+  },
+  assetTag: {
+    src: `${BASE}/sample-asset-tag.webp`,
+    alt: '签立方打印预览：固定资产贴'
+  },
+  binLabel: {
+    src: `${BASE}/sample-bin-label.webp`,
+    alt: '签立方画布导出的库位签预览（示例数据）'
+  },
+  jewelryTag: {
+    src: `${BASE}/sample-jewelry-tag.webp`,
+    alt: '签立方画布导出的珠宝吊牌预览（示例数据）'
+  },
+  apparelTag: {
+    src: `${BASE}/sample-apparel-tag.webp`,
+    alt: '签立方画布导出的服装吊牌预览（示例数据）'
+  },
+  stickers: {
+    src: `${BASE}/hero-label-stickers.webp`,
+    alt: '多种模板画布预览标本条'
+  },
+  appEditor: {
+    src: `${BASE}/hero-app-editor.webp`,
+    alt: '签立方标签设计工作台界面截图'
+  }
 }
 
+export const HERO = SPECIMEN.appEditor
+
+/** 三步区可选小图（首页默认用数字卡片，不强制展示） */
 export const STEPS = {
-  1: { src: `${BASE}/step-pick.webp`, alt: '在模板库挑选价签版式' },
-  2: { src: `${BASE}/step-import.webp`, alt: '将 Excel 表格导入工作台' },
-  3: { src: `${BASE}/step-print.webp`, alt: '批量预览后打印或导出 PDF' }
+  1: SPECIMEN.priceTag,
+  2: SPECIMEN.appEditor,
+  3: SPECIMEN.waybill
 }
 
 export const SCENES = {
-  'retail-price': { src: `${BASE}/scene-retail.webp`, alt: '超市货架价签场景' },
-  express: { src: `${BASE}/scene-express.webp`, alt: '快递包裹上的面单标签' },
-  asset: { src: `${BASE}/scene-asset.webp`, alt: '设备上的资产编号贴' },
-  warehouse: { src: `${BASE}/scene-warehouse.webp`, alt: '仓库货架库位条码签' },
-  jewelry: { src: `${BASE}/scene-jewelry.webp`, alt: '珠宝吊牌与价签' },
-  apparel: { src: `${BASE}/scene-apparel.webp`, alt: '服装吊牌场景' },
-  'retail-shelf': { src: `${BASE}/scene-retail.webp`, alt: '货架条价签场景' },
-  'retail-barcode': { src: `${BASE}/scene-retail.webp`, alt: '条码标签场景' },
-  'retail-goods': { src: `${BASE}/scene-retail.webp`, alt: '商品信息价签场景' },
-  'retail-price-60': { src: `${BASE}/scene-retail.webp`, alt: '经典价签场景' }
+  'retail-price': SPECIMEN.priceTag,
+  express: SPECIMEN.waybill,
+  asset: SPECIMEN.assetTag,
+  warehouse: SPECIMEN.binLabel,
+  jewelry: SPECIMEN.jewelryTag,
+  apparel: SPECIMEN.apparelTag,
+  'retail-shelf': SPECIMEN.priceTag,
+  'retail-barcode': SPECIMEN.priceTag,
+  'retail-goods': SPECIMEN.priceTag,
+  'retail-price-60': SPECIMEN.priceTag
 }
 
 /** @type {Record<string, { src: string, alt: string }>} */
 export const TEMPLATE_COVERS = {
-  tpl_grocery_price: SCENES['retail-price'],
-  tpl_express: SCENES.express,
-  tpl_asset_fixed: SCENES.asset,
-  tpl_warehouse_bin: SCENES.warehouse,
-  tpl_jewelry: SCENES.jewelry,
-  tpl_apparel_hang: SCENES.apparel,
-  tpl_shelf_strip: SCENES['retail-shelf'],
-  tpl_barcode_tag: SCENES['retail-barcode'],
-  tpl_goods_sheet: SCENES['retail-goods'],
-  tpl_price_tag: SCENES['retail-price-60']
+  tpl_grocery_price: SPECIMEN.priceTag,
+  tpl_express: SPECIMEN.waybill,
+  tpl_asset_fixed: SPECIMEN.assetTag,
+  tpl_warehouse_bin: SPECIMEN.binLabel,
+  tpl_jewelry: SPECIMEN.jewelryTag,
+  tpl_apparel_hang: SPECIMEN.apparelTag,
+  tpl_shelf_strip: SPECIMEN.priceTag,
+  tpl_barcode_tag: SPECIMEN.priceTag,
+  tpl_goods_sheet: SPECIMEN.priceTag,
+  tpl_price_tag: SPECIMEN.priceTag
 }
 
-export const HELP_BAND = {
-  src: `${BASE}/help-band.webp`,
-  alt: '工作台旁的标签卷与已贴好的标签'
-}
+export const HELP_BAND = SPECIMEN.stickers
 
 const catalogSceneByTemplate = () => {
   const map = new Map()

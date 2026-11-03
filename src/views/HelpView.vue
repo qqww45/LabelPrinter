@@ -6,7 +6,8 @@
         <MarketingImage
           :src="helpBand.src"
           :alt="helpBand.alt"
-          aspect="21 / 5"
+          aspect="21 / 6"
+          :cover="false"
           priority
           radius="16px"
         />

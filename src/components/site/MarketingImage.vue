@@ -67,6 +67,18 @@ function onError(e) {
 .mkt-img-cover:not([style*='aspect-ratio']) {
   min-height: 120px;
 }
+.mkt-img:not(.mkt-img-cover)[style*='aspect-ratio'] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mkt-img:not(.mkt-img-cover)[style*='aspect-ratio'] img {
+  width: auto;
+  max-width: 90%;
+  max-height: 90%;
+  height: auto;
+  object-fit: contain;
+}
 .mkt-img-caption {
   padding: 8px 12px;
   font-size: 12px;
