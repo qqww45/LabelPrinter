@@ -2,6 +2,15 @@
   <div class="site-page help-page">
     <SiteHeader />
     <main class="site-main help-layout">
+      <div class="help-band site-reveal">
+        <MarketingImage
+          :src="helpBand.src"
+          :alt="helpBand.alt"
+          aspect="21 / 5"
+          priority
+          radius="16px"
+        />
+      </div>
       <aside class="help-toc" :aria-label="t('目录')">
         <h1 class="help-title">{{ t('帮助手册') }}</h1>
         <button
@@ -49,10 +58,13 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
+import MarketingImage from '../components/site/MarketingImage.vue'
 import { HELP_CHAPTERS } from '../content/helpChapters'
+import { HELP_BAND } from '../content/marketingAssets'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
+const helpBand = HELP_BAND
 const route = useRoute()
 const tocOpen = ref(false)
 const isNarrow = ref(typeof window !== 'undefined' && window.innerWidth < 768)
@@ -120,7 +132,10 @@ onBeforeUnmount(() => {
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 32px;
   align-items: start;
-  max-width: 960px;
+  max-width: 1160px;
+}
+.help-band {
+  grid-column: 1 / -1;
 }
 .help-title {
   font-size: 22px;
@@ -161,13 +176,14 @@ onBeforeUnmount(() => {
   scroll-margin-top: 88px;
 }
 .help-chapter h2 {
-  font-size: 20px;
-  margin: 0 0 12px;
+  font-size: clamp(20px, 2.5vw, 24px);
+  margin: 0 0 14px;
   color: var(--text);
 }
 .help-chapter p {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   line-height: 1.65;
+  font-size: 16px;
   color: var(--text-secondary);
 }
 .help-links a {

@@ -39,9 +39,10 @@ const { t } = useI18n()
   padding: 28px 20px 32px;
 }
 .site-footer-inner {
-  max-width: 1080px;
+  max-width: 1160px;
   margin: 0 auto;
   text-align: center;
+  padding: 0 24px;
 }
 .footer-links {
   display: flex;

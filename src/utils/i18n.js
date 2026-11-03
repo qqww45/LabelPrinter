@@ -70,6 +70,8 @@ const EN = {
   '已关闭': 'Off',
   '切换到亮色': 'Switch to light',
   '切换到暗色': 'Switch to dark',
+  '打开菜单': 'Open menu',
+  '关闭菜单': 'Close menu',
   '切换到中文': '切换到中文',
   'Switch to English': 'Switch to English',
   '配置': 'Config',
