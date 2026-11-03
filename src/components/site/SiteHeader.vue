@@ -1,7 +1,7 @@
 <template>
   <header class="site-header">
     <div class="site-header-inner">
-      <RouterLink to="/" class="brand" :aria-label="t('签立方首页')">
+      <RouterLink :to="MARKETING_HOME" class="brand" :aria-label="t('签立方首页')">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
             <rect x="4" y="6" width="16" height="12" rx="2" />
@@ -12,7 +12,7 @@
         <span class="brand-text">{{ t('签立方') }}</span>
       </RouterLink>
       <nav class="site-nav" :aria-label="t('站点导航')">
-        <RouterLink to="/">{{ t('首页') }}</RouterLink>
+        <RouterLink :to="MARKETING_HOME">{{ t('首页') }}</RouterLink>
         <RouterLink to="/templates">{{ t('模板库') }}</RouterLink>
         <RouterLink to="/help">{{ t('帮助') }}</RouterLink>
       </nav>
@@ -36,6 +36,7 @@
 import { RouterLink } from 'vue-router'
 import { useSettingsStore } from '../../stores/settings'
 import { useI18n } from '../../utils/i18n'
+import { MARKETING_HOME } from '../../utils/siteNav'
 
 const settings = useSettingsStore()
 const { t } = useI18n()

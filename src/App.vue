@@ -4,8 +4,21 @@
 </template>
 
 <script setup>
-import { RouterView } from 'vue-router'
+import { watch } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import ToastHost from './components/ToastHost.vue'
+
+const route = useRoute()
+
+watch(
+  () => route.path,
+  (path) => {
+    const editor = path === '/app'
+    document.documentElement.classList.toggle('editor-shell', editor)
+    document.documentElement.classList.toggle('site-shell', !editor)
+  },
+  { immediate: true }
+)
 </script>
 
 <style>

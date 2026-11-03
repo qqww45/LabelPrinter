@@ -1059,7 +1059,10 @@ const EN = {
   '开源工具，数据只留在本机浏览器；边缘部署，免安装。': 'Open source; data stays in your browser. Edge-hosted, nothing to install.',
   '签立方首页': 'LabelCube home',
   '已套用模板': 'Template applied',
-  '完整说明见帮助手册': 'Full guide in Help'
+  '完整说明见帮助手册': 'Full guide in Help',
+  '表格一行 · 标签一张': 'One row, one label',
+  '超市价签 70×40': 'Grocery tag 70×40 mm',
+  '预览': 'Preview'
 }
 
 export function useI18n() {

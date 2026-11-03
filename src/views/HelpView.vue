@@ -11,13 +11,13 @@
           :aria-expanded="tocOpen ? 'true' : 'false'"
         >{{ tocOpen ? t('收起目录') : t('展开目录') }}</button>
         <nav v-show="tocOpen || !isNarrow" class="toc-list">
-          <a
+          <RouterLink
             v-for="ch in HELP_CHAPTERS"
             :key="ch.id"
-            :href="`#${ch.id}`"
+            :to="{ path: '/help', hash: `#${ch.id}` }"
             :class="{ active: activeId === ch.id }"
             @click="onTocClick"
-          >{{ ch.title }}</a>
+          >{{ ch.title }}</RouterLink>
         </nav>
       </aside>
       <article class="help-body">
@@ -45,7 +45,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
@@ -56,7 +56,7 @@ const { t } = useI18n()
 const route = useRoute()
 const tocOpen = ref(false)
 const isNarrow = ref(typeof window !== 'undefined' && window.innerWidth < 768)
-const activeId = ref('')
+const activeId = ref(HELP_CHAPTERS[0]?.id || '')
 const chapterEls = new Map()
 
 function setChapterRef(id, el) {
@@ -78,6 +78,10 @@ function syncActiveFromHash() {
 let observer = null
 let onResize = null
 
+watch(() => route.hash, () => {
+  syncActiveFromHash()
+})
+
 onMounted(() => {
   syncActiveFromHash()
   onResize = () => { isNarrow.value = window.innerWidth < 768 }
@@ -89,20 +93,18 @@ onMounted(() => {
         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
       if (visible[0]?.target?.id) activeId.value = visible[0].target.id
     },
-    { rootMargin: '-20% 0px -55% 0px', threshold: [0, 0.25, 0.5] }
+    { root: null, rootMargin: '-72px 0px -45% 0px', threshold: [0, 0.15, 0.4] }
   )
   requestAnimationFrame(() => {
     for (const ch of HELP_CHAPTERS) {
       const el = chapterEls.get(ch.id)
       if (el) observer.observe(el)
     }
-  })
-  if (route.hash) {
-    requestAnimationFrame(() => {
+    if (route.hash) {
       const el = document.querySelector(route.hash)
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }
+    }
+  })
 })
 
 onBeforeUnmount(() => {
@@ -115,7 +117,7 @@ onBeforeUnmount(() => {
 @import '../styles/site.css';
 .help-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 32px;
   align-items: start;
   max-width: 960px;
@@ -133,9 +135,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 2px;
   position: sticky;
-  top: 72px;
+  top: 76px;
   max-height: calc(100vh - 96px);
-  overflow: auto;
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 .toc-list a {
@@ -144,19 +146,24 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   color: var(--text-secondary);
   text-decoration: none;
+  display: block;
 }
 .toc-list a.active,
 .toc-list a:hover {
   background: var(--bg-hover);
   color: var(--primary);
 }
+.help-body {
+  min-width: 0;
+}
 .help-chapter {
   margin-bottom: 40px;
-  scroll-margin-top: 80px;
+  scroll-margin-top: 88px;
 }
 .help-chapter h2 {
   font-size: 20px;
   margin: 0 0 12px;
+  color: var(--text);
 }
 .help-chapter p {
   margin: 0 0 10px;

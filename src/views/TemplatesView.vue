@@ -44,7 +44,11 @@
               :class="{ active: selected?.templateId === entry.templateId }"
               @click="selected = entry"
             >
-              <div class="tpl-preview" :style="previewStyle(entry)" aria-hidden="true"></div>
+              <TemplatePreviewThumb
+                :template-id="entry.templateId"
+                :max-width="140"
+                :max-height="96"
+              />
               <div class="tpl-meta">
                 <strong>{{ entry.name }}</strong>
                 <span>{{ entry.size }} mm · {{ entry.group }}</span>
@@ -53,6 +57,14 @@
           </div>
 
           <aside v-if="selected" class="tpl-detail">
+            <div class="tpl-detail-preview">
+              <TemplatePreviewThumb
+                :template-id="selected.templateId"
+                :max-width="320"
+                :max-height="220"
+                variant="hero"
+              />
+            </div>
             <h2>{{ selected.name }}</h2>
             <p>{{ selected.desc }}</p>
             <p class="detail-size">{{ t('尺寸') }}：{{ selected.size }} mm</p>
@@ -76,6 +88,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
+import TemplatePreviewThumb from '../components/site/TemplatePreviewThumb.vue'
 import {
   filterTemplateCatalog,
   getPurposeFilterOptions,
@@ -146,15 +159,6 @@ function syncQuery() {
   router.replace({ query })
 }
 
-function previewStyle(entry) {
-  const [w, h] = entry.size.split('x').map(Number)
-  const ratio = w && h ? w / h : 1.4
-  return {
-    aspectRatio: String(ratio),
-    background: `linear-gradient(145deg, var(--bg-hover) 0%, var(--bg-panel) 40%, rgba(37,99,235,0.08) 100%)`
-  }
-}
-
 function applySelected() {
   if (!selected.value) return
   const entry = selected.value
@@ -209,9 +213,14 @@ function applySelected() {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px var(--primary);
 }
-.tpl-preview {
-  width: 100%;
-  min-height: 72px;
+.tpl-detail-preview {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px dashed var(--border);
+}
+.tpl-detail-preview :deep(.tpl-thumb) {
+  border-bottom: none;
 }
 .tpl-meta {
   padding: 10px;
