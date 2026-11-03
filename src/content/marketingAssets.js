@@ -1,5 +1,6 @@
 /**
- * 营销壳插图资产（public/marketing/*.webp）— 标本/产品示意，非贴物场景摄影
+ * 营销壳资产（public/marketing/*.webp）
+ * 截自本地 /app 画布与界面（与 ci64.com 同源），非 AI 假图。
  */
 import { SCENE_PACKS } from '../utils/scenePacks.js'
 import { getTemplateCatalog } from '../utils/templatesCatalog.js'
@@ -9,44 +10,44 @@ const BASE = '/marketing'
 const SPECIMEN = {
   priceTag: {
     src: `${BASE}/sample-price-tag.webp`,
-    alt: '超市生鲜价签设计标本'
+    alt: '签立方画布导出的生鲜价签预览（示例数据）'
   },
   waybill: {
     src: `${BASE}/sample-waybill.webp`,
-    alt: '快递面单标签标本'
+    alt: '签立方画布导出的快递面单预览（示例数据）'
   },
   assetTag: {
     src: `${BASE}/sample-asset-tag.webp`,
-    alt: '设备资产编号贴标本'
+    alt: '签立方画布导出的资产贴预览（示例数据）'
   },
   binLabel: {
     src: `${BASE}/sample-bin-label.webp`,
-    alt: '仓库库位条码签标本'
+    alt: '签立方画布导出的库位签预览（示例数据）'
   },
   jewelryTag: {
     src: `${BASE}/sample-jewelry-tag.webp`,
-    alt: '珠宝吊牌价签标本'
+    alt: '签立方画布导出的珠宝吊牌预览（示例数据）'
   },
   apparelTag: {
     src: `${BASE}/sample-apparel-tag.webp`,
-    alt: '服装吊牌标本'
+    alt: '签立方画布导出的服装吊牌预览（示例数据）'
   },
   stickers: {
     src: `${BASE}/hero-label-stickers.webp`,
-    alt: '多种行业标签标本组合'
+    alt: '多种模板画布预览标本条'
   },
-  laptopEditor: {
-    src: `${BASE}/hero-laptop-editor.webp`,
-    alt: '浏览器中的标签设计工作台与价签预览'
+  appEditor: {
+    src: `${BASE}/hero-app-editor.webp`,
+    alt: '签立方标签设计工作台界面截图'
   }
 }
 
-export const HERO = SPECIMEN.laptopEditor
+export const HERO = SPECIMEN.appEditor
 
 /** 三步区可选小图（首页默认用数字卡片，不强制展示） */
 export const STEPS = {
   1: SPECIMEN.priceTag,
-  2: SPECIMEN.laptopEditor,
+  2: SPECIMEN.appEditor,
   3: SPECIMEN.waybill
 }
 

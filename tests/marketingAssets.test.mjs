@@ -9,7 +9,7 @@ import {
 } from '../src/content/marketingAssets.js'
 
 assert.ok(HERO.src.includes('/marketing/'))
-assert.ok(HERO.src.endsWith('hero-laptop-editor.webp'))
+assert.ok(HERO.src.endsWith('hero-app-editor.webp'))
 assert.ok(resolveMarketingAsset('scene', 'express').src.includes('sample-waybill'))
 assert.ok(resolveMarketingAsset('scene', 'asset').src.includes('sample-asset-tag'))
 assert.ok(resolveMarketingAsset('template', 'missing_id').src)
