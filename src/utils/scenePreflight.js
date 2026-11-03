@@ -47,7 +47,7 @@ function firstBindingMatch(components, names) {
       if (set.has(f)) return f
     }
   }
-  return names.find((n) => set.has(n)) || names[0]
+  return ''
 }
 
 export function inferSceneId(project) {
@@ -70,7 +70,7 @@ export function collectSceneRowFailures({
 } = {}) {
   if (!Array.isArray(rows) || !rows.length) return []
   const failures = []
-  const scene = sceneId || 'retail-price'
+  const scene = String(sceneId || '').trim()
 
   const priceNames = ['价格', '零售价', '售价', '单价']
   const phoneNames = ['电话', '手机', '收件人电话', '联系电话']

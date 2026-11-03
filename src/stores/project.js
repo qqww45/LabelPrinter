@@ -550,13 +550,12 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   // ============ 字段映射 / 模板 ============
-  function updateFieldMap(map) {
+  function updateFieldMap(map, headersOverride) {
     project.value.dataSource.fieldMap = { ...(map || {}) }
-    rememberFieldMap(
-      project.value.dataSource,
-      project.value.dataSource.headers || [],
-      project.value.dataSource.fieldMap
-    )
+    const hdrs = Array.isArray(headersOverride) && headersOverride.length
+      ? headersOverride
+      : (project.value.dataSource.headers || [])
+    rememberFieldMap(project.value.dataSource, hdrs, project.value.dataSource.fieldMap)
     markDirty()
   }
 

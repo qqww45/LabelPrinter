@@ -51,6 +51,14 @@ const fails = collectSceneRowFailures({
 })
 check('价签空价格体检', fails.some((f) => f.code === 'scene-empty-price'))
 
+const noScene = collectSceneRowFailures({
+  sceneId: '',
+  components: [{ type: 'text', binding: '价格' }],
+  rows: [{ 单价: '12' }],
+  fieldMap: {}
+})
+check('无场景时不误报价签空价', !noScene.some((f) => f.code === 'scene-empty-price'))
+
 const cal = getEffectiveCalibrate({ printConfig: { calibrate: { offsetXMm: 2, offsetYMm: 0, scalePercent: 98 } } })
 check('项目校准优先', cal.offsetXMm === 2 && cal.scalePercent === 98)
 

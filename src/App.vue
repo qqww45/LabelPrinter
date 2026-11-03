@@ -468,13 +468,8 @@ function openPrintConfig() {
 }
 
 function closeFieldMap() {
-  rememberFieldMap(
-    project.project.dataSource,
-    data.headers,
-    project.project.dataSource?.fieldMap || {}
-  )
+  project.updateFieldMap(project.project.dataSource?.fieldMap || {}, data.headers)
   embedCurrentData()
-  project.markDirty()
   fieldMapVisible.value = false
   fieldMapImportMode.value = false
 }
@@ -485,7 +480,7 @@ function applySavedImportMap() {
   const saved = lookupSavedFieldMap(project.project.dataSource, p.headers)
   if (!saved) return
   const next = sanitizeFieldMapForHeaders(saved, p.headers)
-  project.updateFieldMap(next)
+  project.updateFieldMap(next, p.headers)
   toastSuccess(t('已恢复上次的字段映射'))
 }
 
@@ -705,7 +700,8 @@ function applyImported(mode, payload) {
       sourcePath: fileName,
       embedded: true
     })
-    if (headersDiffer(prevHeaders, headers)) project.updateFieldMap({})
+    embedCurrentData()
+    if (headersDiffer(prevHeaders, headers)) project.updateFieldMap({}, data.headers)
   } else if (mode === 'merge-key') {
     const key = importMergeKeyDraft.value || project.project.dataSource?.mergeKey || guessMergeKey(headers)
     if (key) project.setMergeKey(key)
@@ -716,9 +712,10 @@ function applyImported(mode, payload) {
       sourcePath: fileName,
       embedded: true
     })
+    embedCurrentData()
     const saved = lookupSavedFieldMap(project.project.dataSource, merged.headers)
     if (saved) {
-      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers))
+      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers), merged.headers)
     }
   } else {
     const merged = mergeDataAppend(data.headers, data.rows, headers, rows || [])
@@ -728,13 +725,13 @@ function applyImported(mode, payload) {
       sourcePath: fileName,
       embedded: true
     })
+    embedCurrentData()
     const saved = lookupSavedFieldMap(project.project.dataSource, merged.headers)
     if (saved) {
-      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers))
+      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers), merged.headers)
     }
   }
   healBoundText()
-  embedCurrentData()
   project.markDirty()
   const note = columnNote(headers)
   toastSuccess(note ? `${t('已导入 {n} 条数据', { n: data.rows.length })} ${note}` : t('已导入 {n} 条数据', { n: data.rows.length }))
@@ -843,8 +840,22 @@ function buildPreflightReport() {
   })
 }
 
+function failedRowIndicesFromReport(report) {
+  const failed = new Set()
+  for (const f of report?.rowFailures || []) {
+    if (Number.isInteger(f.rowIndex)) failed.add(f.rowIndex)
+  }
+  for (const it of report?.issues || []) {
+    if (Number.isInteger(it.rowIndex)) failed.add(it.rowIndex)
+    for (const rf of it.rowFailures || []) {
+      if (Number.isInteger(rf.rowIndex)) failed.add(rf.rowIndex)
+    }
+  }
+  return failed
+}
+
 function uncheckPreflightFailedRows(report) {
-  const failed = new Set((report?.rowFailures || []).map((f) => f.rowIndex))
+  const failed = failedRowIndicesFromReport(report)
   if (!failed.size) return 0
   data.displayRows.forEach((row, i) => {
     if (!failed.has(i)) return
