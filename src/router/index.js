@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { readHasStoredProjects, resolveDefaultPath } from '../utils/routerEntry.js'
+import { applyRouteSiteMeta } from '../utils/siteMeta.js'
 
 const HomeView = () => import('../views/HomeView.vue')
 const TemplatesView = () => import('../views/TemplatesView.vue')
@@ -35,6 +36,10 @@ export function createAppRouter() {
       return
     }
     next()
+  })
+
+  router.afterEach((to) => {
+    applyRouteSiteMeta(to.path)
   })
 
   return router
