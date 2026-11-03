@@ -9,6 +9,7 @@
 | `npm run build` | 生产构建到 `dist/`（Vite 6 + Vue 3.5） |
 | `npm run preview` | 本地预览生产构建产物 |
 | `npm test` | 跑全部 `tests/*.test.mjs`（含 PDF 颜色一致性、转义、拼版等） |
+| `node tests/officialSite.test.mjs` | 官网域名回归（禁止旧官方子域名出现在对外文案中） |
 | `node tests/basic.test.mjs` | 跑基础单元测试套件（约 66 项：纸/排版/打印/序列化） |
 | `node tests/dataMerge.test.mjs` | 跑导入追加/替换合并函数单测（7 类边界，15 项） |
 | `node tests/pdfParity.test.mjs` | PDF 拉丁字色 / 中文分流 / 价签绑定回归 |

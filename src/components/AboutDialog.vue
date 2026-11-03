@@ -18,6 +18,10 @@
         <p class="ver">{{ t('版本 {v}', { v: version }) }}</p>
         <p class="lead">{{ t('在浏览器里用 AI 或亲手排好标签，按表格批量打印，并导出 PDF 和图片。') }}</p>
 
+        <h3>{{ t('官方网站') }}</h3>
+        <p>{{ t('在线使用签立方，无需安装。') }}</p>
+        <a class="repo" :href="officialSiteUrl" target="_blank" rel="noopener noreferrer">{{ officialSiteUrl }}</a>
+
         <h3>{{ t('开源') }}</h3>
         <p>{{ t('源代码公开在 GitHub，可以查看、修改和自行部署。') }}</p>
         <a class="repo" :href="repoUrl" target="_blank" rel="noopener noreferrer">{{ repoUrl }}</a>
@@ -40,11 +44,13 @@
 import { onMounted, ref } from 'vue'
 import { version } from '../../package.json'
 import { useI18n } from '../utils/i18n'
+import { OFFICIAL_SITE_URL, REPO_URL } from '../utils/site.js'
 
 const emit = defineEmits(['close'])
 const { t } = useI18n()
 const dialogRef = ref(null)
-const repoUrl = 'https://github.com/qqww45/LabelPrinter'
+const officialSiteUrl = OFFICIAL_SITE_URL
+const repoUrl = REPO_URL
 
 function close() {
   emit('close')

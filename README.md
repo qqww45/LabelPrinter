@@ -4,7 +4,7 @@
 
 Turn each row of a spreadsheet into a label you can stick on something. Lay out price tags, shipping labels, and asset tags in the browser, then batch-print them or export a PDF.
 
-**在线使用 / Try it:** https://ci64.com
+**在线使用 / Try it:** https://ci64.com/
 
 开源，不用安装。项目和表格留在这台浏览器里。AI 排版用你自己的密钥，支持 DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama。不用 AI 时，表格不会发出去。
 

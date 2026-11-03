@@ -962,6 +962,8 @@ const EN = {
   '关于': 'About',
   '版本 {v}': 'Version {v}',
   '在浏览器里用 AI 或亲手排好标签，按表格批量打印，并导出 PDF 和图片。': 'Lay out a label by hand or with AI, batch-print it from a table, and export PDF or images.',
+  '官方网站': 'Official site',
+  '在线使用签立方，无需安装。': 'Use LabelCube in your browser — nothing to install.',
   '开源': 'Open source',
   '源代码公开在 GitHub，可以查看、修改和自行部署。': 'The source is public on GitHub. You can read it, change it, and host it yourself.',
   '安全': 'Safety',
