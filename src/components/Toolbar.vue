@@ -1,20 +1,45 @@
 <template>
-  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen || projOpen }">
+  <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen || projOpen || brandOpen }">
     <div ref="brandRef" class="group group-brand">
-      <nav class="site-mini-nav" :aria-label="t('站点')">
-        <RouterLink :to="MARKETING_HOME">{{ t('首页') }}</RouterLink>
-        <RouterLink to="/templates">{{ t('模板库') }}</RouterLink>
-        <RouterLink to="/help">{{ t('帮助') }}</RouterLink>
-      </nav>
-      <div class="logo">
-        <span class="logo-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="4" y="6" width="16" height="12" rx="2" />
-            <path d="M4 9h16" />
-            <path d="M8 13v3M10.5 12v4M13 13.5v2.5M15.5 12v4" stroke-linecap="round" />
-          </svg>
-        </span>
-        <span class="logo-text">{{ t('签立方') }}<span class="logo-sub">{{ t('标签设计与打印工具') }}</span></span>
+      <div class="logo-wrap">
+        <button
+          type="button"
+          class="logo-btn"
+          :aria-label="t('签立方')"
+          aria-haspopup="menu"
+          :aria-expanded="brandOpen ? 'true' : 'false'"
+          @click="brandOpen = !brandOpen"
+        >
+          <span class="logo-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="4" y="6" width="16" height="12" rx="2" />
+              <path d="M4 9h16" />
+              <path d="M8 13v3M10.5 12v4M13 13.5v2.5M15.5 12v4" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="logo-text">{{ t('签立方') }}<span class="logo-sub">{{ t('标签设计与打印工具') }}</span></span>
+          <span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <div v-if="brandOpen" class="proj-menu brand-menu" role="menu" @click.stop>
+          <RouterLink
+            :to="MARKETING_HOME"
+            class="more-item"
+            role="menuitem"
+            @click="brandOpen = false"
+          >{{ t('首页') }}</RouterLink>
+          <RouterLink
+            to="/templates"
+            class="more-item"
+            role="menuitem"
+            @click="brandOpen = false"
+          >{{ t('模板库') }}</RouterLink>
+          <RouterLink
+            to="/help"
+            class="more-item"
+            role="menuitem"
+            @click="brandOpen = false"
+          >{{ t('帮助') }}</RouterLink>
+        </div>
       </div>
       <span class="filename" v-if="project.project.meta">
         <button
@@ -160,7 +185,7 @@
         <span class="ico" aria-hidden="true" v-html="icons.info"></span>
       </button>
     </div>
-    <div v-if="moreOpen || projOpen" class="more-mask" @click="moreOpen = false; projOpen = false"></div>
+    <div v-if="moreOpen || projOpen || brandOpen" class="more-mask" @click="moreOpen = false; projOpen = false; brandOpen = false"></div>
   </div>
 </template>
 
@@ -201,6 +226,7 @@ const overflowActions = computed(() =>
 
 const moreOpen = ref(false)
 const projOpen = ref(false)
+const brandOpen = ref(false)
 function pickProject(id) {
   projOpen.value = false
   if (id && id !== project.currentId) emit('switch', id)
@@ -376,38 +402,31 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   gap: 10px;
   min-width: 0;
 }
-.site-mini-nav {
-  display: flex;
-  gap: 2px;
+.logo-wrap {
+  position: relative;
   flex-shrink: 0;
 }
-.site-mini-nav a {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.site-mini-nav a:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.site-mini-nav a.router-link-active {
-  color: var(--primary);
-}
-@media (max-width: 1100px) {
-  .site-mini-nav {
-    display: none;
-  }
-}
-.logo {
-  font-weight: 600;
-  margin-right: 8px;
-  color: var(--primary);
+.logo-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-right: 8px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary);
+  padding: 2px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.logo-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+.brand-menu {
+  left: 0;
+  min-width: 140px;
 }
 .logo-mark {
   width: 26px;
@@ -513,6 +532,7 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   font-weight: 600;
   color: var(--text);
   cursor: pointer;
+  text-decoration: none;
 }
 .more-item:hover { background: var(--bg-hover); }
 .more-item:focus-visible {
