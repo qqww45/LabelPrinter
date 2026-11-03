@@ -6,6 +6,13 @@
 源码：https://github.com/qqww45/LabelPrinter
 许可证：MIT。不用安装，不用注册。
 
+## 公开页面
+
+- https://ci64.com/ — 首页与产品介绍
+- https://ci64.com/templates — 模板库
+- https://ci64.com/help — 帮助与常见问题
+- https://ci64.com/app — 在线标签设计与打印工作台
+
 ## 能做什么
 
 - 免费标签打印：把表格的每一行印成一张标签

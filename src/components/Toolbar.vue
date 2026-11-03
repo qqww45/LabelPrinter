@@ -80,33 +80,6 @@
         <span class="ico" v-html="icons[a.icon]"></span>
         <span class="txt">{{ t(a.label) }}</span>
       </button>
-      <div v-if="overflowActions.length" class="more-wrap">
-        <button
-          ref="moreBtnRef"
-          class="btn"
-          type="button"
-          :aria-expanded="moreOpen"
-          aria-haspopup="menu"
-          :aria-label="t('更多')"
-          @click.stop="moreOpen = !moreOpen"
-        >
-          <span class="ico" v-html="icons.more"></span>
-          <span class="txt">{{ t('更多') }}</span>
-          <span class="caret" aria-hidden="true">▾</span>
-        </button>
-        <div v-if="moreOpen" class="more-menu" role="menu" @click.stop>
-          <button
-            v-for="a in overflowActions"
-            :key="a.id"
-            type="button"
-            class="more-item"
-            role="menuitem"
-            @click="pickMore(a.id)"
-          >
-            <span class="ico" v-html="icons[a.icon]"></span>{{ t(a.label) }}
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- 离屏测量：量每个次要按钮真实宽度 -->
@@ -130,6 +103,34 @@
     </div>
 
     <div class="spacer" />
+
+    <div v-if="overflowActions.length" class="group group-more more-wrap">
+      <button
+        ref="moreBtnRef"
+        class="btn"
+        type="button"
+        :aria-expanded="moreOpen ? 'true' : 'false'"
+        aria-haspopup="menu"
+        :aria-label="t('更多')"
+        @click.stop="moreOpen = !moreOpen"
+      >
+        <span class="ico" v-html="icons.more"></span>
+        <span class="txt">{{ t('更多') }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <div v-if="moreOpen" class="more-menu" role="menu" @click.stop>
+        <button
+          v-for="a in overflowActions"
+          :key="a.id"
+          type="button"
+          class="more-item"
+          role="menuitem"
+          @click="pickMore(a.id)"
+        >
+          <span class="ico" v-html="icons[a.icon]"></span>{{ t(a.label) }}
+        </button>
+      </div>
+    </div>
 
     <div ref="prefsRef" class="group group-prefs">
       <button
@@ -262,7 +263,7 @@ function recomputeOverflow() {
   const divider = isCompact.value ? 0 : 17 // divider + gaps approx when visible
   const pad = 24 // toolbar horizontal padding
   const barW = bar.clientWidth
-  const fixed =
+  const fixedBase =
     brand.offsetWidth +
     main.offsetWidth +
     prefs.offsetWidth +
@@ -270,7 +271,6 @@ function recomputeOverflow() {
     pad +
     gap * 6
 
-  const avail = Math.max(0, barW - fixed)
   const widths = secondaryActions.map(a => {
     const el = measure.querySelector(`[data-sec-id="${a.id}"]`)
     return el ? el.offsetWidth + gap : 72
@@ -279,14 +279,16 @@ function recomputeOverflow() {
   const moreW = (moreEl ? moreEl.offsetWidth : 64) + gap
 
   const total = widths.reduce((s, w) => s + w, 0)
-  if (total <= avail) {
+  const availAllSecondary = Math.max(0, barW - fixedBase)
+  if (total <= availAllSecondary) {
     if (overflowIds.value.length) overflowIds.value = []
     if (moreOpen.value) moreOpen.value = false
     return
   }
 
-  // 从右往左收进「更多」，至少露出一个主路径外的入口时仍保留 more
-  let used = moreW
+  // 「更多」固定在右侧偏好区旁；可见次要按钮只占中间剩余宽度
+  const avail = Math.max(0, barW - fixedBase - moreW)
+  let used = 0
   const keep = []
   for (let i = 0; i < widths.length; i++) {
     if (used + widths[i] <= avail) {
@@ -488,7 +490,8 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
 .more-menu {
   position: absolute;
   top: calc(100% + 4px);
-  left: 0;
+  right: 0;
+  left: auto;
   z-index: 31;
   min-width: 168px;
   padding: 4px;
