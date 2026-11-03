@@ -76,20 +76,6 @@
 .hero-photo-wrap .mkt-img {
   box-shadow: 0 16px 48px rgba(37, 99, 235, 0.12);
 }
-.hero-chip-overlay {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 2;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
-  backdrop-filter: blur(6px);
-}
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -146,6 +132,13 @@
   background: rgba(37, 99, 235, 0.12);
   color: var(--primary);
   margin-bottom: 8px;
+}
+.step-card--simple {
+  padding: 18px 16px 20px;
+}
+.scene-card-photo--specimen :deep(.mkt-img),
+.tpl-photo-cover :deep(.mkt-img) {
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg-hover));
 }
 .scene-grid {
   display: grid;
@@ -219,14 +212,16 @@
   margin: 0 0 40px;
   border-radius: 16px;
   overflow: hidden;
-  max-height: 220px;
+  max-height: 200px;
 }
-.help-band .mkt-img {
-  max-height: 220px;
+.help-band :deep(.mkt-img) {
+  max-height: 200px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, var(--bg-hover));
+  box-shadow: none;
+  border: 1px solid var(--border);
 }
-.help-band .mkt-img img {
-  object-fit: cover;
-  max-height: 220px;
+.help-band :deep(.mkt-img img) {
+  max-height: 180px;
 }
 .cap-strip {
   display: flex;

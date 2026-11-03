@@ -49,6 +49,7 @@
                   :src="coverFor(entry.templateId).src"
                   :alt="coverFor(entry.templateId).alt"
                   aspect="4 / 3"
+                  :cover="false"
                   radius="0"
                 />
               </div>

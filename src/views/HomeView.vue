@@ -21,31 +21,21 @@
               :src="heroAsset.src"
               :alt="heroAsset.alt"
               aspect="4 / 3"
+              :cover="false"
               priority
               radius="18px"
             />
-            <span class="hero-chip-overlay">{{ t('超市价签 70×40') }}</span>
           </div>
         </div>
       </section>
 
       <section class="site-section site-reveal">
         <h2>{{ t('三步上手') }}</h2>
-        <div class="steps-row">
-          <div v-for="step in steps" :key="step.n" class="step-card">
-            <div class="step-card-photo">
-              <MarketingImage
-                :src="step.asset.src"
-                :alt="step.asset.alt"
-                aspect="16 / 10"
-                radius="0"
-              />
-            </div>
-            <div class="step-card-body">
-              <b>{{ step.n }}</b>
-              <div>{{ t(step.title) }}</div>
-              <p class="site-lede">{{ t(step.desc) }}</p>
-            </div>
+        <div class="steps-row steps-row--simple">
+          <div v-for="step in steps" :key="step.n" class="step-card step-card--simple">
+            <b>{{ step.n }}</b>
+            <div>{{ t(step.title) }}</div>
+            <p class="site-lede">{{ t(step.desc) }}</p>
           </div>
         </div>
       </section>
@@ -59,11 +49,12 @@
             :to="{ path: '/templates', query: { scene: s.id } }"
             class="scene-card"
           >
-            <div class="scene-card-photo">
+            <div class="scene-card-photo scene-card-photo--specimen">
               <MarketingImage
                 :src="sceneAsset(s.id).src"
                 :alt="sceneAsset(s.id).alt"
                 aspect="4 / 3"
+                :cover="false"
                 radius="0"
               />
             </div>
@@ -120,9 +111,9 @@ onMounted(() => {
 })
 
 const steps = [
-  { n: 1, title: '选模板', desc: '按行业与尺寸挑现成版式', asset: resolveMarketingAsset('step', 1) },
-  { n: 2, title: '导入表格', desc: '一行一条标签，列名自动对上', asset: resolveMarketingAsset('step', 2) },
-  { n: 3, title: '打印或导出', desc: '预览无误后打印、PDF 或热敏指令', asset: resolveMarketingAsset('step', 3) }
+  { n: 1, title: '选模板', desc: '按行业与尺寸挑现成版式' },
+  { n: 2, title: '导入表格', desc: '一行一条标签，列名自动对上' },
+  { n: 3, title: '打印或导出', desc: '预览无误后打印、PDF 或热敏指令' }
 ]
 
 const scenes = SCENE_PACKS.filter((p) =>
@@ -138,10 +129,13 @@ function sceneAsset(id) {
 @import '../styles/site.css';
 .hero-split {
   display: grid;
-  grid-template-columns: 1fr minmax(280px, 420px);
-  gap: 40px;
+  grid-template-columns: 1fr minmax(300px, 480px);
+  gap: 48px;
   align-items: center;
   padding-top: 8px;
+}
+.hero-photo-wrap :deep(.mkt-img) {
+  background: color-mix(in srgb, var(--bg-panel) 92%, var(--bg-hover));
 }
 .hero-kicker {
   font-size: 13px;
