@@ -1,6 +1,11 @@
 <template>
   <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen || projOpen }">
     <div ref="brandRef" class="group group-brand">
+      <nav class="site-mini-nav" :aria-label="t('站点')">
+        <RouterLink :to="{ path: '/', query: { home: '1' } }">{{ t('首页') }}</RouterLink>
+        <RouterLink to="/templates">{{ t('模板库') }}</RouterLink>
+        <RouterLink to="/help">{{ t('帮助') }}</RouterLink>
+      </nav>
       <div class="logo">
         <span class="logo-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -161,6 +166,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useProjectStore } from '../stores/project'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../utils/i18n'
@@ -363,6 +369,37 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   white-space: nowrap;
 }
 
+.group-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.site-mini-nav {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.site-mini-nav a {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.site-mini-nav a:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.site-mini-nav a.router-link-active {
+  color: var(--primary);
+}
+@media (max-width: 1100px) {
+  .site-mini-nav {
+    display: none;
+  }
+}
 .logo {
   font-weight: 600;
   margin-right: 8px;

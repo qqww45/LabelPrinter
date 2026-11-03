@@ -5,7 +5,7 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
-assert(SCENE_PACKS.length >= 4, 'scene packs defined')
+assert(SCENE_PACKS.length >= 8, 'scene packs expanded')
 for (const p of SCENE_PACKS) {
   assert(p.templateId && p.sampleId, `pack ${p.id} needs ids`)
   assert(findSampleIdForTemplate(p.templateId) === p.sampleId, `pack ${p.id} sample must list template`)

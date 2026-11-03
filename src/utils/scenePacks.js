@@ -36,6 +36,48 @@ export const SCENE_PACKS = [
     templateId: 'tpl_warehouse_bin',
     sampleId: 'warehouse',
     blurb: '库位、SKU、品名'
+  },
+  {
+    id: 'jewelry',
+    name: '珠宝吊牌',
+    templateId: 'tpl_jewelry',
+    sampleId: 'jewelry',
+    blurb: '品名、克重、工费与小条码'
+  },
+  {
+    id: 'apparel',
+    name: '服装吊牌',
+    templateId: 'tpl_apparel_hang',
+    sampleId: 'apparel',
+    blurb: '款号、尺码、颜色、吊牌价'
+  },
+  {
+    id: 'retail-shelf',
+    name: '货架条',
+    templateId: 'tpl_shelf_strip',
+    sampleId: 'retail',
+    blurb: '宽条价签：品名、货位、价格'
+  },
+  {
+    id: 'retail-barcode',
+    name: '条码标签',
+    templateId: 'tpl_barcode_tag',
+    sampleId: 'retail',
+    blurb: '50×30 条码 + 品名'
+  },
+  {
+    id: 'retail-goods',
+    name: '商品信息表',
+    templateId: 'tpl_goods_sheet',
+    sampleId: 'retail',
+    blurb: '80×50 表格价签'
+  },
+  {
+    id: 'retail-price-60',
+    name: '价签 60×40',
+    templateId: 'tpl_price_tag',
+    sampleId: 'retail',
+    blurb: '经典 60×40 价签'
   }
 ]
 
