@@ -2,7 +2,9 @@
  * 按行业场景加权的行级体检（价签 / 面单 / 资产等）。
  */
 import { resolveRow, codePayload } from './render.js'
+import { fieldRefsFromText } from './templateExpr.js'
 import { barcodeScanIssue } from './barcodeScan.js'
+import { safeImageSrc } from './escapeHtml.js'
 import { getScenePack, SCENE_PACKS } from './scenePacks.js'
 
 const PHONE_RE = /^1[3-9]\d{9}$|^0\d{2,3}-?\d{7,8}$/
@@ -12,13 +14,7 @@ function fieldNamesOnComponent(c) {
   if (!c) return []
   if (c.binding) set.add(c.binding)
   const scan = (text) => {
-    if (typeof text !== 'string') return
-    const re = /\{\{([^}]+)\}\}/g
-    let m
-    while ((m = re.exec(text))) {
-      const k = m[1].trim()
-      if (k) set.add(k)
-    }
+    for (const k of fieldRefsFromText(text)) set.add(k)
   }
   scan(c.text)
   if (c.type === 'table' && c.cells) {
@@ -29,6 +25,48 @@ function fieldNamesOnComponent(c) {
     }
   }
   return Array.from(set)
+}
+
+function collectImageFieldFailures(components, resolved, rowIndex) {
+  const failures = []
+  const push = (code, title, detail, ids = []) => {
+    failures.push({ rowIndex, code, title, detail, ids })
+  }
+  for (const c of components || []) {
+    if (!c || c.type !== 'image' || c.source !== 'field' || !c.binding) continue
+    const raw = resolved[c.binding]
+    if (raw == null || String(raw).trim() === '') {
+      if (!c.hideIfEmpty) {
+        push('scene-empty-image', '图片字段为空', `第 ${rowIndex + 1} 行「${c.binding}」没有图片地址。`, [c.id])
+      }
+      continue
+    }
+    if (!safeImageSrc(String(raw).trim())) {
+      push(
+        'scene-bad-image-url',
+        '图片地址无效',
+        `第 ${rowIndex + 1} 行「${c.binding}」不是可用的 http(s) 或 data:image 地址。`,
+        [c.id]
+      )
+    }
+  }
+  for (const c of components || []) {
+    if (!c || c.type !== 'table' || !c.cells) continue
+    for (const cell of Object.values(c.cells)) {
+      if (!cell || cell.type !== 'image' || !cell.binding) continue
+      const raw = resolved[cell.binding]
+      if (raw == null || String(raw).trim() === '') continue
+      if (!safeImageSrc(String(raw).trim())) {
+        push(
+          'scene-bad-image-url',
+          '表格图片地址无效',
+          `第 ${rowIndex + 1} 行表格图片列「${cell.binding}」地址不可用。`,
+          [c.id]
+        )
+      }
+    }
+  }
+  return failures
 }
 
 function rowText(row, names) {
@@ -80,6 +118,8 @@ export function collectSceneRowFailures({
   rows.forEach((row, rowIndex) => {
     if (row?.__print === false) return
     const resolved = resolveRow(row, fieldMap)
+
+    failures.push(...collectImageFieldFailures(components, resolved, rowIndex))
 
     if (scene === 'retail-price' || scene === 'retail') {
       const priceKey = firstBindingMatch(components, priceNames)

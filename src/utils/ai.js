@@ -417,10 +417,13 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
     case 'serial':
-      c.source = raw.source === 'field' ? 'field' : 'print'
+      c.source = raw.source === 'field' ? 'field' : raw.source === 'sequence' ? 'sequence' : 'print'
       c.prefix = String(raw.prefix || '')
       c.suffix = String(raw.suffix || '')
       c.pad = Math.max(0, Math.min(12, Math.floor(num(raw.pad, 0))))
+      if (raw.start != null) c.start = Math.floor(num(raw.start, 1))
+      if (raw.step != null) c.step = num(raw.step, 1)
+      if (raw.sequenceScope === 'row' || raw.sequenceScope === 'label') c.sequenceScope = raw.sequenceScope
       c.fontSize = num(raw.fontSize, 10)
       c.fontFamily = FONT
       c.fill = String(raw.fill || '#000000')
@@ -726,7 +729,7 @@ export function parseAIPlan(raw) {
   return obj
 }
 
-const PATCH_KEYS = ['type', 'name', 'text', 'binding', 'fontSize', 'fontFamily', 'fill', 'fontWeight', 'textAlign', 'hideIfEmpty', 'hidden', 'format', 'stroke', 'strokeWidth', 'src', 'left', 'top', 'width', 'height', 'angle', 'rx', 'source', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerRow', 'headerBg', 'vAlign', 'cells', 'colWidths', 'prefix', 'suffix', 'pad', 'checkedChar', 'uncheckedChar', 'checkedValue']
+const PATCH_KEYS = ['type', 'name', 'text', 'binding', 'fontSize', 'fontFamily', 'fill', 'fontWeight', 'textAlign', 'hideIfEmpty', 'hidden', 'format', 'stroke', 'strokeWidth', 'src', 'left', 'top', 'width', 'height', 'angle', 'rx', 'source', 'rows', 'cols', 'cellPadding', 'borderColor', 'borderWidth', 'headerRow', 'headerBg', 'vAlign', 'cells', 'colWidths', 'prefix', 'suffix', 'pad', 'start', 'step', 'sequenceScope', 'checkedChar', 'uncheckedChar', 'checkedValue']
 
 function cleanName(s) {
   return String(s ?? '').trim().replace(/[{}]/g, '').slice(0, 40)

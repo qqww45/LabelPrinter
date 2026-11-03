@@ -67,8 +67,18 @@
       <!-- 文本：内容/绑定/外观置顶（高频） -->
       <PropSection v-if="selected.type === 'text'" id="text" :title="t('文本')" :default-open="true">
         <div class="form-stack">
-          <textarea class="input area" rows="3" :value="selected.text" @input="update('text', $event.target.value)" placeholder="支持 {{字段名}} 占位符" />
+          <textarea class="input area" rows="3" :value="selected.text" @input="update('text', $event.target.value)" :placeholder="t('支持 {{字段}} 与轻量表达式')" />
         </div>
+        <details class="expr-help">
+          <summary>{{ t('占位符与表达式说明') }}</summary>
+          <ul class="expr-list">
+            <li><code v-pre>{{字段名}}</code> — {{ t('替换为列值') }}</li>
+            <li><code v-pre>{{join 字段1,字段2}}</code> — {{ t('拼接多列') }}</li>
+            <li><code v-pre>{{价格|price}}</code> / <code v-pre>{{price 价格}}</code> — {{ t('两位小数') }}</li>
+            <li><code v-pre>{{if 字段|有值时|无值时}}</code> — {{ t('条件文案') }}</li>
+            <li><code v-pre>{{ifempty 字段|备用}}</code> / <code v-pre>{{hide 字段|内容}}</code> — {{ t('空则隐藏或备用') }}</li>
+          </ul>
+        </details>
         <div class="form-row">
           <label>{{ t('绑定') }}</label>
           <select class="input" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
@@ -190,7 +200,7 @@
               <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
             </select>
           </div>
-          <div class="hint">按行加载：每行将该字段值作为图片 URL 渲染</div>
+          <div class="hint">{{ t('按行加载：单元格为 http(s) 或 data:image 地址') }}</div>
         </template>
       </fieldset>
 
@@ -326,6 +336,7 @@
           <label>{{ t('来源') }}</label>
           <select class="input" :value="selected.source || 'print'" @change="update('source', $event.target.value)">
             <option value="print">{{ t('打印流水号') }}</option>
+            <option value="sequence">{{ t('组件自增序号') }}</option>
             <option value="field">{{ t('数据字段') }}</option>
           </select>
         </div>
@@ -336,6 +347,22 @@
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
+        <template v-else-if="(selected.source || 'print') === 'sequence'">
+          <div class="form-row pair">
+            <label>{{ t('起始') }}</label>
+            <input class="input num" type="number" :value="selected.start ?? 1" @change="update('start', +$event.target.value)" />
+            <label>{{ t('步长') }}</label>
+            <input class="input num" type="number" :value="selected.step ?? 1" @change="update('step', +$event.target.value)" />
+          </div>
+          <div class="form-row">
+            <label>{{ t('递增范围') }}</label>
+            <select class="input" :value="selected.sequenceScope || 'label'" @change="update('sequenceScope', $event.target.value)">
+              <option value="label">{{ t('每张标签 +步长') }}</option>
+              <option value="row">{{ t('每条数据 +步长') }}</option>
+            </select>
+          </div>
+          <p class="hint">{{ t('不依赖打印设置里的流水号；预览按当前行估算。') }}</p>
+        </template>
         <div v-else class="hint">{{ t('在打印设置里开启「流水号」后，每张标签自动递增。') }}</div>
         <div class="form-row">
           <label>{{ t('前缀') }}</label><input class="input" :value="selected.prefix || ''" @input="update('prefix', $event.target.value)" />
@@ -990,6 +1017,16 @@ legend {
   font-weight: 600;
   color: var(--text-muted);
 }
+.expr-help {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 6px 0 10px;
+  line-height: 1.5;
+}
+.expr-help summary { cursor: pointer; color: var(--primary); }
+.expr-list { margin: 6px 0 0 16px; padding: 0; }
+.expr-list li { margin-bottom: 4px; }
+.expr-list code { font-size: 10px; }
 .hint {
   font-size: 11px;
   line-height: 1.45;

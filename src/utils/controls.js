@@ -24,14 +24,25 @@ export function formatSerialText(c, row) {
   const suffix = c?.suffix != null ? String(c.suffix) : ''
   const padRaw = Math.floor(Number(c?.pad))
   const pad = Number.isFinite(padRaw) ? Math.max(0, Math.min(12, padRaw)) : 0
+  const startRaw = Math.floor(Number(c?.start ?? c?.serialStart ?? 1))
+  const start = Number.isFinite(startRaw) ? startRaw : 1
+  const stepRaw = Number(c?.step ?? c?.serialStep ?? 1)
+  const step = Number.isFinite(stepRaw) && stepRaw !== 0 ? stepRaw : 1
 
   let raw = ''
   if (rowIsEmpty(row)) {
-    raw = '1'
+    raw = String(Math.max(0, start))
   } else if (c?.source === 'field') {
     const v = row?.[c.binding]
     if (v == null || String(v).trim() === '') return ''
     raw = String(v).trim()
+  } else if (c?.source === 'sequence') {
+    const scope = c?.sequenceScope === 'row' ? 'row' : 'label'
+    const base = scope === 'row'
+      ? Math.floor(Number(row?.__sourceIndex ?? 0))
+      : Math.floor(Number(row?.__labelIndex ?? 0))
+    const n = start + base * step
+    raw = String(n)
   } else {
     const v = row?.['序号']
     if (v == null || String(v).trim() === '') return ''

@@ -166,6 +166,7 @@ import CanvasToolbar from './components/CanvasToolbar.vue'
 import LeftDock from './components/LeftDock.vue'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
 import { mergeDataAppend, mergeDataByKey, guessMergeKey, headersFromRows } from './utils/dataMerge'
+import { applyCopiesColumnHint } from './utils/copiesColumn'
 import {
   lookupSavedFieldMap,
   rememberFieldMap,
@@ -732,19 +733,29 @@ function applyImported(mode, payload) {
     }
   }
   healBoundText()
+  const copiesHit = applyCopiesColumnHint(project, data.headers)
   project.markDirty()
-  const note = columnNote(headers)
+  const note = columnNote(headers, copiesHit)
   toastSuccess(note ? `${t('已导入 {n} 条数据', { n: data.rows.length })} ${note}` : t('已导入 {n} 条数据', { n: data.rows.length }))
   maybeOpenImportFieldMap()
 }
 
-function columnNote(headers) {
+function columnNote(headers, copiesHit = '') {
   const needed = [...new Set((project.project.components || []).flatMap(componentFields))]
-  if (!needed.length) return ''
-  const hit = matchColumns(headers, needed, project.project.dataSource?.fieldMap)
-  if (hit.missing.length) return t('版式上的「{names}」在新表里没有。', { names: hit.missing.join('、') })
-  if (hit.matched.length) return t('版式用到的列都对上了。')
-  return ''
+  const parts = []
+  if (needed.length) {
+    const hit = matchColumns(headers, needed, project.project.dataSource?.fieldMap)
+    if (hit.missing.length) {
+      parts.push(t('版式上的「{names}」在新表里没有。', { names: hit.missing.join('、') }))
+    } else if (hit.matched.length) {
+      parts.push(t('版式用到的列都对上了。'))
+    }
+  }
+  const col = copiesHit || project.project.printConfig?.copiesColumn
+  if (col && headers.includes(col) && !parts.some(p => p.includes(col))) {
+    parts.push(t('已识别份数列「{col}」，打印设置里可改。', { col }))
+  }
+  return parts.join(' ')
 }
 
 function confirmImport(mode) {
