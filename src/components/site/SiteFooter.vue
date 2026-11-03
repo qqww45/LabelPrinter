@@ -2,7 +2,7 @@
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="footer-links">
-        <RouterLink to="/">{{ t('首页') }}</RouterLink>
+        <RouterLink :to="MARKETING_HOME">{{ t('首页') }}</RouterLink>
         <RouterLink to="/templates">{{ t('模板库') }}</RouterLink>
         <RouterLink to="/help">{{ t('帮助') }}</RouterLink>
         <RouterLink to="/app">{{ t('工作台') }}</RouterLink>
@@ -25,6 +25,8 @@
 import { RouterLink } from 'vue-router'
 import { REPO_URL } from '../../utils/site'
 import { useI18n } from '../../utils/i18n'
+
+import { MARKETING_HOME } from '../../utils/siteNav'
 
 const { t } = useI18n()
 </script>

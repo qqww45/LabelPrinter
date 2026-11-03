@@ -15,11 +15,12 @@ export function createAppRouter() {
       { path: '/help', name: 'help', component: HelpView },
       { path: '/app', name: 'app', component: EditorView }
     ],
-    scrollBehavior(to) {
+    scrollBehavior(to, _from, savedPosition) {
+      if (savedPosition) return savedPosition
       if (to.hash) {
-        return { el: to.hash, behavior: 'smooth', top: 72 }
+        return { el: to.hash, behavior: 'smooth', top: 88 }
       }
-      return { top: 0 }
+      return { left: 0, top: 0 }
     }
   })
 

@@ -4,6 +4,7 @@
   flex-direction: column;
   background: var(--bg);
   color: var(--text);
+  overflow: visible;
 }
 .site-main {
   flex: 1;

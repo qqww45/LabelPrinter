@@ -2,7 +2,7 @@
   <div ref="toolbarRef" class="toolbar" :class="{ compact: isCompact, 'menu-open': moreOpen || projOpen }">
     <div ref="brandRef" class="group group-brand">
       <nav class="site-mini-nav" :aria-label="t('站点')">
-        <RouterLink :to="{ path: '/', query: { home: '1' } }">{{ t('首页') }}</RouterLink>
+        <RouterLink :to="MARKETING_HOME">{{ t('首页') }}</RouterLink>
         <RouterLink to="/templates">{{ t('模板库') }}</RouterLink>
         <RouterLink to="/help">{{ t('帮助') }}</RouterLink>
       </nav>
@@ -170,6 +170,7 @@ import { RouterLink } from 'vue-router'
 import { useProjectStore } from '../stores/project'
 import { useSettingsStore } from '../stores/settings'
 import { useI18n } from '../utils/i18n'
+import { MARKETING_HOME } from '../utils/siteNav'
 
 const project = useProjectStore()
 const settings = useSettingsStore()
