@@ -64,6 +64,19 @@
             <label>{{ t('背景') }}</label>
             <input class="input" type="color" :value="form.paper.backgroundColor" @input="form.paper.backgroundColor = $event.target.value" />
           </div>
+          <div class="form-row">
+            <label>{{ t('热敏常用') }}</label>
+            <div class="chip-row">
+              <button
+                v-for="p in THERMAL_QUICK"
+                :key="p.name"
+                type="button"
+                class="btn btn-sm chip"
+                @click="applyThermalPaper(p)"
+              >{{ p.name }}</button>
+            </div>
+          </div>
+          <p class="hint">{{ t('热敏卷纸：纸张宽高常与标签相同；办公室打印机才用 A4 边距。') }}</p>
         </fieldset>
 
         <!-- 纸张边距 -->
@@ -142,6 +155,25 @@ const project = useProjectStore()
 const paperPresets = PAPER_PRESETS
 const labelPresets = LABEL_PRESETS
 
+const THERMAL_QUICK = [
+  { name: '40×30', w: 40, h: 30 },
+  { name: '50×30', w: 50, h: 30 },
+  { name: '60×40', w: 60, h: 40 },
+  { name: '100×150 面单', w: 100, h: 150 }
+]
+
+function applyThermalPaper(p) {
+  form.paper.width = p.w
+  form.paper.height = p.h
+  form.label.width = p.w
+  form.label.height = p.h
+  form.layout.mode = 'single'
+  form.margin.top = 0
+  form.margin.right = 0
+  form.margin.bottom = 0
+  form.margin.left = 0
+}
+
 const form = reactive(JSON.parse(JSON.stringify(project.project)))
 
 // 预设回显：当前宽高与预设精确匹配时选中（容差 0.01mm），手动改宽高自动回落
@@ -208,4 +240,6 @@ legend { padding: 0 6px; font-size: 12px; color: var(--text-secondary); font-wei
 .btn-group { display: flex; gap: 2px; }
 .btn-group .btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .hint { font-size: 11px; color: var(--text-muted); margin: 4px 0 0; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 11px; }
 </style>

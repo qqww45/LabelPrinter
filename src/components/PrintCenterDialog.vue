@@ -55,8 +55,13 @@
                   <button
                     class="btn btn-sm"
                     :disabled="!h.projectId || !hasProject(h.projectId)"
-                    :title="hasProject(h.projectId) ? t('切换到该项目并打开预览') : t('该项目已不存在')"
+                    :title="hasProject(h.projectId) ? t('恢复打印范围并打开预览') : t('该项目已不存在')"
                     @click="$emit('reprint', h)"
+                  >{{ t('重打这一批') }}</button>
+                  <button
+                    class="btn btn-sm"
+                    :disabled="!h.projectId || !hasProject(h.projectId)"
+                    @click="$emit('reprint-open', h)"
                   >{{ t('打开项目') }}</button>
                   <button class="btn btn-sm" @click="printStore.removeHistory(h.id)">{{ t('删除') }}</button>
                 </td>
@@ -70,6 +75,8 @@
       <div class="modal-footer">
         <template v-if="tab === 'queue'">
           <button class="btn" type="button" @click="$emit('thermal-calibrate')">{{ t('热敏本机校准') }}</button>
+          <button class="btn" type="button" :disabled="!project.currentId" @click="$emit('download-tspl')">{{ t('下载 TSPL') }}</button>
+          <button class="btn" type="button" :disabled="!project.currentId" @click="$emit('download-zpl')">{{ t('下载 ZPL') }}</button>
           <button class="btn" :disabled="!printStore.queue.length" @click="printStore.clearQueue()">{{ t('清空队列') }}</button>
           <div class="spacer"></div>
           <button class="btn btn-primary" :disabled="!pendingCount" @click="startPrint">🖨️ {{ t('开始打印当前项目') }}</button>
@@ -91,7 +98,7 @@ import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
-const emit = defineEmits(['close', 'run-queue', 'reprint', 'thermal-calibrate'])
+const emit = defineEmits(['close', 'run-queue', 'reprint', 'reprint-open', 'thermal-calibrate', 'download-tspl', 'download-zpl'])
 
 const printStore = usePrintStore()
 const project = useProjectStore()

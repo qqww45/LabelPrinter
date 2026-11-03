@@ -73,7 +73,10 @@
       @close="printCenterVisible = false"
       @run-queue="onRunQueue"
       @reprint="onReprint"
+      @reprint-open="onReprintOpen"
       @thermal-calibrate="onThermalCalibrateFromCenter"
+      @download-tspl="onDownloadTsplFromCenter"
+      @download-zpl="onDownloadZplFromCenter"
     />
     <PrintConfig
       v-if="printConfigVisible"
@@ -92,7 +95,9 @@
       :report="preflightReport"
       @close="preflightVisible = false"
       @proceed="preflightProceed"
+      @proceed-ok-only="preflightProceedOkOnly"
       @fix="preflightFix"
+      @fix-row="preflightFixRow"
     />
     <div v-if="importPrompt" class="modal-overlay" @click.self="importPrompt = null">
       <div class="modal import-choice">
@@ -102,7 +107,18 @@
         </div>
         <div class="modal-body">
           <p>{{ t('当前 {cur} 条，新文件 {next} 条。', { cur: importPrompt.current, next: importPrompt.next }) }}</p>
-          <p class="import-note">{{ t('追加按列名合并。替换会清空当前数据，且不能撤销。') }}</p>
+          <p class="import-note">{{ t('追加按列名合并。按主键更新：同条码/SKU 更新行。替换会清空当前数据，且不能撤销。') }}</p>
+          <div v-if="importSavedMap" class="import-note import-saved">
+            <span>{{ t('检测到与上次相同的表头，可恢复字段映射。') }}</span>
+            <button type="button" class="btn btn-sm" @click="applySavedImportMap">{{ t('用上次映射') }}</button>
+          </div>
+          <div v-if="importMergeKeyOptions.length" class="import-merge-key">
+            <label for="import-merge-key">{{ t('按主键增量更新') }}</label>
+            <select id="import-merge-key" class="input" v-model="importMergeKeyDraft">
+              <option value="">{{ t('（不选，仅追加新行）') }}</option>
+              <option v-for="k in importMergeKeyOptions" :key="k" :value="k">{{ k }}</option>
+            </select>
+          </div>
           <p v-if="importMatch && importMatch.missing.length" class="import-note">{{ t('版式上的「{names}」在新表里没有。', { names: importMatch.missing.join('、') }) }}</p>
           <p v-else-if="importMatch && importMatch.matched.length" class="import-note">{{ t('版式用到的列都对上了。') }}</p>
           <p v-if="importMatch && importMatch.extra.length" class="import-note">{{ t('新表多出来的列：{names}', { names: importMatch.extra.slice(0, 8).join('、') }) }}</p>
@@ -110,6 +126,11 @@
         <div class="modal-footer">
           <button class="btn" @click="importPrompt = null">{{ t('取消') }}</button>
           <button class="btn import-replace" @click="confirmImport('replace')">{{ t('替换') }}</button>
+          <button
+            v-if="importMergeKeyDraft"
+            class="btn btn-primary"
+            @click="confirmImport('merge-key')"
+          >{{ t('按 {key} 更新', { key: importMergeKeyDraft }) }}</button>
           <button v-if="importMatch && importMatch.missing.length" class="btn btn-primary" @click="confirmImport('append')">{{ t('追加并去对上') }}</button>
           <button v-else class="btn btn-primary" @click="confirmImport('append')">{{ t('追加') }}</button>
         </div>
@@ -122,6 +143,7 @@
       @skip="skipWelcome"
       @create="onWelcomeCreate"
       @quickstart="onWelcomeQuickStart"
+      @scene-pack="onWelcomeScenePack"
     />
     <OnboardingGuide
       v-if="showOnboarding"
@@ -143,7 +165,12 @@ import { useDataStore } from './stores/data'
 import CanvasToolbar from './components/CanvasToolbar.vue'
 import LeftDock from './components/LeftDock.vue'
 import { saveJSON, readJSONFile, pickFile } from './utils/file'
-import { mergeDataAppend, headersFromRows } from './utils/dataMerge'
+import { mergeDataAppend, mergeDataByKey, guessMergeKey, headersFromRows } from './utils/dataMerge'
+import {
+  lookupSavedFieldMap,
+  rememberFieldMap,
+  sanitizeFieldMapForHeaders
+} from './utils/fieldMapMemory'
 import { collectBindingTextFixes } from './utils/render'
 import Toolbar from './components/Toolbar.vue'
 import WelcomeGate from './components/WelcomeGate.vue'
@@ -180,7 +207,8 @@ const AboutDialog = lazyDialog(() => import('./components/AboutDialog.vue'))
 const PreflightCheckDialog = lazyDialog(() => import('./components/PreflightCheckDialog.vue'))
 const OnboardingGuide = lazyDialog(() => import('./components/OnboardingGuide.vue'))
 
-import { applyQuickStartPack } from './utils/quickStart'
+import { applyScenePack } from './utils/quickStart'
+import { downloadPrinterCommand } from './utils/downloadPrinterCmd'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -319,12 +347,40 @@ const aboutVisible = ref(false)
 const preflightVisible = ref(false)
 const preflightReport = ref(null)
 const importPrompt = ref(null)
+const importMergeKeyDraft = ref('')
 const importMatch = computed(() => {
   const p = importPrompt.value
   if (!p) return null
   const needed = [...new Set((project.project.components || []).flatMap(componentFields))]
   if (!needed.length) return null
   return matchColumns(p.headers, needed, project.project.dataSource?.fieldMap)
+})
+
+const importSavedMap = computed(() => {
+  const p = importPrompt.value
+  if (!p?.headers?.length) return null
+  return lookupSavedFieldMap(project.project.dataSource, p.headers)
+})
+
+const importMergeKeyOptions = computed(() => {
+  const p = importPrompt.value
+  if (!p?.headers?.length) return []
+  const headers = p.headers
+  const hints = []
+  if (project.project.dataSource?.mergeKey) hints.push(project.project.dataSource.mergeKey)
+  const key = guessMergeKey(headers, hints)
+  const set = new Set(headers.filter((h) => h && h !== '__id'))
+  if (key) return [key, ...[...set].filter((h) => h !== key)]
+  return [...set]
+})
+
+watch(importPrompt, (p) => {
+  if (!p?.headers?.length) {
+    importMergeKeyDraft.value = ''
+    return
+  }
+  const hints = project.project.dataSource?.mergeKey ? [project.project.dataSource.mergeKey] : []
+  importMergeKeyDraft.value = guessMergeKey(p.headers, hints) || project.project.dataSource?.mergeKey || ''
 })
 
 // 第一次打开先讲清工具并建立项目。看过之后，空画布才进入选样子。
@@ -378,12 +434,26 @@ async function onOnboardingFinished({ openPreview } = {}) {
 }
 
 async function onWelcomeQuickStart() {
-  project.renameCurrentProject(t('门店价签'))
-  markIntroDone()
-  onboardingLatched.value = false
-  dismissOnboarding()
   try {
-    await applyQuickStartPack({ project, data })
+    await applyScenePack({ project, data }, 'retail-price', { projectName: t('门店价签') })
+    markIntroDone()
+    onboardingLatched.value = false
+    dismissOnboarding()
+    embedCurrentData()
+    await nextTick()
+    previewVisible.value = true
+  } catch (e) {
+    toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
+  }
+}
+
+async function onWelcomeScenePack(packId) {
+  const packName = packId === 'express' ? t('快递面单') : packId === 'asset' ? t('资产标签') : t('门店价签')
+  try {
+    await applyScenePack({ project, data }, packId, { projectName: packName })
+    markIntroDone()
+    onboardingLatched.value = false
+    dismissOnboarding()
     embedCurrentData()
     await nextTick()
     previewVisible.value = true
@@ -398,8 +468,20 @@ function openPrintConfig() {
 }
 
 function closeFieldMap() {
+  project.updateFieldMap(project.project.dataSource?.fieldMap || {}, data.headers)
+  embedCurrentData()
   fieldMapVisible.value = false
   fieldMapImportMode.value = false
+}
+
+function applySavedImportMap() {
+  const p = importPrompt.value
+  if (!p) return
+  const saved = lookupSavedFieldMap(project.project.dataSource, p.headers)
+  if (!saved) return
+  const next = sanitizeFieldMapForHeaders(saved, p.headers)
+  project.updateFieldMap(next, p.headers)
+  toastSuccess(t('已恢复上次的字段映射'))
 }
 
 function closePrintConfig() {
@@ -411,6 +493,24 @@ function onThermalCalibrateFromCenter() {
   printCenterVisible.value = false
   printConfigInitialTab.value = 'thermal'
   printConfigVisible.value = true
+}
+
+function onDownloadTsplFromCenter() {
+  try {
+    downloadPrinterCommand({ project: project.project, rows: data.displayRows, kind: 'tspl' })
+    toastSuccess(t('指令文件已下载'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+  }
+}
+
+function onDownloadZplFromCenter() {
+  try {
+    downloadPrinterCommand({ project: project.project, rows: data.displayRows, kind: 'zpl' })
+    toastSuccess(t('指令文件已下载'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+  }
 }
 
 function maybeOpenImportFieldMap() {
@@ -600,8 +700,23 @@ function applyImported(mode, payload) {
       sourcePath: fileName,
       embedded: true
     })
-    // 列变了，旧映射还指着上一份表的列，清空后按新列重新绑
-    if (headersDiffer(prevHeaders, headers)) project.updateFieldMap({})
+    embedCurrentData()
+    if (headersDiffer(prevHeaders, headers)) project.updateFieldMap({}, data.headers)
+  } else if (mode === 'merge-key') {
+    const key = importMergeKeyDraft.value || project.project.dataSource?.mergeKey || guessMergeKey(headers)
+    if (key) project.setMergeKey(key)
+    const merged = mergeDataByKey(data.headers, data.rows, headers, rows || [], key)
+    data.setData({
+      headers: merged.headers,
+      rows: merged.rows,
+      sourcePath: fileName,
+      embedded: true
+    })
+    embedCurrentData()
+    const saved = lookupSavedFieldMap(project.project.dataSource, merged.headers)
+    if (saved) {
+      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers), merged.headers)
+    }
   } else {
     const merged = mergeDataAppend(data.headers, data.rows, headers, rows || [])
     data.setData({
@@ -610,9 +725,13 @@ function applyImported(mode, payload) {
       sourcePath: fileName,
       embedded: true
     })
+    embedCurrentData()
+    const saved = lookupSavedFieldMap(project.project.dataSource, merged.headers)
+    if (saved) {
+      project.updateFieldMap(sanitizeFieldMapForHeaders(saved, merged.headers), merged.headers)
+    }
   }
   healBoundText()
-  embedCurrentData()
   project.markDirty()
   const note = columnNote(headers)
   toastSuccess(note ? `${t('已导入 {n} 条数据', { n: data.rows.length })} ${note}` : t('已导入 {n} 条数据', { n: data.rows.length }))
@@ -715,8 +834,35 @@ function buildPreflightReport() {
     label: p.label,
     paper: p.paper,
     perPage: project.labelsPerPage,
-    printConfig: p.printConfig
+    printConfig: p.printConfig,
+    sceneId: p.meta?.sceneId,
+    projectMeta: p.meta || {}
   })
+}
+
+function failedRowIndicesFromReport(report) {
+  const failed = new Set()
+  for (const f of report?.rowFailures || []) {
+    if (Number.isInteger(f.rowIndex)) failed.add(f.rowIndex)
+  }
+  for (const it of report?.issues || []) {
+    if (Number.isInteger(it.rowIndex)) failed.add(it.rowIndex)
+    for (const rf of it.rowFailures || []) {
+      if (Number.isInteger(rf.rowIndex)) failed.add(rf.rowIndex)
+    }
+  }
+  return failed
+}
+
+function uncheckPreflightFailedRows(report) {
+  const failed = failedRowIndicesFromReport(report)
+  if (!failed.size) return 0
+  data.displayRows.forEach((row, i) => {
+    if (!failed.has(i)) return
+    if (row?.__id != null) data.setRowPrint(row.__id, false)
+  })
+  embedCurrentData()
+  return failed.size
 }
 
 function requestExport(kind = '') {
@@ -737,6 +883,19 @@ function preflightProceed() {
   preflightVisible.value = false
   pendingExport.value = pendingKind
   previewVisible.value = true
+}
+
+function preflightProceedOkOnly() {
+  const n = uncheckPreflightFailedRows(preflightReport.value)
+  preflightVisible.value = false
+  if (n > 0) toastInfo(t('已取消勾选 {n} 行未通过体检的数据', { n }))
+  pendingExport.value = pendingKind
+  previewVisible.value = true
+}
+
+function preflightFixRow(rowIndex) {
+  preflightVisible.value = false
+  if (Number.isInteger(rowIndex)) data.setActiveIndex(rowIndex)
 }
 
 // 从体检结果跳到对应修复入口
@@ -774,11 +933,25 @@ async function onRunQueue() {
 }
 
 // 历史「重打」：切换到对应项目并打开预览
+async function onReprintOpen(entry) {
+  printCenterVisible.value = false
+  if (entry.projectId && entry.projectId !== project.currentId) {
+    switchToProject(entry.projectId)
+    await nextTick()
+  }
+  pendingExport.value = ''
+  previewVisible.value = true
+}
+
 async function onReprint(entry) {
   printCenterVisible.value = false
   if (entry.projectId && entry.projectId !== project.currentId) {
     switchToProject(entry.projectId)
     await nextTick()
+  }
+  if (entry.printSnapshot && typeof entry.printSnapshot === 'object') {
+    Object.assign(project.project.printConfig, entry.printSnapshot)
+    project.markDirty()
   }
   pendingExport.value = ''
   previewVisible.value = true
@@ -980,5 +1153,8 @@ window.addEventListener('keydown', onGlobalKey)
 .import-choice { width: min(440px, 92vw); }
 .import-choice p { margin: 0 0 8px; line-height: 1.5; }
 .import-note { color: var(--text-secondary); font-size: 13px; }
+.import-saved { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.import-merge-key { margin: 10px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+.import-merge-key .input { min-width: 140px; }
 .import-replace { color: var(--danger); border-color: var(--danger); }
 </style>

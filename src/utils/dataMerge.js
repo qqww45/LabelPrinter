@@ -57,6 +57,107 @@ export function mergeDataAppend(oldHeaders, oldRows, newHeaders, newRows) {
   }
 }
 
+/** 常见主键列名（按优先级） */
+export const MERGE_KEY_CANDIDATES = [
+  '条码',
+  'SKU',
+  'sku',
+  '货号',
+  '商品编码',
+  '资产编号',
+  '运单号',
+  '单号',
+  '编号',
+  '款号'
+]
+
+function rowToObject(row, mergedHeaders, sourceHeaders) {
+  const obj = {}
+  const asArray = Array.isArray(row)
+  const src = sourceHeaders || mergedHeaders
+  for (const h of mergedHeaders) {
+    if (asArray) {
+      const i = src.indexOf(h)
+      obj[h] = (i >= 0 && row[i] != null) ? row[i] : ''
+    } else if (row && typeof row === 'object' && row[h] != null) {
+      obj[h] = row[h]
+    } else {
+      obj[h] = ''
+    }
+  }
+  return obj
+}
+
+export function guessMergeKey(headers = [], extraCandidates = []) {
+  const cols = headers || []
+  const tryList = [...extraCandidates, ...MERGE_KEY_CANDIDATES]
+  for (const key of tryList) {
+    if (key && cols.includes(key)) return key
+  }
+  return ''
+}
+
+function rowKey(row, keyColumn, headers) {
+  if (!row || !keyColumn) return ''
+  if (typeof row === 'object' && !Array.isArray(row)) {
+    const v = row[keyColumn]
+    return v != null ? String(v).trim() : ''
+  }
+  const i = (headers || []).indexOf(keyColumn)
+  if (i < 0) return ''
+  const v = row[i]
+  return v != null ? String(v).trim() : ''
+}
+
+/**
+ * 按主键列增量更新：同键更新列值，新键追加；空键行仍走 append 语义（追加新行）。
+ */
+export function mergeDataByKey(oldHeaders, oldRows, newHeaders, newRows, keyColumn) {
+  const key = String(keyColumn || '').trim()
+  if (!key) return mergeDataAppend(oldHeaders, oldRows, newHeaders, newRows)
+
+  const safeOldHeaders = Array.isArray(oldHeaders) ? oldHeaders : []
+  const safeNewHeaders = Array.isArray(newHeaders) ? newHeaders : []
+  const safeOldRows = Array.isArray(oldRows) ? oldRows : []
+  const safeNewRows = Array.isArray(newRows) ? newRows : []
+
+  const mergedHeaders = [...safeOldHeaders]
+  for (const h of safeNewHeaders) {
+    if (h && !mergedHeaders.includes(h)) mergedHeaders.push(h)
+  }
+
+  const outRows = safeOldRows.map((r) => rowToObject(r, mergedHeaders, safeOldHeaders))
+  const indexByKey = new Map()
+  outRows.forEach((r, i) => {
+    const k = rowKey(r, key, mergedHeaders)
+    if (k) indexByKey.set(k, i)
+  })
+
+  for (const raw of safeNewRows) {
+    const obj = rowToObject(raw, mergedHeaders, safeNewHeaders)
+    const k = rowKey(obj, key, mergedHeaders)
+    if (!k) {
+      outRows.push(obj)
+      continue
+    }
+    const idx = indexByKey.get(k)
+    if (idx == null) {
+      indexByKey.set(k, outRows.length)
+      outRows.push(obj)
+    } else {
+      const prev = outRows[idx]
+      const next = { ...prev }
+      for (const h of mergedHeaders) {
+        if (h === key) continue
+        if (obj[h] != null && obj[h] !== '') next[h] = obj[h]
+      }
+      outRows[idx] = next
+    }
+  }
+
+  return { headers: mergedHeaders, rows: outRows }
+}
+
 /** 从对象行收集列名，跳过内部键 __id。列顺序按首次出现。 */
 export function headersFromRows(rows) {
   const keys = []

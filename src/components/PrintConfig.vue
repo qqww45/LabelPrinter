@@ -207,7 +207,8 @@
               <input id="pc-scale" class="input" type="number" min="50" max="150" step="0.5" v-model.number="form.scalePercent" style="width:80px" />
               <button class="btn btn-sm" type="button" @click="resetCalibrate">{{ t('重置') }}</button>
             </div>
-            <p class="hint">{{ t('正数向右/下移。偏大略小于 100，偏小略大于 100。记在本机，换项目仍有效。') }}</p>
+            <p class="hint">{{ t('正数向右/下移。校准保存在当前项目，打印中心与 TSPL/ZPL 默认使用；同时写入本机档案作回退。') }}</p>
+            <p class="hint">{{ t('浏览器打印对话框的边距是另一套：请关「适应页面」，与标签 mm 尺寸对照；热敏请优先 TSPL/ZPL。') }}</p>
             <div class="form-row">
               <button class="btn btn-sm" type="button" @click="downloadCalibration('tspl')">{{ t('下载校准签 TSPL') }}</button>
               <button class="btn btn-sm" type="button" @click="downloadCalibration('zpl')">{{ t('下载校准签 ZPL') }}</button>
@@ -265,6 +266,7 @@ import { buildTSPL, buildZPL } from '../utils/printerCmd'
 import { normalizeCalibrate } from '../utils/thermalCalibrate'
 import { applyMediaLook, normalizeMedia, clampGapMm } from '../utils/thermalMedia'
 import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
+import { getEffectiveCalibrate } from '../utils/effectiveCalibrate'
 import { toast, toastError } from '../utils/toast'
 
 const props = defineProps({
@@ -278,7 +280,7 @@ const serialHint = computed(() => t('模板里写 {{序号}}，每打一张加 1
 const project = useProjectStore()
 const data = useDataStore()
 const cfg = project.project.printConfig
-const profile = getPrinterProfile()
+const profile = getEffectiveCalibrate(project.project)
 
 const tabs = [
   { id: 'general', label: '常规' },
@@ -369,7 +371,7 @@ const form = reactive({
 })
 
 function syncProfileToForm() {
-  const next = getPrinterProfile()
+  const next = getEffectiveCalibrate(project.project)
   form.offsetXMm = next.offsetXMm
   form.offsetYMm = next.offsetYMm
   form.scalePercent = next.scalePercent
@@ -457,7 +459,8 @@ function persistPrintAndProfile() {
     media: form.media,
     gapMm: form.gapMm,
     dpi: form.dpi,
-    direction: form.direction
+    direction: form.direction,
+    calibrate: cal
   })
   project.markDirty()
   return cal

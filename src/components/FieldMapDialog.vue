@@ -16,6 +16,10 @@
         </div>
 
         <template v-else>
+          <div v-if="savedMapAvailable" class="tip">
+            <button type="button" class="btn btn-sm" @click="applySaved">{{ t('用上次映射') }}</button>
+            <span class="dim">{{ t('表头与上次导入一致时可恢复映射。') }}</span>
+          </div>
           <div v-if="importWizard && unmapped.length" class="tip warn">
             {{ t('新表与模板字段未完全对上。请为每一行选择数据源列，或点自动匹配同名。') }}
           </div>
@@ -71,7 +75,9 @@ import { computed, onMounted } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
+import { lookupSavedFieldMap, sanitizeFieldMapForHeaders } from '../utils/fieldMapMemory'
 import { useI18n } from '../utils/i18n'
+import { toastSuccess } from '../utils/toast'
 
 const { t } = useI18n()
 defineProps({
@@ -92,6 +98,18 @@ const rows = computed(() => templateFields.value.map(name => {
 }))
 
 const unmapped = computed(() => rows.value.filter(r => !r.ok).map(r => r.name))
+
+const savedMapAvailable = computed(() => {
+  if (!data.fields.length) return false
+  return !!lookupSavedFieldMap(project.project.dataSource, data.fields)
+})
+
+function applySaved() {
+  const saved = lookupSavedFieldMap(project.project.dataSource, data.fields)
+  if (!saved) return
+  project.updateFieldMap(sanitizeFieldMapForHeaders(saved, data.fields))
+  toastSuccess(t('已恢复上次的字段映射'))
+}
 
 function setMap(name, value) {
   const next = { ...fieldMap.value }
@@ -130,6 +148,7 @@ onMounted(() => {
 }
 .tip.warn { color: var(--warning); }
 .tip .bad { color: var(--warning); }
+.tip .dim { color: var(--text-muted); margin-left: 8px; font-size: 11px; }
 .map-table {
   width: 100%;
   border-collapse: collapse;

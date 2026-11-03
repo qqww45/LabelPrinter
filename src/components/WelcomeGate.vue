@@ -29,37 +29,43 @@
 
           <ul class="scenes">
             <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7.5h10.5L20 12v8.5H4v-13z" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <path d="M14 7.5V12h6" fill="none" stroke="currentColor" stroke-width="1.6" />
-              </svg>
-              <span>
-                <strong>{{ t('价签') }}</strong>
-                <em>{{ t('货架上的品名、价格和条码') }}</em>
-              </span>
+              <button type="button" class="scene-btn" @click="emitScene('retail-price')">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7.5h10.5L20 12v8.5H4v-13z" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <path d="M14 7.5V12h6" fill="none" stroke="currentColor" stroke-width="1.6" />
+                </svg>
+                <span>
+                  <strong>{{ t('生鲜价签') }}</strong>
+                  <em>{{ t('一键：模板 + 示例 + 预览') }}</em>
+                </span>
+              </button>
             </li>
             <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M3 8h11v9H3zM14 10h4l3 3v4h-7" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <circle cx="7" cy="18.5" r="1.4" fill="currentColor" />
-                <circle cx="17" cy="18.5" r="1.4" fill="currentColor" />
-              </svg>
-              <span>
-                <strong>{{ t('快递面单') }}</strong>
-                <em>{{ t('收件人、电话和地址，一批打出来') }}</em>
-              </span>
+              <button type="button" class="scene-btn" @click="emitScene('express')">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3 8h11v9H3zM14 10h4l3 3v4h-7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <circle cx="7" cy="18.5" r="1.4" fill="currentColor" />
+                  <circle cx="17" cy="18.5" r="1.4" fill="currentColor" />
+                </svg>
+                <span>
+                  <strong>{{ t('快递面单') }}</strong>
+                  <em>{{ t('一键：模板 + 示例 + 预览') }}</em>
+                </span>
+              </button>
             </li>
             <li>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="4" y="4" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <rect x="13" y="4" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <rect x="4" y="13" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
-                <path d="M13 16.5h7M16.5 13v7" fill="none" stroke="currentColor" stroke-width="1.6" />
-              </svg>
-              <span>
-                <strong>{{ t('资产贴') }}</strong>
-                <em>{{ t('编号和二维码，扫码就能盘点') }}</em>
-              </span>
+              <button type="button" class="scene-btn" @click="emitScene('asset')">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="4" y="4" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <rect x="13" y="4" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <rect x="4" y="13" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                  <path d="M13 16.5h7M16.5 13v7" fill="none" stroke="currentColor" stroke-width="1.6" />
+                </svg>
+                <span>
+                  <strong>{{ t('资产贴') }}</strong>
+                  <em>{{ t('一键：模板 + 示例 + 预览') }}</em>
+                </span>
+              </button>
             </li>
           </ul>
 
@@ -168,7 +174,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
-const emit = defineEmits(['skip', 'create', 'quickstart'])
+const emit = defineEmits(['skip', 'create', 'quickstart', 'scene-pack'])
 
 const step = ref('about')
 const name = ref('')
@@ -204,6 +210,10 @@ function submit() {
 
 function quickStart() {
   emit('quickstart')
+}
+
+function emitScene(id) {
+  emit('scene-pack', id)
 }
 
 function focusables() {
@@ -381,14 +391,28 @@ h1 {
 }
 .scenes li {
   display: grid;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+.scene-btn {
+  display: grid;
   grid-template-columns: 36px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+  width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-panel) 86%, transparent);
+  text-align: left;
+  color: inherit;
 }
-.scenes svg {
+.scene-btn:hover { border-color: var(--primary); }
+.scene-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.scenes li .scene-btn svg {
   width: 28px;
   height: 28px;
   color: var(--primary);

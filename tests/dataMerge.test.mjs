@@ -1,5 +1,5 @@
 // 测试 dataMerge.mergeDataAppend（输入：旧对象数组 + 新二维数组 → 输出：对象数组）
-import { mergeDataAppend } from '../src/utils/dataMerge.js'
+import { mergeDataAppend, mergeDataByKey } from '../src/utils/dataMerge.js'
 
 function eq(name, a, b) {
   const aJ = JSON.stringify(a)
@@ -113,6 +113,18 @@ function eq(name, a, b) {
     { 产品: 'A', 价格: '1' },
     { 产品: 'B', 价格: '2' }
   ])
+}
+
+{
+  const r = mergeDataByKey(
+    ['条码', '品名'],
+    [{ 条码: '001', 品名: '旧' }],
+    ['条码', '品名', '价格'],
+    [{ 条码: '001', 品名: '新', 价格: '8' }],
+    '条码'
+  )
+  eq('主键合并-一行', r.rows.length, 1)
+  eq('主键合并-更新', r.rows[0], { 条码: '001', 品名: '新', 价格: '8' })
 }
 
 console.log('\nAll data merge tests passed.')

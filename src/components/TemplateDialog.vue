@@ -8,6 +8,17 @@
 
       <div class="tpl-body">
         <div class="tpl-list">
+          <div class="group-title">{{ t('场景包（模板 + 示例 + 预览）') }}</div>
+          <div class="scene-pack-row">
+            <button
+              v-for="pack in scenePacksMain"
+              :key="pack.id"
+              type="button"
+              class="btn btn-sm scene-pack-apply"
+              :disabled="applying"
+              @click="applyScene(pack)"
+            >{{ pack.name }}</button>
+          </div>
           <div class="group-title">{{ t('内置模板') }}</div>
           <div
             v-for="item in builtin"
@@ -116,6 +127,8 @@ import { toastSuccess, toastError } from '../utils/toast'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
 import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
 import { findSampleForTemplate, loadSampleDataset } from '../utils/samples'
+import { SCENE_PACKS } from '../utils/scenePacks'
+import { applyScenePack } from '../utils/quickStart'
 
 const { t } = useI18n()
 const emit = defineEmits(['close'])
@@ -125,6 +138,7 @@ const data = useDataStore()
 const tplStore = useTemplateStore()
 
 const builtin = BUILTIN_TEMPLATES
+const scenePacksMain = SCENE_PACKS.filter((p) => ['retail-price', 'express', 'asset'].includes(p.id))
 const current = ref(BUILTIN_TEMPLATES[0])
 const loadSampleAlong = ref(true)
 const applying = ref(false)
@@ -220,6 +234,20 @@ function layoutText(tpl) {
 }
 
 // ============ 动作 ============
+async function applyScene(pack) {
+  if (applying.value || !pack) return
+  applying.value = true
+  try {
+    await applyScenePack({ project, data }, pack.id)
+    toastSuccess(t('已应用场景包「{n}」。点工具栏「预览」即可批量查看。', { n: pack.name }))
+    emit('close')
+  } catch (e) {
+    toastError(t('应用失败：{msg}', { msg: e.message || String(e) }))
+  } finally {
+    applying.value = false
+  }
+}
+
 async function apply(tpl) {
   if (applying.value) return
   applying.value = true
@@ -319,6 +347,13 @@ function remove(item) {
   display: flex;
   justify-content: space-between;
 }
+.scene-pack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 6px 10px;
+}
+.scene-pack-apply { font-size: 11px; }
 .count { color: var(--text-secondary); }
 .tpl-item {
   padding: 7px 8px;

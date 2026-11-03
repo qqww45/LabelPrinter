@@ -15,9 +15,16 @@
       <!-- Step 1: 选类型 -->
       <section v-if="step === 1" class="body step-enter">
         <p class="tip">{{ t('项目已经在了。选一个最接近的样子，尺寸、文字、条码之后都能改。') }}</p>
-        <div class="quick-row">
-          <button class="btn btn-primary btn-sm" type="button" :disabled="quickBusy" @click="runQuickRetail">
-            {{ t('30 秒体验：价签示例 → 预览') }}
+        <div class="quick-row scene-packs">
+          <button
+            v-for="pack in scenePacks"
+            :key="pack.id"
+            class="btn btn-sm scene-pack-btn"
+            type="button"
+            :disabled="quickBusy"
+            @click="runScenePack(pack.id)"
+          >
+            {{ t('一键') }} · {{ pack.name }}
           </button>
         </div>
         <div class="grid">
@@ -200,7 +207,8 @@ import { useDataStore } from '../stores/data'
 import { BUILTIN_TEMPLATES } from '../utils/templates'
 import { SAMPLE_DATASETS, findSampleIdForTemplate, getSampleDataset, loadSampleDataset } from '../utils/samples'
 import { autoMatchFieldMap, extractTemplateFields } from '../utils/render'
-import { applyQuickStartPack } from '../utils/quickStart'
+import { applyScenePack } from '../utils/quickStart'
+import { SCENE_PACKS } from '../utils/scenePacks'
 import { useI18n } from '../utils/i18n'
 import { toastError } from '../utils/toast'
 
@@ -210,6 +218,7 @@ const projectName = computed(() => project.project?.meta?.name || t('未命名�
 const data = useDataStore()
 const emit = defineEmits(['close', 'import', 'load-sample', 'finished'])
 const sampleSets = SAMPLE_DATASETS
+const scenePacks = SCENE_PACKS.filter((p) => ['retail-price', 'express', 'asset'].includes(p.id))
 const quickBusy = ref(false)
 const pickedId = ref('')
 const pickedTpl = ref(null)
@@ -266,17 +275,21 @@ function finishSample(openPreview) {
   else emit('close')
 }
 
-async function runQuickRetail() {
+async function runScenePack(packId) {
   if (quickBusy.value) return
   quickBusy.value = true
   try {
-    await applyQuickStartPack({ project, data })
+    await applyScenePack({ project, data }, packId)
     emit('finished', { openPreview: true })
   } catch (e) {
     toastError(t('导入失败：{msg}', { msg: e.message || String(e) }))
   } finally {
     quickBusy.value = false
   }
+}
+
+async function runQuickRetail() {
+  return runScenePack('retail-price')
 }
 
 // 去重并排序，作为尺寸下拉的可选值
