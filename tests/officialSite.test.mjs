@@ -66,4 +66,19 @@ assert(indexHtml.includes(`"url": "${OFFICIAL_SITE_URL}"`), 'JSON-LD url must ma
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 assert(pkg.homepage === OFFICIAL_SITE_URL, 'package.json homepage must match official site')
 
+const PUBLIC_PATHS = ['/', '/templates', '/help', '/app']
+const sitemap = fs.readFileSync(path.join(root, 'public/sitemap.xml'), 'utf8')
+const sitemapLocs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
+const expectedLocs = PUBLIC_PATHS.map(p =>
+  p === '/' ? `${OFFICIAL_SITE_ORIGIN}/` : `${OFFICIAL_SITE_ORIGIN}${p}`
+)
+assert(
+  expectedLocs.every(loc => sitemapLocs.includes(loc)),
+  `sitemap.xml must list all public routes: missing ${expectedLocs.filter(l => !sitemapLocs.includes(l)).join(', ')}`
+)
+assert(
+  sitemapLocs.every(loc => loc.startsWith(OFFICIAL_SITE_ORIGIN)),
+  'sitemap.xml locs must use official origin only'
+)
+
 console.log('officialSite ok')
