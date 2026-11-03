@@ -73,6 +73,8 @@
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('image')">{{ t('导出图片') }}</button>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
+                <button class="more-item" type="button" :disabled="busy" @click="runMore('tspl')">{{ t('下载 TSPL') }}</button>
+                <button class="more-item" type="button" :disabled="busy" @click="runMore('zpl')">{{ t('下载 ZPL') }}</button>
               </div>
             </div>
             <button class="btn btn-icon" type="button" :aria-label="t('关闭')" @click="$emit('close')">×</button>
@@ -208,6 +210,7 @@ import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
 import { useI18n } from '../utils/i18n'
 import { toastError, toastSuccess } from '../utils/toast'
+import { downloadPrinterCommand } from '../utils/downloadPrinterCmd'
 import dayjs from 'dayjs'
 
 const { t } = useI18n()
@@ -255,6 +258,36 @@ function runMore(kind) {
   if (kind === 'pdf') onExportPDF()
   else if (kind === 'image') onExportImage()
   else if (kind === 'queue') addQueue()
+  else if (kind === 'tspl' || kind === 'zpl') onDownloadCmd(kind)
+}
+
+function onDownloadCmd(kind) {
+  if (nothingChecked.value) {
+    toastError(t('没有勾选要打的行'))
+    return
+  }
+  try {
+    downloadPrinterCommand({
+      project: project.project,
+      rows: data.displayRows,
+      kind: kind === 'zpl' ? 'zpl' : 'tspl'
+    })
+    toastSuccess(t('指令文件已下载'))
+  } catch (e) {
+    toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+  }
+}
+
+function printSnapshotForHistory() {
+  const cfg = project.project.printConfig || {}
+  return {
+    range: cfg.range,
+    rangeStart: cfg.rangeStart,
+    rangeEnd: cfg.rangeEnd,
+    startSlot: cfg.startSlot,
+    copies: cfg.copies,
+    copiesColumn: cfg.copiesColumn
+  }
 }
 
 // 先占住 busy，再等一帧把遮罩画出来，避免大文件把主线程占满后转圈才出现
@@ -929,7 +962,8 @@ async function onPrint() {
         projectName: project.project.meta.name,
         pages: pagesForTask(opts).length,
         copies: 1,
-        detail: rangeLabel(opts)
+        detail: rangeLabel(opts),
+        printSnapshot: printSnapshotForHistory()
       })
     }
   })
@@ -969,7 +1003,8 @@ async function runQueue() {
             projectName: task.projectName,
             pages: task.pages || pagesForTask(task).length,
             copies: 1,
-            detail: task.label || rangeLabel(task)
+            detail: task.label || rangeLabel(task),
+            printSnapshot: printSnapshotForHistory()
           })
         }
       } catch (e) {
@@ -1014,7 +1049,8 @@ async function onExportPDF() {
       })
       printStore.addHistory({
         type: 'pdf', projectId: project.currentId, projectName: project.project.meta.name,
-        pages: n, copies: 1, detail: '矢量'
+        pages: n, copies: 1, detail: '矢量',
+        printSnapshot: printSnapshotForHistory()
       })
       toastSuccess(t('PDF 已导出'))
     } catch (e) {

@@ -5,6 +5,8 @@ import { idbGet, idbSet } from '../utils/idb'
 import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
 import { normalizeMargin } from '../utils/pageBox'
 import { insertOpenedProject } from '../utils/projectOpen'
+import { normalizeCalibrate } from '../utils/thermalCalibrate'
+import { rememberFieldMap } from '../utils/fieldMapMemory'
 
 // 纸张预设（打印介质：决定打印机走纸的纸张）
 export const PAPER_PRESETS = [
@@ -15,7 +17,12 @@ export const PAPER_PRESETS = [
   { name: '单张小标签 100×50', width: 100, height: 50 },
   { name: '单张小标签 80×50', width: 80, height: 50 },
   { name: '单张小标签 50×30', width: 50, height: 30 },
-  { name: '单张方形 100×100', width: 100, height: 100 }
+  { name: '单张方形 100×100', width: 100, height: 100 },
+  { name: '热敏卷 40×30', width: 40, height: 30 },
+  { name: '热敏卷 50×30', width: 50, height: 30 },
+  { name: '热敏卷 60×40', width: 60, height: 40 },
+  { name: '热敏面单 100×150', width: 100, height: 150 },
+  { name: '热敏面单 100×180', width: 100, height: 180 }
 ]
 
 // 标签尺寸预设（数据单元：每条数据占一个标签）
@@ -64,7 +71,12 @@ const createDefaultProject = () => {
     embedded: true,
     data: [],
     // 字段映射：{ 模板字段: 数据源字段 }，用于模板字段名与数据列名不一致的情况
-    fieldMap: {}
+    fieldMap: {},
+    /** 按表头签名记住的历史映射 */
+    fieldMapArchive: {},
+    /** 增量导入时按此列合并（条码 / SKU 等） */
+    mergeKey: '',
+    headers: []
   },
   printConfig: {
     copies: 1,
@@ -80,7 +92,8 @@ const createDefaultProject = () => {
     media: 'gap',
     gapMm: 2,
     dpi: 203,
-    direction: 1
+    direction: 1,
+    calibrate: normalizeCalibrate({})
   }
   }
 }
@@ -212,8 +225,21 @@ export const useProjectStore = defineStore('project', () => {
     merged.label = { ...def.label, ...(p.label || {}) }
     if (!p.dataSource) merged.dataSource = def.dataSource
     // dataSource 深合并：旧项目补齐 fieldMap
-    else merged.dataSource = { ...def.dataSource, ...p.dataSource, fieldMap: p.dataSource.fieldMap || {} }
-    merged.printConfig = { ...def.printConfig, ...(p.printConfig || {}) }
+    else {
+      merged.dataSource = {
+        ...def.dataSource,
+        ...p.dataSource,
+        fieldMap: p.dataSource.fieldMap || {},
+        fieldMapArchive: p.dataSource.fieldMapArchive || {},
+        mergeKey: p.dataSource.mergeKey || '',
+        headers: Array.isArray(p.dataSource.headers) ? p.dataSource.headers : def.dataSource.headers
+      }
+    }
+    merged.printConfig = {
+      ...def.printConfig,
+      ...(p.printConfig || {}),
+      calibrate: normalizeCalibrate(p.printConfig?.calibrate || def.printConfig.calibrate)
+    }
     if (!p.layout) merged.layout = { ...def.layout }
     if (!p.margin) merged.margin = { ...def.margin }
     merged.margin = normalizeMargin(merged.margin)
@@ -526,6 +552,16 @@ export const useProjectStore = defineStore('project', () => {
   // ============ 字段映射 / 模板 ============
   function updateFieldMap(map) {
     project.value.dataSource.fieldMap = { ...(map || {}) }
+    rememberFieldMap(
+      project.value.dataSource,
+      project.value.dataSource.headers || [],
+      project.value.dataSource.fieldMap
+    )
+    markDirty()
+  }
+
+  function setMergeKey(key) {
+    project.value.dataSource.mergeKey = String(key || '').trim()
     markDirty()
   }
 
@@ -939,7 +975,7 @@ export const useProjectStore = defineStore('project', () => {
     alignSelected, distributeSelected,
     calcGrid, getLabelRect, findLabelAt,
     updateLabel, updatePaper, updateMargin, updateLayout, setSizingMode,
-    updateFieldMap, applyTemplate,
+    updateFieldMap, setMergeKey, applyTemplate,
     undo, redo, canUndo, canRedo, clearHistory,
     getExportData,
     loadFromStorage, hydrateFromIdb, createProject, importAsNewProject, switchProject, deleteProject, renameCurrentProject, renameProject

@@ -13,6 +13,7 @@ import { textOverflowsBox } from './textFit.js'
 import { normalizeMargin } from './pageBox.js'
 import { codePayload, isEncodableCode, resolveRow } from './render.js'
 import { barcodeScanIssue, barcodeScanText } from './barcodeScan.js'
+import { collectSceneRowFailures, sceneFailuresToIssues, inferSceneId } from './scenePreflight.js'
 
 /**
  * 单个组件引用到的所有字段名：
@@ -128,7 +129,9 @@ export function runDiagnostics({
   paper = {},
   perPage = 1,
   printConfig = {},
-  rows
+  rows,
+  sceneId = '',
+  projectMeta = {}
 } = {}) {
   const issues = []
 
@@ -287,6 +290,16 @@ export function runDiagnostics({
     })
   }
 
+  let rowFailures = []
+  if (Array.isArray(rows) && rows.length) {
+    const sid = sceneId || inferSceneId({ meta: projectMeta, components })
+    rowFailures = collectSceneRowFailures({ sceneId: sid, components, rows, fieldMap })
+    const sceneIssues = sceneFailuresToIssues(rowFailures)
+    for (const si of sceneIssues) {
+      if (!issues.some((x) => x.code === si.code)) issues.push(si)
+    }
+  }
+
   const errors = issues.filter(i => i.level === 'error')
   const warnings = issues.filter(i => i.level === 'warn')
   const safePerPage = Math.max(1, Number(perPage) || 1)
@@ -307,6 +320,7 @@ export function runDiagnostics({
     errors,
     warnings,
     hasError: errors.length > 0,
+    rowFailures,
     summary: {
       labelText: (label.width && label.height) ? `${label.width}×${label.height}mm` : '—',
       paperText: (paper.width && paper.height) ? `${paper.width}×${paper.height}mm` : '—',

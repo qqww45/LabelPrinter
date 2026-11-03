@@ -5,24 +5,30 @@
 export const SCENE_PACKS = [
   {
     id: 'retail-price',
-    name: '门店价签',
+    name: '生鲜价签',
     templateId: 'tpl_grocery_price',
     sampleId: 'retail',
-    blurb: '品名、规格、价格、条码 — 适合超市与生鲜价签'
+    blurb: '品名、规格、价格、条码 — 适合超市与生鲜价签',
+    mergeKeyHints: ['条码', '货号'],
+    welcomeLabel: '价签'
   },
   {
     id: 'express',
     name: '快递面单',
     templateId: 'tpl_express',
     sampleId: 'express',
-    blurb: '收件人、电话、地址、运单号'
+    blurb: '收件人、电话、地址、运单号',
+    mergeKeyHints: ['运单号', '单号'],
+    welcomeLabel: '快递面单'
   },
   {
     id: 'asset',
-    name: '固定资产',
+    name: '资产贴',
     templateId: 'tpl_asset_fixed',
     sampleId: 'asset',
-    blurb: '资产编号、部门、保管人'
+    blurb: '资产编号、部门、保管人',
+    mergeKeyHints: ['资产编号', '编号'],
+    welcomeLabel: '资产贴'
   },
   {
     id: 'warehouse',

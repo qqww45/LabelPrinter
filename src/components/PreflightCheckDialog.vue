@@ -7,7 +7,6 @@
       </div>
 
       <div class="modal-body">
-        <!-- 概览：这次到底会打出什么 -->
         <div class="summary">
           <div class="summary-item">
             <span class="k">{{ t('标签尺寸') }}</span>
@@ -31,7 +30,18 @@
           </div>
         </div>
 
-        <!-- 问题清单 -->
+        <div v-if="rowFailureRows.length" class="row-triage">
+          <div class="triage-head">{{ t('问题行（点行号可跳转）') }}</div>
+          <ul class="triage-list">
+            <li v-for="f in rowFailureRows" :key="f.rowIndex + f.code">
+              <button type="button" class="row-jump" @click="$emit('fix-row', f.rowIndex)">
+                {{ t('第 {n} 行', { n: f.rowIndex + 1 }) }}
+              </button>
+              <span class="triage-text">{{ f.title }} — {{ f.detail }}</span>
+            </li>
+          </ul>
+        </div>
+
         <div v-if="report.issues.length" class="issues">
           <div v-for="(it, i) in report.issues" :key="i" class="issue" :class="it.level">
             <div class="issue-head">
@@ -52,6 +62,12 @@
       </div>
 
       <div class="modal-footer">
+        <button
+          v-if="rowFailureRows.length"
+          type="button"
+          class="btn"
+          @click="$emit('proceed-ok-only')"
+        >{{ t('只打印通过的行') }}</button>
         <div class="spacer"></div>
         <button class="btn" @click="$emit('close')">{{ t('返回修改') }}</button>
         <button class="btn btn-primary" :class="{ 'btn-risky': report.hasError }" @click="$emit('proceed')">
@@ -73,7 +89,21 @@ const props = defineProps({
     required: true
   }
 })
-defineEmits(['close', 'proceed', 'fix'])
+defineEmits(['close', 'proceed', 'proceed-ok-only', 'fix', 'fix-row'])
+
+const rowFailureRows = computed(() => {
+  const list = props.report?.rowFailures
+  if (!Array.isArray(list)) return []
+  const seen = new Set()
+  const out = []
+  for (const f of list) {
+    const k = `${f.rowIndex}:${f.code}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(f)
+  }
+  return out.slice(0, 24)
+})
 
 function fixLabel(it) {
   if (it.fix === 'field-map') return t('去字段映射')
@@ -85,7 +115,7 @@ function fixLabel(it) {
 </script>
 
 <style scoped>
-.preflight-modal { width: 560px; }
+.preflight-modal { width: 560px; max-width: 92vw; }
 .sub {
   font-weight: normal;
   font-size: 12px;
@@ -107,6 +137,45 @@ function fixLabel(it) {
 .summary-item .k { color: var(--text-muted); }
 .summary-item .v { color: var(--text-primary); }
 .summary-item .v.strong { font-weight: 600; }
+.row-triage {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--bg-panel));
+  font-size: 12px;
+}
+.triage-head { font-weight: 600; margin-bottom: 6px; }
+.triage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.triage-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.triage-list li:last-child { border-bottom: none; }
+.row-jump {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.row-jump:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.triage-text { color: var(--text-secondary); line-height: 1.45; }
 .issues { display: flex; flex-direction: column; gap: 10px; }
 .issue {
   border-left: 3px solid var(--border);
