@@ -78,6 +78,7 @@
             <li><code v-pre>{{if 字段|有值时|无值时}}</code> — {{ t('条件文案') }}</li>
             <li><code v-pre>{{ifempty 字段|备用}}</code> / <code v-pre>{{hide 字段|内容}}</code> — {{ t('空则隐藏或备用') }}</li>
           </ul>
+          <RouterLink class="expr-manual" to="/help#文本表达式">{{ t('完整说明见帮助手册') }}</RouterLink>
         </details>
         <div class="form-row">
           <label>{{ t('绑定') }}</label>
@@ -597,6 +598,7 @@ import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { placeholderNames, rewriteBindingText, codePayload, resolveRow } from '../utils/render'
 import { heightForFont } from '../utils/textFit'
 import { ref, computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import PropSection from './PropSection.vue'
 
 const project = useProjectStore()
@@ -1024,6 +1026,12 @@ legend {
   line-height: 1.5;
 }
 .expr-help summary { cursor: pointer; color: var(--primary); }
+.expr-manual {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--primary);
+}
 .expr-list { margin: 6px 0 0 16px; padding: 0; }
 .expr-list li { margin-bottom: 4px; }
 .expr-list code { font-size: 10px; }
