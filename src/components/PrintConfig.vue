@@ -268,7 +268,8 @@ import { getPrinterProfile, savePrinterProfile } from '../utils/printerProfile'
 import { toast, toastError } from '../utils/toast'
 
 const props = defineProps({
-  embedded: { type: Boolean, default: false }
+  embedded: { type: Boolean, default: false },
+  initialTab: { type: String, default: 'general' }
 })
 const emit = defineEmits(['close', 'applied'])
 
@@ -283,7 +284,7 @@ const tabs = [
   { id: 'general', label: '常规' },
   { id: 'thermal', label: '热敏纸' }
 ]
-const activeTab = ref('general')
+const activeTab = ref(props.initialTab === 'thermal' ? 'thermal' : 'general')
 const focusField = ref('')
 const mediaLegendOpen = ref(false)
 const mediaLegendId = 'pc-media-legend'

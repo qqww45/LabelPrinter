@@ -90,6 +90,8 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useProjectStore } from '../stores/project'
 import { useI18n } from '../utils/i18n'
 import { clearAllLocalData } from '../utils/localData'
+import { buildLocalBackupSnapshot } from '../utils/projectBackup'
+import { saveJSON } from '../utils/file'
 import { toastError, toastSuccess } from '../utils/toast'
 
 const { t } = useI18n()
@@ -108,6 +110,20 @@ const icons = {
 }
 
 async function onClearLocal() {
+  if (project.projects.length) {
+    const backupFirst = confirm(
+      t('清除前建议先导出备份。\n\n点「确定」下载本机全部项目备份；点「取消」继续清除确认。')
+    )
+    if (backupFirst) {
+      const snap = buildLocalBackupSnapshot({
+        projects: project.projects,
+        currentId: project.currentId
+      })
+      saveJSON(snap, `labelprint-backup-${new Date().toISOString().slice(0, 10)}.json`)
+      toastSuccess(t('备份已下载'))
+      return
+    }
+  }
   if (!confirm(t('确定清除签立方在本浏览器的全部数据？\n包括项目、模板、打印记录、AI Key。此操作不可恢复。'))) return
   clearing.value = true
   try {
@@ -443,9 +459,12 @@ function onRemove(p) {
   padding: 3px 6px;
   border: 1px solid var(--primary);
   border-radius: 4px;
-  outline: none;
   background: var(--bg-panel);
   color: var(--text);
+}
+.name-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 .new-btn {

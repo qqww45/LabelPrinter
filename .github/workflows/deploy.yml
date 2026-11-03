@@ -61,7 +61,7 @@ jobs:
         run: npm run build
 
       - name: 单元测试
-        run: node tests/basic.test.mjs
+        run: npm test
 
       - name: 触发 EdgeOne 边缘部署
         env:

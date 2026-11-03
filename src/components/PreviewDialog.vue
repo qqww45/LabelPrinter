@@ -195,8 +195,8 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import LayoutEditor from './LayoutEditor.vue'
 import PrintConfig from './PrintConfig.vue'
-import { renderText, resolveRow, codePayload, isEncodableCode } from '../utils/render'
-import { escapeHtmlWithBreaks, safeImageSrc } from '../utils/escapeHtml'
+import { resolveRow, codePayload, isEncodableCode, renderTextHtml } from '../utils/render'
+import { safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, pageForSourceRow, normalizeStartSlot, componentHidden, componentPlainText } from '../utils/printModel'
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
@@ -734,12 +734,6 @@ function cellImageStyle(c, crisp = false) {
     objectFit: 'contain',
     imageRendering: crisp ? 'pixelated' : 'auto'
   }
-}
-
-function renderTextHtml(text, row) {
-  if (!text) return ''
-  // 先渲染占位符，再 HTML 转义，避免导入数据注入脚本
-  return escapeHtmlWithBreaks(renderText(text, row))
 }
 
 function imageSrc(c, row) {

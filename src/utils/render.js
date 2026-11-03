@@ -7,6 +7,8 @@ export function rowIsEmpty(row) {
   return !Object.keys(row).some(k => k !== '__id')
 }
 
+import { escapeHtmlWithBreaks } from './escapeHtml.js'
+
 /**
  * 模板渲染：把 {{字段}} 占位符替换为实际数据。
  * 还没有数据行时保留原文，让版式上能看见字段名。
@@ -19,6 +21,12 @@ export function renderText(text, row) {
     if (row[k] !== undefined && row[k] !== null) return row[k]
     return ''
   })
+}
+
+/** 预览 HTML 文本：与 PDF 相同先 renderText，再 escape（防 XSS） */
+export function renderTextHtml(text, row) {
+  if (!text) return ''
+  return escapeHtmlWithBreaks(renderText(text, row))
 }
 
 /**

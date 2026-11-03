@@ -4,7 +4,7 @@
 
 Turn each row of a spreadsheet into a label you can stick on something. Lay out price tags, shipping labels, and asset tags in the browser, then batch-print them or export a PDF.
 
-**在线使用 / Try it:** https://ci64.com
+**在线使用 / Try it:** https://ci64.com/
 
 开源，不用安装。项目和表格留在这台浏览器里。AI 排版用你自己的密钥，支持 DeepSeek、智谱 GLM、通义千问、OpenAI、Ollama。不用 AI 时，表格不会发出去。
 
@@ -203,13 +203,14 @@ npm run build
 
 ```bash
 npm run dev        # 开发服务器
-npm run build      # 生产构建
+npm run build      # 生产构建（EdgeOne / 静态托管用 dist/）
 npm run preview    # 预览构建产物
-
-# 单元测试
-node tests/basic.test.mjs
-node tests/dataMerge.test.mjs
+npm test           # 全部单元测试
 ```
+
+生产部署见 `edgeone.json` 与 `.github/workflows/deploy.yml`（EdgeOne 边缘部署）。不推荐 Docker 自建。
+
+```bash
 
 ---
 

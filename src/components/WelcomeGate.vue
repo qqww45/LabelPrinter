@@ -73,6 +73,7 @@
 
           <div class="actions">
             <button class="text-btn" type="button" @click="skip">{{ t('先自己看看') }}</button>
+            <button class="text-btn quick" type="button" @click="quickStart">{{ t('30 秒体验价签') }}</button>
             <button ref="primaryBtn" class="go" type="button" @click="goCreate">{{ t('下一步，建立项目') }}</button>
           </div>
         </template>
@@ -167,7 +168,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
-const emit = defineEmits(['skip', 'create'])
+const emit = defineEmits(['skip', 'create', 'quickstart'])
 
 const step = ref('about')
 const name = ref('')
@@ -199,6 +200,10 @@ function pickSuggestion(label) {
 function submit() {
   if (!cleanName.value) return
   emit('create', cleanName.value)
+}
+
+function quickStart() {
+  emit('quickstart')
 }
 
 function focusables() {
