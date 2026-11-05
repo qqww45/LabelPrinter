@@ -101,7 +101,7 @@ export function findOutOfBounds(components = [], label = {}) {
     if (y < -TOL) reasons.push('top')
     if (w > 0 && x + w > W + TOL) reasons.push('right')
     // 文本类高度常随内容变化，底边不判越界（与 text 一致）
-    const softBottom = c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox'
+    const softBottom = c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price'
     if (!softBottom && h > 0 && y + h > H + TOL) reasons.push('bottom')
     if (reasons.length) {
       out.push({

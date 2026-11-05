@@ -7,7 +7,7 @@ import { codePayload, renderText, rowIsEmpty } from './render.js'
 import { guessCopiesColumn } from './copiesColumn.js'
 
 export { guessCopiesColumn }
-import { formatCheckboxText, formatSerialText } from './controls.js'
+import { formatCheckboxText, formatPriceText, formatSerialText } from './controls.js'
 import { normalizeMargin } from './pageBox.js'
 
 const MAX_COPIES = 999
@@ -143,6 +143,11 @@ export function componentHidden(c, row) {
     const v = row[c.binding]
     return v == null || String(v).trim() === ''
   }
+  if (c.type === 'price') {
+    if (!c.binding) return false
+    const v = row[c.binding]
+    return v == null || String(v).trim() === ''
+  }
   if (c.type === 'image' && c.source === 'field' && c.binding) {
     const v = row[c.binding]
     return v == null || String(v).trim() === ''
@@ -170,6 +175,7 @@ export function componentPlainText(c, row) {
   }
   if (c.type === 'serial') return formatSerialText(c, row)
   if (c.type === 'checkbox') return formatCheckboxText(c, row)
+  if (c.type === 'price') return formatPriceText(c, row)
   if (c.type === 'qrcode' || c.type === 'barcode') return codePayload(c, row)
   if (c.type === 'text') return renderText(c.text || '', row)
   return ''

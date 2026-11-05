@@ -206,6 +206,8 @@ import { exportVectorPDF } from '../utils/vectorPdf'
 import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { MM_TO_PX } from '../utils/canvasFit'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
+import { barcodeCanvasOptions } from '../utils/controls'
+import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { exportElementToImage } from '../utils/pdf'
 import { usePrintStore } from '../stores/print'
 import { useI18n } from '../utils/i18n'
@@ -473,16 +475,26 @@ const CompRenderer = defineComponent({
             inner = h('div', { style: codePlaceholderStyle() }, c.binding || (c.type === 'barcode' ? t('条码') : t('二维码')))
             break
           }
+          if (c.type === 'barcode') {
+            const scan = barcodeScanIssue({ format: c.format, value: txt, widthMm: c.width, heightMm: c.height })
+            if (scan !== 'ok') {
+              inner = h('div', { style: codeErrorStyle() }, t(barcodeScanText(scan)))
+              break
+            }
+          }
           const cv = c.type === 'barcode'
-            ? barcodeToCanvas(String(txt), {
-              format: c.format || 'CODE128',
-              textRatio: c.textRatio,
-              targetWidth: Math.max(1, c.width * S() * 3),
-              targetHeight: Math.max(1, c.height * S() * 3)
-            })
+            ? barcodeToCanvas(String(txt), barcodeCanvasOptions(c,
+              Math.max(1, c.width * S() * 3),
+              Math.max(1, c.height * S() * 3)
+            ))
             : qrToCanvas(String(txt), 240)
           const url = cv ? canvasToDataURL(cv) : ''
-          if (!url) return null
+          if (!url) {
+            if (c.type === 'barcode') {
+              inner = h('div', { style: codeErrorStyle() }, t('条形码生成失败'))
+            }
+            break
+          }
           inner = h('img', { src: url, style: c.type === 'barcode' ? barcodeImgStyle() : imgStyle(c) })
           break
         }
@@ -498,9 +510,18 @@ const CompRenderer = defineComponent({
           inner = h('div', { style: lineStyle(c) })
           break
         }
+        case 'divider': {
+          inner = h('div', { style: dividerStyle(c) })
+          break
+        }
+        case 'dashedBox': {
+          inner = h('div', { style: dashedBoxStyle(c) })
+          break
+        }
         case 'date':
         case 'serial':
-        case 'checkbox': {
+        case 'checkbox':
+        case 'price': {
           inner = h('div', { style: textStyle(c) }, componentPlainText(c, row))
           break
         }
@@ -635,6 +656,42 @@ function lineStyle(c) {
     width: '100%',
     height: Math.max(1, (c.strokeWidth || 1) * scale.value) + 'px',
     background: c.stroke || '#000'
+  }
+}
+
+function dividerStyle(c) {
+  const sw = Math.max(1, (c.strokeWidth || 0.3) * scale.value)
+  const style = c.strokeStyle || 'solid'
+  const borderStyle = style === 'dotted' ? 'dotted' : style === 'dashed' ? 'dashed' : 'solid'
+  const color = c.stroke || '#cbd5e1'
+  if (c.direction === 'vertical') {
+    return {
+      width: sw + 'px',
+      height: '100%',
+      margin: '0 auto',
+      borderLeft: `${sw}px ${borderStyle} ${color}`,
+      boxSizing: 'border-box'
+    }
+  }
+  return {
+    width: '100%',
+    height: sw + 'px',
+    margin: 'auto 0',
+    borderTop: `${sw}px ${borderStyle} ${color}`,
+    boxSizing: 'border-box'
+  }
+}
+
+function dashedBoxStyle(c) {
+  const style = c.strokeStyle || 'dashed'
+  const borderStyle = style === 'dotted' ? 'dotted' : style === 'solid' ? 'solid' : 'dashed'
+  return {
+    width: '100%',
+    height: '100%',
+    boxSizing: 'border-box',
+    background: 'transparent',
+    border: `${(c.strokeWidth || 0.3) * scale.value}px ${borderStyle} ${c.stroke || '#94a3b8'}`,
+    borderRadius: ((c.rx || 0) * S()) + 'px'
   }
 }
 
@@ -788,6 +845,16 @@ function codePlaceholderStyle() {
     background: 'rgba(148,163,184,0.12)',
     textAlign: 'center',
     padding: '2px'
+  }
+}
+
+function codeErrorStyle() {
+  return {
+    ...codePlaceholderStyle(),
+    color: '#b91c1c',
+    background: 'rgba(248, 113, 113, 0.12)',
+    border: '1px dashed #ef4444',
+    lineHeight: 1.3
   }
 }
 

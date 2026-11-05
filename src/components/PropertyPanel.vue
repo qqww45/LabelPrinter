@@ -241,12 +241,16 @@
         </div>
         <div class="form-row">
           <label>格式</label>
-          <select class="input" :value="selected.format" @change="update('format', $event.target.value)">
+          <select class="input" :value="selected.format || 'CODE128'" @change="update('format', $event.target.value)">
             <option value="CODE128">CODE128</option>
             <option value="EAN13">EAN13</option>
             <option value="CODE39">CODE39</option>
           </select>
         </div>
+        <label class="check-line">
+          <input type="checkbox" :checked="selected.displayValue !== false" @change="update('displayValue', $event.target.checked)" />
+          {{ t('显示人读数字') }}
+        </label>
         <div class="form-row">
           <label>{{ t('数字高度') }}</label>
           <input
@@ -261,6 +265,44 @@
           />
         </div>
         <div class="hint" :class="{ warn: barcodeScanCode !== 'ok' }">{{ t(barcodeScanText(barcodeScanCode)) }}</div>
+      </fieldset>
+
+      <!-- 价格 -->
+      <fieldset v-if="selected.type === 'price'">
+        <legend>{{ t('价格') }}</legend>
+        <div class="form-row">
+          <label>{{ t('绑定') }}</label>
+          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('（不绑定）') }}</option>
+            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
+          </select>
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('货币') }}</label>
+          <input class="input" :value="selected.currency ?? '¥'" @input="update('currency', $event.target.value)" />
+          <label>{{ t('小数位') }}</label>
+          <input class="input num" type="number" min="0" max="8" :value="selected.decimals ?? 2" @change="update('decimals', +$event.target.value)" />
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('前缀') }}</label>
+          <input class="input" :value="selected.prefix || ''" @input="update('prefix', $event.target.value)" />
+          <label>{{ t('后缀') }}</label>
+          <input class="input" :value="selected.suffix || ''" @input="update('suffix', $event.target.value)" />
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('字号') }}</label>
+          <input class="input num" type="number" :value="selected.fontSize" @change="update('fontSize', +$event.target.value)" />
+          <label>{{ t('字色') }}</label>
+          <input class="input swatch" type="color" :value="selected.fill || '#d0021b'" @input="update('fill', $event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('对齐') }}</label>
+          <div class="seg" role="group" :aria-label="t('对齐')">
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='left' }" @click="update('textAlign','left')">{{ t('左') }}</button>
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='center' }" @click="update('textAlign','center')">{{ t('中') }}</button>
+            <button type="button" class="seg-btn" :class="{ on: selected.textAlign==='right' }" @click="update('textAlign','right')">{{ t('右') }}</button>
+          </div>
+        </div>
       </fieldset>
 
       <!-- 矩形 -->
@@ -305,6 +347,54 @@
           <label>颜色</label><input class="input" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
           <label>粗细</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
         </div>
+      </fieldset>
+
+      <!-- 分隔线 -->
+      <fieldset v-if="selected.type === 'divider'">
+        <legend>{{ t('分隔线') }}</legend>
+        <div class="form-row">
+          <label>{{ t('方向') }}</label>
+          <select class="input" :value="selected.direction || 'horizontal'" @change="update('direction', $event.target.value)">
+            <option value="horizontal">{{ t('横向') }}</option>
+            <option value="vertical">{{ t('纵向') }}</option>
+          </select>
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('粗细') }}</label>
+          <input class="input num" type="number" step="0.1" :value="selected.strokeWidth ?? 0.3" @change="update('strokeWidth', +$event.target.value)" />
+          <label>{{ t('线型') }}</label>
+          <select class="input" :value="selected.strokeStyle || 'solid'" @change="update('strokeStyle', $event.target.value)">
+            <option value="solid">{{ t('实线') }}</option>
+            <option value="dashed">{{ t('虚线') }}</option>
+            <option value="dotted">{{ t('点线') }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>{{ t('颜色') }}</label>
+          <input class="input swatch" type="color" :value="selected.stroke || '#cbd5e1'" @input="update('stroke', $event.target.value)" />
+        </div>
+      </fieldset>
+
+      <!-- 虚线框 -->
+      <fieldset v-if="selected.type === 'dashedBox'">
+        <legend>{{ t('虚线框') }}</legend>
+        <div class="form-row pair">
+          <label>{{ t('圆角') }}</label>
+          <input class="input num" type="number" step="0.1" :value="selected.rx ?? 0" @change="update('rx', +$event.target.value)" />
+          <label>{{ t('边框宽') }}</label>
+          <input class="input num" type="number" step="0.1" :value="selected.strokeWidth ?? 0.3" @change="update('strokeWidth', +$event.target.value)" />
+        </div>
+        <div class="form-row pair">
+          <label>{{ t('线型') }}</label>
+          <select class="input" :value="selected.strokeStyle || 'dashed'" @change="update('strokeStyle', $event.target.value)">
+            <option value="solid">{{ t('实线') }}</option>
+            <option value="dashed">{{ t('虚线') }}</option>
+            <option value="dotted">{{ t('点线') }}</option>
+          </select>
+          <label>{{ t('边框色') }}</label>
+          <input class="input swatch" type="color" :value="selected.stroke || '#94a3b8'" @input="update('stroke', $event.target.value)" />
+        </div>
+        <p class="hint">{{ t('默认无填充，仅边框。') }}</p>
       </fieldset>
 
       <!-- 日期 -->
@@ -407,7 +497,7 @@
         </div>
       </fieldset>
 
-      <fieldset v-if="selected.type === 'text' || selected.type === 'qrcode' || selected.type === 'barcode' || selected.type === 'date' || selected.type === 'serial' || selected.type === 'checkbox'">
+      <fieldset v-if="selected.type === 'text' || selected.type === 'qrcode' || selected.type === 'barcode' || selected.type === 'date' || selected.type === 'serial' || selected.type === 'checkbox' || selected.type === 'price'">
         <legend>{{ t('空内容') }}</legend>
         <label class="check-line"><input type="checkbox" :checked="!!selected.hideIfEmpty" @change="update('hideIfEmpty', $event.target.checked)" /> {{ t('内容为空时不打印') }}</label>
         <div class="hint">{{ t('没填数据时画布上仍显示，方便排版。') }}</div>
