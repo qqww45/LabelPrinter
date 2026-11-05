@@ -52,7 +52,8 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useSettingsStore } from '../stores/settings'
 import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
-import { formatCheckboxText, formatSerialText } from '../utils/controls'
+import { formatCheckboxText, formatPriceText, formatSerialText, barcodeCanvasOptions, strokeStyleDash } from '../utils/controls'
+import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { generateQRCode } from '../utils/qrcode'
 import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -324,7 +325,7 @@ function setupDnd() {
     } else if (field) {
       const sel = pj.selectedComponent
       if (sel) {
-        if (sel.type === 'checkbox') {
+        if (sel.type === 'checkbox' || sel.type === 'price') {
           pj.updateComponent(sel.id, { binding: field })
         } else if (sel.type === 'serial') {
           pj.updateComponent(sel.id, { source: 'field', binding: field })
@@ -375,7 +376,10 @@ function addComponent(type, xMm, yMm, extra = {}) {
     line:   { w: Math.min(40, lw - 4),  h: 0 },
     date:   { w: Math.min(35, lw - 4),  h: Math.min(8, lh - 4) },
     serial: { w: Math.min(28, lw - 4),  h: Math.min(8, lh - 4) },
-    checkbox:{ w: Math.min(8, lw - 4),  h: Math.min(8, lh - 4) }
+    checkbox:{ w: Math.min(8, lw - 4),  h: Math.min(8, lh - 4) },
+    price:  { w: Math.min(32, lw - 4),  h: Math.min(10, lh - 4) },
+    divider:{ w: Math.min(50, lw - 4),  h: Math.min(0.6, lh - 4) },
+    dashedBox:{ w: Math.min(40, lw - 4), h: Math.min(22, lh - 4) }
   }
   const sz = sizeDefaults[type] || { w: Math.min(40, lw - 4), h: Math.min(20, lh - 4) }
 
@@ -403,7 +407,7 @@ function addComponent(type, xMm, yMm, extra = {}) {
       comp = { ...def, text: 'QR', binding: '' }
       break
     case 'barcode':
-      comp = { ...def, text: '', binding: '', format: 'CODE128' }
+      comp = { ...def, text: '', binding: '', format: 'CODE128', displayValue: true }
       break
     case 'rect':
       comp = { ...def, fill: 'transparent', stroke: '#000', strokeWidth: 1, rx: 0 }
@@ -427,6 +431,17 @@ function addComponent(type, xMm, yMm, extra = {}) {
       comp = { ...def, name: '勾选', binding: '', checkedChar: '☑', uncheckedChar: '☐', checkedValue: '',
                fontSize: 14, fill: '#000', fontFamily: 'Microsoft YaHei', fontWeight: 'normal', textAlign: 'center',
                hideIfEmpty: false }
+      break
+    case 'price':
+      comp = { ...def, name: '价格', binding: '价格', currency: '¥', decimals: 2, prefix: '', suffix: '',
+               fontSize: 18, fill: '#d0021b', fontFamily: 'Microsoft YaHei', fontWeight: 'bold', textAlign: 'left',
+               hideIfEmpty: true }
+      break
+    case 'divider':
+      comp = { ...def, name: '分隔线', direction: 'horizontal', strokeWidth: 0.3, strokeStyle: 'solid', stroke: '#cbd5e1' }
+      break
+    case 'dashedBox':
+      comp = { ...def, name: '虚线框', fill: 'transparent', stroke: '#94a3b8', strokeWidth: 0.3, strokeStyle: 'dashed', rx: 2 }
       break
     case 'table':
       comp = { ...def, rows: 3, cols: 3, cellPadding: 1, borderColor: '#333', borderWidth: 0.2,
@@ -476,7 +491,7 @@ function renderAll() {
   let grew = false
   for (const c of pj.project.components) {
     if (!c || c.hidden) continue
-    if (!['text', 'date', 'serial', 'checkbox'].includes(c.type)) continue
+    if (!['text', 'date', 'serial', 'checkbox', 'price'].includes(c.type)) continue
     const nextH = heightForFont(c.height, c.fontSize || (c.type === 'text' ? 14 : 12))
     if (nextH !== c.height) {
       pj.updateComponent(c.id, { height: nextH })
@@ -560,6 +575,32 @@ function codePlaceholder(c, baseOpts, label) {
     fontSize,
     fill: '#64748b',
     fontFamily: 'Microsoft YaHei, sans-serif'
+  })
+  return new fabric.Group([bg, text], { ...baseOpts })
+}
+
+function codeErrorPlaceholder(c, baseOpts, message) {
+  const w = Math.max(8, (c.width || 10) * MM_TO_PX)
+  const h = Math.max(8, (c.height || 10) * MM_TO_PX)
+  const bg = new fabric.Rect({
+    left: 0, top: 0, width: w, height: h,
+    fill: 'rgba(248, 113, 113, 0.12)',
+    stroke: '#ef4444', strokeWidth: 1,
+    strokeDashArray: [4, 3],
+    rx: 2, ry: 2
+  })
+  const fontSize = Math.max(8, Math.min(12, Math.min(w, h) * 0.22))
+  const text = new fabric.Textbox(String(message || ''), {
+    left: w / 2,
+    top: h / 2,
+    originX: 'center',
+    originY: 'center',
+    width: Math.max(20, w - 8),
+    fontSize,
+    fill: '#b91c1c',
+    fontFamily: 'Microsoft YaHei, sans-serif',
+    textAlign: 'center',
+    lineHeight: 1.15
   })
   return new fabric.Group([bg, text], { ...baseOpts })
 }
@@ -703,15 +744,17 @@ function buildFabricObject(c, gen = renderGeneration) {
         obj = codePlaceholder(c, baseOpts, c.type === 'barcode' ? t('条码') : t('二维码'))
         break
       }
+      if (c.type === 'barcode') {
+        const scan = barcodeScanIssue({ format: c.format, value: txt, widthMm: c.width, heightMm: c.height })
+        if (scan !== 'ok') {
+          obj = codeErrorPlaceholder(c, baseOpts, t(barcodeScanText(scan)))
+          break
+        }
+      }
       const boxW = Math.max(1, c.width * MM_TO_PX)
       const boxH = Math.max(1, c.height * MM_TO_PX)
       const ready = c.type === 'barcode'
-        ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, {
-          format: c.format,
-          textRatio: c.textRatio,
-          targetWidth: boxW * 2,
-          targetHeight: boxH * 2
-        })))
+        ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, barcodeCanvasOptions(c, boxW * 2, boxH * 2))))
         : generateQRCode(txt, { width: 200 })
       ready.then(dataUrl => {
         if (!dataUrl) return
@@ -764,6 +807,33 @@ function buildFabricObject(c, gen = renderGeneration) {
       )
       break
     }
+    case 'divider': {
+      const w = c.width * MM_TO_PX
+      const h = Math.max(1, c.height * MM_TO_PX)
+      const vertical = c.direction === 'vertical'
+      const pts = vertical ? [w / 2, 0, w / 2, h] : [0, h / 2, w, h / 2]
+      obj = new fabric.Line(pts, {
+        ...baseOpts,
+        stroke: c.stroke || '#cbd5e1',
+        strokeWidth: c.strokeWidth || 0.3,
+        strokeDashArray: strokeStyleDash(c.strokeStyle || 'solid')
+      })
+      break
+    }
+    case 'dashedBox': {
+      obj = new fabric.Rect({
+        ...baseOpts,
+        width: c.width * MM_TO_PX,
+        height: c.height * MM_TO_PX,
+        fill: 'transparent',
+        stroke: c.stroke || '#94a3b8',
+        strokeWidth: c.strokeWidth || 0.3,
+        strokeDashArray: strokeStyleDash(c.strokeStyle || 'dashed'),
+        rx: (c.rx || 0) * MM_TO_PX,
+        ry: (c.rx || 0) * MM_TO_PX
+      })
+      break
+    }
     case 'date': {
       let txt = ''
       if (c.source === 'field' && row[c.binding]) {
@@ -785,9 +855,15 @@ function buildFabricObject(c, gen = renderGeneration) {
       break
     }
     case 'serial':
-    case 'checkbox': {
-      const txt = c.type === 'serial' ? formatSerialText(c, row) : formatCheckboxText(c, row)
-      obj = new fabric.Textbox(txt || (c.type === 'serial' ? '0001' : '☐'), {
+    case 'checkbox':
+    case 'price': {
+      const txt = c.type === 'serial'
+        ? formatSerialText(c, row)
+        : c.type === 'checkbox'
+          ? formatCheckboxText(c, row)
+          : formatPriceText(c, row)
+      const fallback = c.type === 'serial' ? '0001' : c.type === 'checkbox' ? '☐' : formatPriceText(c, {})
+      obj = new fabric.Textbox(txt || fallback, {
         ...baseOpts,
         width: (c.width || 20) * MM_TO_PX,
         fontSize: (c.fontSize || 12),
@@ -810,8 +886,8 @@ function buildFabricObject(c, gen = renderGeneration) {
     obj.__id = c.id
     obj.__type = c.type
     dressHandles(obj)
-    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox') obj.lockScalingY = false
-    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') {
+    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price') obj.lockScalingY = false
+    if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price' || c.type === 'table') {
       clipToBox(obj, (c.width || 40) * MM_TO_PX, (c.height || 10) * MM_TO_PX)
     }
   }
@@ -841,7 +917,7 @@ function geometryPatch(obj) {
     angle: scene.angle
   }
   const c = pj.project.components.find(x => x.id === obj.__id)
-  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'table') && Math.abs(scene.scaleY - 1) > 0.02) {
+  if (c && (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price' || c.type === 'table') && Math.abs(scene.scaleY - 1) > 0.02) {
     patch.fontSize = Math.max(6, Math.min(96, Math.round((c.fontSize || 12) * scene.scaleY)))
   }
   // 还在多选组里时不能把子对象缩放清成 1，否则拆组时其余控件会被再挪一次。

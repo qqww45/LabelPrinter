@@ -267,7 +267,7 @@ function findMatchingClose(s, start) {
 }
 
 // 合法组件类型
-const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'ellipse', 'line', 'date', 'serial', 'checkbox'])
+const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'ellipse', 'line', 'date', 'serial', 'checkbox', 'price', 'divider', 'dashedBox'])
 
 /**
  * 校验 + 归一化 + 裁剪到画布
@@ -309,9 +309,15 @@ export function validateAndNormalize(arr, { labelWidth, labelHeight, fields }) {
   return { components, warnings }
 }
 
+function normalizeType(raw) {
+  const t = String(raw?.type || '').trim()
+  if (t === 'dashedBox' || t.toLowerCase() === 'dashedbox') return 'dashedBox'
+  return t.toLowerCase()
+}
+
 function normalizeOne(raw, i, LW, LH, seenIds) {
   if (!raw || typeof raw !== 'object') return null
-  const type = String(raw.type || '').toLowerCase()
+  const type = normalizeType(raw)
   if (!VALID_TYPES.has(type)) return null
 
   // id 唯一
@@ -392,7 +398,8 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
     case 'barcode':
       c.text = String(raw.text || '')
       if (raw.binding) c.binding = String(raw.binding)
-      c.format = String(raw.format || 'CODE128')
+      c.format = String(raw.format || 'CODE128').toUpperCase()
+      if (typeof raw.displayValue === 'boolean') c.displayValue = raw.displayValue
       if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
     case 'rect':
@@ -443,6 +450,32 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       if (raw.binding) c.binding = String(raw.binding)
       if (typeof raw.hideIfEmpty === 'boolean') c.hideIfEmpty = raw.hideIfEmpty
       break
+    case 'price':
+      if (raw.binding) c.binding = String(raw.binding)
+      c.currency = String(raw.currency != null ? raw.currency : '¥')
+      c.decimals = Math.max(0, Math.min(8, Math.floor(num(raw.decimals, 2))))
+      c.prefix = String(raw.prefix || '')
+      c.suffix = String(raw.suffix || '')
+      c.fontSize = num(raw.fontSize, 14)
+      c.fontFamily = FONT
+      c.fill = String(raw.fill || '#d0021b')
+      c.fontWeight = ['normal', 'bold'].includes(raw.fontWeight) ? raw.fontWeight : 'bold'
+      c.textAlign = ['left', 'center', 'right'].includes(raw.textAlign) ? raw.textAlign : 'left'
+      c.hideIfEmpty = typeof raw.hideIfEmpty === 'boolean' ? raw.hideIfEmpty : true
+      break
+    case 'divider':
+      c.direction = raw.direction === 'vertical' ? 'vertical' : 'horizontal'
+      c.stroke = String(raw.stroke || '#cbd5e1')
+      c.strokeWidth = num(raw.strokeWidth, 0.3)
+      c.strokeStyle = ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'solid'
+      break
+    case 'dashedBox':
+      c.fill = 'transparent'
+      c.stroke = String(raw.stroke || '#94a3b8')
+      c.strokeWidth = num(raw.strokeWidth, 0.3)
+      c.rx = Math.max(0, num(raw.rx, 0))
+      c.strokeStyle = ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'dashed'
+      break
   }
   return c
 }
@@ -454,7 +487,7 @@ function num(v, def) {
 function round2(n) { return Math.round(n * 100) / 100 }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)) }
 function defaultName(type) {
-  return ({ text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' })[type] || type
+  return ({ text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框', price: '价格', divider: '分隔线', dashedBox: '虚线框' })[type] || type
 }
 
 const ADJUST_ROW_CAP = 120

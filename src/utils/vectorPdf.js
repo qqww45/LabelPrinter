@@ -9,6 +9,7 @@ import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } fro
 import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
 import { barcodePrintPx } from './barcodeFit.js'
+import { applyPdfLineDash, barcodeCanvasOptions, dividerEndpoints, formatPriceText } from './controls.js'
 import { safeImageSrc } from './escapeHtml.js'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from './tableGeom.js'
 
@@ -291,7 +292,29 @@ function drawLine(pdf, c, x, y, w) {
   const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
   setStroke(pdf, c.stroke || '#000000')
   pdf.setLineWidth(sw)
+  applyPdfLineDash(pdf, 'solid')
   pdf.line(x, y + sw / 2, x + w, y + sw / 2)
+}
+
+function drawDivider(pdf, c, x, y, w, h) {
+  const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
+  setStroke(pdf, c.stroke || '#000000')
+  pdf.setLineWidth(sw)
+  applyPdfLineDash(pdf, c.strokeStyle || 'solid')
+  const { x1, y1, x2, y2 } = dividerEndpoints(c, x, y, w, h)
+  pdf.line(x1, y1, x2, y2)
+  applyPdfLineDash(pdf, 'solid')
+}
+
+function drawDashedBox(pdf, c, x, y, w, h) {
+  const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
+  pdf.setLineWidth(sw)
+  setStroke(pdf, c.stroke || '#000000')
+  applyPdfLineDash(pdf, c.strokeStyle || 'dashed')
+  const r = Number(c.rx) || 0
+  if (r > 0 && typeof pdf.roundedRect === 'function') pdf.roundedRect(x, y, w, h, r, r, 'S')
+  else pdf.rect(x, y, w, h, 'S')
+  applyPdfLineDash(pdf, 'solid')
 }
 
 function drawImage(pdf, c, row, x, y, w, h) {
@@ -306,11 +329,11 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
   if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
     const cv = type === 'qrcode'
       ? qrToCanvas(String(text), 240)
-      : barcodeToCanvas(String(text), {
-        format: cell.format || 'CODE128',
-        targetWidth: barcodePrintPx(w),
-        targetHeight: barcodePrintPx(h)
-      })
+      : barcodeToCanvas(String(text), barcodeCanvasOptions(
+        { format: cell.format || 'CODE128' },
+        barcodePrintPx(w),
+        barcodePrintPx(h)
+      ))
     if (cv) drawContainedImage(pdf, canvasToDataURL(cv), cv.width, cv.height, x, y, w, h)
     return
   }
@@ -390,10 +413,12 @@ function drawComponent(pdf, c, row, ox, oy) {
   const y = oy + (Number(c.top) || 0)
   const w = Number(c.width) || 0
   const h = Number(c.height) || 0
-  if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox') {
+  if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price') {
     const text = (c.type === 'text')
       ? renderText(c.text || '', row)
-      : componentPlainText(c, row)
+      : c.type === 'price'
+        ? formatPriceText(c, row)
+        : componentPlainText(c, row)
     drawText(pdf, text, x, y, w, h, c)
   } else if (c.type === 'qrcode') {
     const text = componentPlainText(c, row)
@@ -407,12 +432,7 @@ function drawComponent(pdf, c, row, ox, oy) {
     const text = componentPlainText(c, row)
     if (!text) return
     if (typeof document === 'undefined') { drawBarcode(pdf, text, c.format, x, y, w, h); return }
-    const cv = barcodeToCanvas(String(text), {
-      format: c.format || 'CODE128',
-      textRatio: c.textRatio,
-      targetWidth: barcodePrintPx(w),
-      targetHeight: barcodePrintPx(h)
-    })
+    const cv = barcodeToCanvas(String(text), barcodeCanvasOptions(c, barcodePrintPx(w), barcodePrintPx(h)))
     if (cv) {
       try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
     }
@@ -422,6 +442,10 @@ function drawComponent(pdf, c, row, ox, oy) {
     drawEllipse(pdf, c, x, y, w, h)
   } else if (c.type === 'line') {
     drawLine(pdf, c, x, y, w)
+  } else if (c.type === 'divider') {
+    drawDivider(pdf, c, x, y, w, h)
+  } else if (c.type === 'dashedBox') {
+    drawDashedBox(pdf, c, x, y, w, h)
   } else if (c.type === 'image') {
     drawImage(pdf, c, row, x, y, w, h)
   } else if (c.type === 'table') {
