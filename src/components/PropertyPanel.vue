@@ -80,14 +80,15 @@
           </ul>
           <RouterLink class="expr-manual" to="/help#文本表达式">{{ t('完整说明见帮助手册') }}</RouterLink>
         </details>
-        <div class="form-row">
-          <label>{{ t('绑定') }}</label>
-          <select class="input" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
+        <div class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <p class="bind-field-desc">{{ t('与数据列关联后，预览与打印会按行自动填内容') }}</p>
+          <select class="input bind-field-select" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
             <option value="">{{ t('（不绑定）') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
+          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
         </div>
-        <p v-if="selected.binding" class="hint indent">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
         <div class="form-row pair">
           <label>{{ t('字号') }}</label>
           <input class="input num" type="number" :value="selected.fontSize" @change="update('fontSize', +$event.target.value)" />
@@ -194,29 +195,29 @@
 
         <!-- 字段模式：按数据动态加载图片，无静态预览 -->
         <template v-else>
-          <div class="form-row">
-            <label>字段</label>
-            <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
-              <option value="">选择字段</option>
+          <div class="bind-field-emphasis">
+            <label class="bind-field-label">{{ t('绑定字段') }}</label>
+            <p class="bind-field-desc">{{ t('按行加载：单元格为 http(s) 或 data:image 地址') }}</p>
+            <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
+              <option value="">{{ t('选择字段') }}</option>
               <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
             </select>
           </div>
-          <div class="hint">{{ t('按行加载：单元格为 http(s) 或 data:image 地址') }}</div>
         </template>
       </fieldset>
 
       <!-- 二维码 -->
       <fieldset v-if="selected.type === 'qrcode'">
         <legend>二维码</legend>
-        <div class="form-row">
-          <label>绑定</label>
-          <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
-            <option value="">选择字段</option>
+        <div class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('选择字段') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
+          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
+          <p v-else class="hint bind-field-hint">{{ t('未绑定，使用下方静态文本') }}</p>
         </div>
-        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
-        <div v-else class="hint">{{ t('未绑定，使用下方静态文本') }}</div>
         <div class="form-row">
           <label>静态文本</label>
           <input class="input" :value="selected.text" @input="update('text', $event.target.value)" placeholder="无绑定时的内容" />
@@ -226,15 +227,15 @@
       <!-- 条形码 -->
       <fieldset v-if="selected.type === 'barcode'">
         <legend>条形码</legend>
-        <div class="form-row">
-          <label>绑定</label>
-          <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
-            <option value="">选择字段</option>
+        <div class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('选择字段') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
+          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
+          <p v-else class="hint bind-field-hint">{{ t('未绑定，使用下方静态文本') }}</p>
         </div>
-        <div v-if="selected.binding" class="hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></div>
-        <div v-else class="hint">{{ t('未绑定，使用下方静态文本') }}</div>
         <div class="form-row">
           <label>静态文本</label>
           <input class="input" :value="selected.text" @input="update('text', $event.target.value)" />
@@ -270,9 +271,9 @@
       <!-- 价格 -->
       <fieldset v-if="selected.type === 'price'">
         <legend>{{ t('价格') }}</legend>
-        <div class="form-row">
-          <label>{{ t('绑定') }}</label>
-          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+        <div class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <select class="input bind-field-select" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
             <option value="">{{ t('（不绑定）') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
@@ -407,10 +408,10 @@
             <option value="field">数据字段</option>
           </select>
         </div>
-        <div v-if="selected.source === 'field'" class="form-row">
-          <label>字段</label>
-          <select class="input" :value="selected.binding" @change="update('binding', $event.target.value)">
-            <option value="">选择字段</option>
+        <div v-if="selected.source === 'field'" class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
+            <option value="">{{ t('选择字段') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
@@ -431,9 +432,9 @@
             <option value="field">{{ t('数据字段') }}</option>
           </select>
         </div>
-        <div v-if="(selected.source || 'print') === 'field'" class="form-row">
-          <label>{{ t('字段') }}</label>
-          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+        <div v-if="(selected.source || 'print') === 'field'" class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <select class="input bind-field-select" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
             <option value="">{{ t('选择字段') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
@@ -479,14 +480,14 @@
       <!-- 勾选框 -->
       <fieldset v-if="selected.type === 'checkbox'">
         <legend>{{ t('勾选框') }}</legend>
-        <div class="form-row">
-          <label>{{ t('绑定字段') }}</label>
-          <select class="input" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
+        <div class="bind-field-emphasis">
+          <label class="bind-field-label">{{ t('绑定字段') }}</label>
+          <p class="bind-field-desc">{{ t('字段为 1/是/Y/true 等时显示勾选，0/否/空为未勾选。') }}</p>
+          <select class="input bind-field-select" :value="selected.binding || ''" @change="update('binding', $event.target.value)">
             <option value="">{{ t('（不绑定）') }}</option>
             <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
           </select>
         </div>
-        <div class="hint">{{ t('字段为 1/是/Y/true 等时显示勾选，0/否/空为未勾选。') }}</div>
         <div class="form-row">
           <label>{{ t('勾选符') }}</label><input class="input" :value="selected.checkedChar || '☑'" @input="update('checkedChar', $event.target.value)" />
           <label>{{ t('未选符') }}</label><input class="input" :value="selected.uncheckedChar || '☐'" @input="update('uncheckedChar', $event.target.value)" />
@@ -1133,6 +1134,47 @@ legend {
 }
 .hint.indent { padding-left: 60px; }
 .hint.warn { color: var(--warning); }
+
+.bind-field-emphasis {
+  margin: 0 0 12px;
+  padding: 10px 10px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-panel));
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, var(--border));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.bind-field-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--primary);
+}
+.bind-field-desc {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.bind-field-select {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: var(--bg-panel);
+}
+.bind-field-select:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+.bind-field-hint {
+  margin: 6px 0 0;
+  padding: 0;
+}
 .check-line {
   display: flex;
   align-items: flex-start;
