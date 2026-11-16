@@ -5,7 +5,7 @@
         v-for="item in items"
         :key="item.id"
         type="button"
-        class="act-btn"
+        class="act-btn act-btn-labeled"
         :class="{ on: open && view === item.id }"
         :title="itemTitle(item)"
         :aria-label="itemTitle(item)"
@@ -13,6 +13,7 @@
         @click="toggle(item.id)"
       >
         <span class="act-ico" aria-hidden="true" v-html="item.icon"></span>
+        <span class="act-txt">{{ item.short }}</span>
         <span v-if="item.badge != null" class="act-badge">{{ item.badge }}</span>
       </button>
     </nav>
@@ -79,30 +80,35 @@ const items = computed(() => [
   {
     id: 'project',
     label: t('项目'),
+    short: t('项目'),
     badge: project.projects.length,
     icon: S('<path d="M4 6.5h7l1.5 2H20v9.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18V6.5z"/>')
   },
   {
     id: 'components',
     label: t('组件'),
+    short: t('组件'),
     badge: null,
     icon: S('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>')
   },
   {
     id: 'layers',
     label: t('图层'),
+    short: t('图层'),
     badge: project.project.components.length || null,
     icon: S('<path d="M12 4 4 8.5 12 13l8-4.5L12 4z"/><path d="M4 12.5 12 17l8-4.5"/><path d="M4 16.5 12 21l8-4.5"/>')
   },
   {
     id: 'fields',
     label: t('字段'),
+    short: t('字段'),
     badge: data.fields.length || null,
     icon: S('<path d="M5 7h14M5 12h10M5 17h12"/><circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none"/>')
   },
   {
     id: 'ai',
     label: t('AI 调整'),
+    short: t('AI'),
     badge: null,
     icon: S('<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4.5"/><path d="M9.5 12h5"/>')
   }
@@ -154,12 +160,12 @@ defineExpose({ showView, toggle })
   z-index: 5;
 }
 .activity {
-  width: 44px;
+  width: 52px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 8px 0;
   border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background:
@@ -167,8 +173,7 @@ defineExpose({ showView, toggle })
 }
 .act-btn {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 46px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -179,15 +184,33 @@ defineExpose({ showView, toggle })
   justify-content: center;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
+.act-btn-labeled {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  padding: 4px 2px 3px;
+  line-height: 1;
+}
+.act-txt {
+  font-size: 9px;
+  font-weight: 600;
+  max-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
 .act-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
+.act-btn:hover .act-txt { color: var(--text-secondary); }
 .act-btn.on {
   color: var(--primary);
   background: color-mix(in srgb, var(--primary) 16%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
 }
+.act-btn.on .act-txt { color: var(--primary); }
 .act-btn:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
