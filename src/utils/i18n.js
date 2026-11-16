@@ -816,6 +816,7 @@ const EN = {
   '在现有标签上说人话。AI 可以改布局、数据列和打印设置，不会整页推倒重来。': 'Describe the change. AI can edit the layout, data columns, and print settings without rebuilding the label.',
   '对着已有项目微调。AI 会先读布局、已导入的数据、打印设置和纸张排版，再只改你提到的地方。': 'Fine-tune the current project. AI reads the layout, imported data, print settings, and how labels sit on the page, then changes only what you asked.',
   '将读取：布局 {n} 个组件，数据 {rows} 行，打印设置，排版 {sheet}（纸张 {w}×{h} mm）。': 'Will read: {n} components, {rows} data rows, print settings, and imposition {sheet} (paper {w}×{h} mm).',
+  'AI': 'AI',
   'AI 调整': 'AI adjust',
   'AI 调整：对着当前标签说话，画布上马上能看到': 'AI adjust: describe the change and see it on the canvas',
   '发送': 'Send',
