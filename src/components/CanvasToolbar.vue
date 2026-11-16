@@ -1,19 +1,22 @@
 <template>
   <div class="canvas-toolbar" role="toolbar" :aria-label="t('画布工具')">
     <div class="cluster">
-      <button class="tool" type="button" :disabled="!project.canUndo" @click="project.undo()" :title="t('撤销 (Ctrl+Z)')" :aria-label="t('撤销 (Ctrl+Z)')">
+      <button class="tool tool-labeled" type="button" :disabled="!project.canUndo" @click="project.undo()" :title="t('撤销 (Ctrl+Z)')" :aria-label="t('撤销 (Ctrl+Z)')">
         <span class="ico" v-html="icons.undo"></span>
+        <span class="tool-txt">{{ t('撤销') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!project.canRedo" @click="project.redo()" :title="t('重做 (Ctrl+Y)')" :aria-label="t('重做 (Ctrl+Y)')">
+      <button class="tool tool-labeled" type="button" :disabled="!project.canRedo" @click="project.redo()" :title="t('重做 (Ctrl+Y)')" :aria-label="t('重做 (Ctrl+Y)')">
         <span class="ico" v-html="icons.redo"></span>
+        <span class="tool-txt">{{ t('重做') }}</span>
       </button>
     </div>
 
     <span class="rule" aria-hidden="true"></span>
 
     <div class="cluster zoom-cluster">
-      <button class="tool" type="button" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" :aria-label="t('缩小')">
+      <button class="tool tool-labeled" type="button" @click="zoomOut" :title="t('缩小 (Ctrl+-)')" :aria-label="t('缩小')">
         <span class="ico" v-html="icons.minus"></span>
+        <span class="tool-txt">{{ t('缩小') }}</span>
       </button>
       <label class="zoom-readout" :title="t('缩放比例（点击选常用档位）')">
         <span class="sr-only">{{ t('缩放') }}</span>
@@ -21,15 +24,20 @@
           <option v-for="p in zoomOptions" :key="p" :value="p">{{ p }}%</option>
         </select>
       </label>
-      <button class="tool" type="button" @click="zoomIn" :title="t('放大 (Ctrl++)')" :aria-label="t('放大')">
+      <button class="tool tool-labeled" type="button" @click="zoomIn" :title="t('放大 (Ctrl++)')" :aria-label="t('放大')">
         <span class="ico" v-html="icons.plus"></span>
+        <span class="tool-txt">{{ t('放大') }}</span>
       </button>
-      <button class="tool" type="button" @click="zoomReset" :title="t('实际大小 (Ctrl+0)')" :aria-label="t('实际大小')">1:1</button>
-      <button class="tool" type="button" @click="zoomFit" :title="t('适合窗口 (F)')" :aria-label="t('适合窗口')">
+      <button class="tool tool-labeled" type="button" @click="zoomReset" :title="t('实际大小 (Ctrl+0)')" :aria-label="t('实际大小')">
+        <span class="tool-txt scale-mark">1:1</span>
+        <span class="tool-txt">{{ t('原大') }}</span>
+      </button>
+      <button class="tool tool-labeled" type="button" @click="zoomFit" :title="t('适合窗口 (F)')" :aria-label="t('适合窗口')">
         <span class="ico" v-html="icons.fit"></span>
+        <span class="tool-txt">{{ t('适合') }}</span>
       </button>
       <button
-        class="tool"
+        class="tool tool-labeled"
         type="button"
         :class="{ on: project.showGrid }"
         @click="toggleGrid"
@@ -38,35 +46,44 @@
         :aria-pressed="project.showGrid"
       >
         <span class="ico" v-html="icons.grid"></span>
+        <span class="tool-txt">{{ t('网格') }}</span>
       </button>
     </div>
 
     <span class="rule" aria-hidden="true"></span>
 
     <div class="cluster align-cluster" :class="{ dim: !canAlign }">
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('left')" :title="t('左对齐')" :aria-label="t('左对齐')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('left')" :title="t('左对齐')" :aria-label="t('左对齐')">
         <span class="ico" v-html="icons.alignLeft"></span>
+        <span class="tool-txt">{{ t('左齐') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('hcenter')" :title="t('水平居中')" :aria-label="t('水平居中')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('hcenter')" :title="t('水平居中')" :aria-label="t('水平居中')">
         <span class="ico" v-html="icons.alignH"></span>
+        <span class="tool-txt">{{ t('横中') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('right')" :title="t('右对齐')" :aria-label="t('右对齐')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('right')" :title="t('右对齐')" :aria-label="t('右对齐')">
         <span class="ico" v-html="icons.alignRight"></span>
+        <span class="tool-txt">{{ t('右齐') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('top')" :title="t('上对齐')" :aria-label="t('上对齐')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('top')" :title="t('上对齐')" :aria-label="t('上对齐')">
         <span class="ico" v-html="icons.alignTop"></span>
+        <span class="tool-txt">{{ t('上齐') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('vcenter')" :title="t('垂直居中')" :aria-label="t('垂直居中')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('vcenter')" :title="t('垂直居中')" :aria-label="t('垂直居中')">
         <span class="ico" v-html="icons.alignV"></span>
+        <span class="tool-txt">{{ t('纵中') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canAlign" @click="align('bottom')" :title="t('下对齐')" :aria-label="t('下对齐')">
+      <button class="tool tool-labeled" type="button" :disabled="!canAlign" @click="align('bottom')" :title="t('下对齐')" :aria-label="t('下对齐')">
         <span class="ico" v-html="icons.alignBottom"></span>
+        <span class="tool-txt">{{ t('下齐') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canDistribute" @click="distribute('h')" :title="t('水平等距（需 ≥3 个）')" :aria-label="t('水平等距')">
+      <button class="tool tool-labeled" type="button" :disabled="!canDistribute" @click="distribute('h')" :title="t('水平等距（需 ≥3 个）')" :aria-label="t('水平等距')">
         <span class="ico" v-html="icons.distH"></span>
+        <span class="tool-txt">{{ t('横距') }}</span>
       </button>
-      <button class="tool" type="button" :disabled="!canDistribute" @click="distribute('v')" :title="t('垂直等距（需 ≥3 个）')" :aria-label="t('垂直等距')">
+      <button class="tool tool-labeled" type="button" :disabled="!canDistribute" @click="distribute('v')" :title="t('垂直等距（需 ≥3 个）')" :aria-label="t('垂直等距')">
         <span class="ico" v-html="icons.distV"></span>
+        <span class="tool-txt">{{ t('纵距') }}</span>
       </button>
     </div>
 
@@ -75,7 +92,7 @@
     <!-- 选中操作：样式 / 删除 —— 跟画布上下文走，不挤属性栏标题 -->
     <div class="cluster sel-cluster" :class="{ dim: !hasSelection }">
       <button
-        class="tool"
+        class="tool tool-labeled"
         type="button"
         :disabled="!hasSelection"
         @click="onCopyStyle"
@@ -83,9 +100,10 @@
         :aria-label="t('复制样式')"
       >
         <span class="ico" v-html="icons.copyStyle"></span>
+        <span class="tool-txt">{{ t('复样') }}</span>
       </button>
       <button
-        class="tool"
+        class="tool tool-labeled"
         type="button"
         :disabled="!canPaste"
         @click="onPasteStyle"
@@ -93,9 +111,10 @@
         :aria-label="t('粘贴样式')"
       >
         <span class="ico" v-html="icons.pasteStyle"></span>
+        <span class="tool-txt">{{ t('粘样') }}</span>
       </button>
       <button
-        class="tool danger"
+        class="tool tool-labeled danger"
         type="button"
         :disabled="!hasSelection"
         @click="onDelete"
@@ -103,6 +122,7 @@
         :aria-label="t('删除组件')"
       >
         <span class="ico" v-html="icons.trash"></span>
+        <span class="tool-txt">{{ t('删除') }}</span>
       </button>
       <span
         v-if="styleClipboard"
@@ -139,8 +159,7 @@ const project = useProjectStore()
 const { t } = useI18n()
 
 const TYPE_NAMES = {
-  text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码',
-  rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框'
+  text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框'
 }
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -293,11 +312,12 @@ onBeforeUnmount(() => {
 <style scoped>
 .canvas-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 6px;
   flex-shrink: 0;
-  min-height: 40px;
-  padding: 4px 10px;
+  min-height: 52px;
+  padding: 4px 10px 6px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-panel) 92%, var(--primary) 8%), var(--bg-panel));
   border-bottom: 1px solid var(--border);
@@ -305,7 +325,8 @@ onBeforeUnmount(() => {
 }
 .cluster {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
@@ -330,6 +351,32 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
+.tool-labeled {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 34px;
+  height: auto;
+  min-height: 36px;
+  padding: 3px 4px 2px;
+  line-height: 1;
+}
+.tool-txt {
+  font-size: 9px;
+  font-weight: 600;
+  max-width: 40px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.tool-labeled:hover:not(:disabled) .tool-txt { color: var(--text-secondary); }
+.scale-mark {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
 .tool:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text);
@@ -346,6 +393,7 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--primary) 18%, transparent);
   color: var(--primary);
 }
+.tool.on .tool-txt { color: var(--primary); }
 .tool.danger {
   color: var(--text-secondary);
 }
@@ -353,9 +401,10 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--danger) 16%, transparent);
   color: var(--danger);
 }
+.tool.danger:hover:not(:disabled) .tool-txt { color: var(--danger); }
 .clip-chip {
   max-width: 88px;
-  margin: 0 4px 0 2px;
+  margin: 4px 4px 0 2px;
   padding: 0 6px;
   height: 22px;
   line-height: 22px;
@@ -380,7 +429,8 @@ onBeforeUnmount(() => {
 .ico :deep(svg) { display: block; }
 .rule {
   width: 1px;
-  height: 20px;
+  height: 36px;
+  align-self: center;
   background: var(--border);
   flex-shrink: 0;
   margin: 0 2px;
@@ -388,6 +438,7 @@ onBeforeUnmount(() => {
 .zoom-readout {
   display: inline-flex;
   align-items: center;
+  align-self: center;
 }
 .zoom-readout select {
   appearance: none;
@@ -400,13 +451,13 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   padding: 0 16px 0 8px;
-  height: 28px;
+  height: 36px;
   cursor: pointer;
   border-radius: 6px;
   background-image:
     linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 8px) 12px, calc(100% - 4px) 12px;
+  background-position: calc(100% - 8px) 15px, calc(100% - 4px) 15px;
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
   color-scheme: light dark;
@@ -428,6 +479,8 @@ onBeforeUnmount(() => {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  align-self: center;
+  padding-top: 4px;
 }
 .meta-chip {
   font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;

@@ -96,14 +96,14 @@
       <button
         v-for="a in visibleActions"
         :key="a.id"
-        class="btn"
+        class="btn btn-labeled"
         type="button"
         :data-sec-id="a.id"
         :title="t(a.label)"
         @click="$emit(a.id)"
       >
         <span class="ico" v-html="icons[a.icon]"></span>
-        <span class="txt">{{ t(a.label) }}</span>
+        <span class="txt">{{ secShort(a) }}</span>
       </button>
     </div>
 
@@ -112,15 +112,15 @@
       <button
         v-for="a in secondaryActions"
         :key="'m-' + a.id"
-        class="btn"
+        class="btn btn-labeled"
         type="button"
         tabindex="-1"
         :data-sec-id="a.id"
       >
         <span class="ico" v-html="icons[a.icon]"></span>
-        <span class="txt">{{ t(a.label) }}</span>
+        <span class="txt">{{ secShort(a) }}</span>
       </button>
-      <button class="btn" type="button" tabindex="-1" data-sec-id="__more__">
+      <button class="btn btn-labeled" type="button" tabindex="-1" data-sec-id="__more__">
         <span class="ico" v-html="icons.more"></span>
         <span class="txt">{{ t('更多') }}</span>
         <span class="caret" aria-hidden="true">▾</span>
@@ -132,7 +132,7 @@
     <div v-if="overflowActions.length" class="group group-more more-wrap">
       <button
         ref="moreBtnRef"
-        class="btn"
+        class="btn btn-labeled"
         type="button"
         :aria-expanded="moreOpen ? 'true' : 'false'"
         aria-haspopup="menu"
@@ -159,31 +159,34 @@
 
     <div ref="prefsRef" class="group group-prefs">
       <button
-        class="btn btn-icon"
+        class="btn btn-labeled"
         type="button"
         @click="settings.toggleTheme()"
         :title="settings.theme === 'dark' ? t('切换到亮色') : t('切换到暗色')"
         :aria-label="settings.theme === 'dark' ? t('切换到亮色') : t('切换到暗色')"
       >
         <span class="ico" aria-hidden="true" v-html="settings.theme === 'dark' ? icons.sun : icons.moon"></span>
+        <span class="txt">{{ t('主题') }}</span>
       </button>
       <button
-        class="btn btn-icon"
+        class="btn btn-labeled"
         type="button"
         @click="settings.toggleLang()"
         :title="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')"
         :aria-label="settings.lang === 'en' ? t('切换到中文') : t('Switch to English')"
       >
-        {{ settings.lang === 'en' ? '中' : 'EN' }}
+        <span class="ico lang-mark" aria-hidden="true">{{ settings.lang === 'en' ? '中' : 'EN' }}</span>
+        <span class="txt">{{ t('语言') }}</span>
       </button>
       <button
-        class="btn btn-icon"
+        class="btn btn-labeled"
         type="button"
         :title="t('关于')"
         :aria-label="t('关于')"
         @click="$emit('about')"
       >
         <span class="ico" aria-hidden="true" v-html="icons.info"></span>
+        <span class="txt">{{ t('关于') }}</span>
       </button>
     </div>
     <div v-if="moreOpen || projOpen || brandOpen" class="more-mask" @click="moreOpen = false; projOpen = false; brandOpen = false"></div>
@@ -209,13 +212,17 @@ const emit = defineEmits([
 ])
 
 const secondaryActions = [
-  { id: 'template-library', label: '模板库', icon: 'library' },
-  { id: 'ai', label: 'AI 调整', icon: 'ai' },
-  { id: 'field-map', label: '字段映射', icon: 'map' },
-  { id: 'layout-editor', label: '打印排版', icon: 'layout' },
-  { id: 'print-config', label: '打印设置', icon: 'printSetup' },
-  { id: 'print-center', label: '打印中心', icon: 'queue' }
+  { id: 'template-library', label: '模板库', short: '模板库', icon: 'library' },
+  { id: 'ai', label: 'AI 调整', short: 'AI', icon: 'ai' },
+  { id: 'field-map', label: '字段映射', short: '映射', icon: 'map' },
+  { id: 'layout-editor', label: '打印排版', short: '排版', icon: 'layout' },
+  { id: 'print-config', label: '打印设置', short: '设置', icon: 'printSetup' },
+  { id: 'print-center', label: '打印中心', short: '中心', icon: 'queue' }
 ]
+
+function secShort(a) {
+  return t(a.short || a.label)
+}
 
 const overflowIds = ref([])
 const visibleActions = computed(() =>
@@ -367,7 +374,7 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
   border-bottom: 1px solid var(--border);
   gap: 4px;
   flex-shrink: 0;
-  min-height: 48px;
+  min-height: 56px;
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -491,6 +498,35 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
 .spacer { flex: 1; min-width: 8px; }
 
 .btn { display: inline-flex; align-items: center; gap: 5px; }
+.btn-labeled {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 44px;
+  padding: 4px 6px 3px;
+  line-height: 1.1;
+}
+.btn-labeled .txt {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.btn-labeled:hover .txt { color: var(--text); }
+.btn-labeled .lang-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
 .btn .ico {
   display: inline-flex;
   width: 15px;
@@ -546,7 +582,8 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
 
 .toolbar.compact .logo-text,
 .toolbar.compact .filename-text { display: none; }
-.toolbar.compact .btn .txt { display: none; }
+.toolbar.compact .group-main .btn .txt { display: none; }
+.toolbar.compact .btn-labeled .txt { display: block; font-size: 9px; }
 .toolbar.compact .btn.keep-label .txt { display: inline; }
 .toolbar.compact .caret { display: none; }
 .toolbar.compact .divider-hide-narrow { display: none; }
@@ -554,7 +591,9 @@ watch([isCompact, () => settings.lang, () => project.project?.meta?.name, () => 
 .toolbar.compact .btn { padding: 4px 6px; }
 
 /* 测量层同步 compact 文案显隐，宽度才准 */
-.toolbar.compact .group-measure .btn .txt { display: none; }
+.toolbar.compact .group-measure .group-main .btn .txt { display: none; }
+.toolbar.compact .group-measure .btn-labeled .txt { display: block; }
 .toolbar.compact .group-measure .caret { display: none; }
-.toolbar:not(.compact) .group-measure .btn .txt { display: inline; }
+.toolbar:not(.compact) .group-measure .btn-labeled .txt { display: block; }
+.toolbar:not(.compact) .group-measure .group-main .btn .txt { display: inline; }
 </style>
