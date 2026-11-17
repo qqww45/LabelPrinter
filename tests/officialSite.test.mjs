@@ -51,7 +51,8 @@ const mustUseOfficial = [
   'index.html',
   'public/llms.txt',
   'public/robots.txt',
-  'public/sitemap.xml'
+  'public/sitemap.xml',
+  'public/sitemap-images.xml'
 ]
 for (const rel of mustUseOfficial) {
   const text = fs.readFileSync(path.join(root, rel), 'utf8')
@@ -63,8 +64,26 @@ const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
 assert(indexHtml.includes(`href="${OFFICIAL_SITE_URL}"`), 'canonical must use trailing-slash official URL')
 assert(indexHtml.includes(`"url": "${OFFICIAL_SITE_URL}"`), 'JSON-LD url must match official site')
 assert(
-  indexHtml.includes(`${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.webp`),
-  'index.html must include absolute og:image URL'
+  indexHtml.includes(`${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`),
+  'index.html must include absolute og:image JPG URL'
+)
+assert(indexHtml.includes('og:image:type" content="image/jpeg"'), 'og:image:type must be jpeg')
+assert(indexHtml.includes('id="seo-product-shots"'), 'index.html must include static crawler-visible images')
+assert(
+  indexHtml.includes('src="/marketing/hero-app-editor.jpg"'),
+  'static img must point at marketing JPG'
+)
+assert(indexHtml.includes('"image": "https://ci64.com/marketing/hero-app-editor.jpg"'), 'JSON-LD image')
+assert(fs.existsSync(path.join(root, 'public/favicon.ico')), 'public/favicon.ico must exist')
+const favIcon = fs.readFileSync(path.join(root, 'public/favicon.ico'))
+assert(favIcon[0] === 0 && favIcon.length > 20, 'favicon.ico must be a real icon file')
+const robots = fs.readFileSync(path.join(root, 'public/robots.txt'), 'utf8')
+assert(robots.includes('sitemap-images.xml'), 'robots must reference image sitemap')
+const imgSitemap = fs.readFileSync(path.join(root, 'public/sitemap-images.xml'), 'utf8')
+assert(imgSitemap.includes('xmlns:image='), 'image sitemap must declare image namespace')
+assert(
+  imgSitemap.includes(`${OFFICIAL_SITE_ORIGIN}/marketing/sample-price-tag.jpg`),
+  'image sitemap must list product JPGs'
 )
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))

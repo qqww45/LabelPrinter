@@ -10,7 +10,7 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg)
 }
 
-assert(OG_IMAGE_URL === `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.webp`, 'OG image URL')
+assert(OG_IMAGE_URL === `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`, 'OG image URL')
 
 for (const path of ['/', '/templates', '/help', '/app']) {
   assert(siteMetaForPath(path), `meta for ${path}`)
@@ -24,7 +24,7 @@ assert(canonicalUrlForPath('/app') === `${OFFICIAL_SITE_ORIGIN}/app`, 'app canon
 assert(ROUTE_SITE_META['/app'].robots === 'noindex,follow', '/app must be noindex')
 assert(ROUTE_SITE_META['/'].robots === 'index,follow', 'home indexable')
 
-assert(ROUTE_SITE_META['/templates'].title.includes('模板库'), 'templates title')
+assert(ROUTE_SITE_META['/templates'].title.includes('模板'), 'templates title')
 assert(ROUTE_SITE_META['/help'].title.includes('帮助'), 'help title')
 
 console.log('siteMeta ok')

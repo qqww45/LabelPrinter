@@ -1,6 +1,18 @@
 <template>
   <figure class="mkt-img" :class="{ 'mkt-img-cover': cover }" :style="figureStyle">
+    <picture v-if="jpgSrc">
+      <source type="image/webp" :srcset="src" />
+      <img
+        :src="jpgSrc"
+        :alt="alt"
+        :loading="priority ? 'eager' : 'lazy'"
+        :fetchpriority="priority ? 'high' : 'auto'"
+        decoding="async"
+        @error="onError"
+      />
+    </picture>
     <img
+      v-else
       :src="src"
       :alt="alt"
       :loading="priority ? 'eager' : 'lazy'"
@@ -27,6 +39,10 @@ const props = defineProps({
 })
 
 const failed = ref(false)
+
+const jpgSrc = computed(() =>
+  props.src.endsWith('.webp') ? props.src.replace(/\.webp$/, '.jpg') : ''
+)
 
 const figureStyle = computed(() => {
   const style = { borderRadius: props.radius }

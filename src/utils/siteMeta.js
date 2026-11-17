@@ -1,7 +1,8 @@
 import { OFFICIAL_SITE_ORIGIN, OFFICIAL_SITE_URL, REPO_URL } from './site.js'
 
-/** 社交分享与 og:image 默认图（public/marketing/） */
-export const OG_IMAGE_URL = `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.webp`
+/** 社交分享与 og:image 默认图（public/marketing/，JPG 便于百度与微信抓取） */
+export const OG_IMAGE_URL = `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`
+export const OG_IMAGE_TYPE = 'image/jpeg'
 
 const HOME_TITLE = '签立方：免费在线标签打印，可免费 AI排版'
 const HOME_DESCRIPTION =
@@ -16,16 +17,16 @@ export const ROUTE_SITE_META = {
     canonicalPath: '/'
   },
   '/templates': {
-    title: '模板库：价签、面单与资产贴模板｜签立方',
+    title: '签立方模板库：免费价签、条码与面单模板',
     description:
-      '免费在线标签模板库。按行业、尺寸与用途筛选价签、快递面单、资产贴等模板，预览字段说明，一键套用进工作台并带示例数据。',
+      '浏览免费价签、条码、快递面单与资产贴模板。按行业与纸型筛选，预览字段说明，一键套用进工作台，导入数据后即可打印或导出 PDF。',
     robots: 'index,follow',
     canonicalPath: '/templates'
   },
   '/help': {
-    title: '帮助手册：Excel 批量打印、条码与 AI 排版｜签立方',
+    title: '签立方帮助：导入 Excel、排版与打印导出',
     description:
-      '签立方使用手册：导入 Excel/CSV、字段映射、条形码与二维码、拼版打印与 PDF 导出、默认可免费 AI 排版（可选自备 API Key）。',
+      '签立方使用说明：导入 Excel 或 CSV、绑定字段与条码、毫米纸张与拼版、批量打印与矢量 PDF 导出；默认可免费 AI 排版，数据留在浏览器。',
     robots: 'index,follow',
     canonicalPath: '/help'
   },
@@ -105,6 +106,7 @@ export function applyRouteSiteMeta(path) {
   upsertMetaByProperty('og:description', meta.description)
   upsertMetaByProperty('og:url', canonical)
   upsertMetaByProperty('og:image', OG_IMAGE_URL)
+  upsertMetaByProperty('og:image:type', OG_IMAGE_TYPE)
 
   upsertMetaByName('twitter:title', meta.title)
   upsertMetaByName('twitter:description', meta.description)

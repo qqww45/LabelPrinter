@@ -20,3 +20,4 @@ User-agent: Google-Extended
 Allow: /
 
 Sitemap: https://ci64.com/sitemap.xml
+Sitemap: https://ci64.com/sitemap-images.xml
