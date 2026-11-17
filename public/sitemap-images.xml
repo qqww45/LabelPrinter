@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://ci64.com/</loc>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/hero-app-editor.jpg</image:loc>
+      <image:title>签立方在线标签设计工作台界面</image:title>
+      <image:caption>免费在线标签打印：导入 Excel，设计价签、条码与面单并批量打印或导出 PDF。</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/sample-price-tag.jpg</image:loc>
+      <image:title>价签打印预览样例</image:title>
+      <image:caption>简洁价签模板打印效果，含品名、规格、价格与条码。</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/sample-waybill.jpg</image:loc>
+      <image:title>快递面单打印预览样例</image:title>
+      <image:caption>收件信息、运单号与二维码批量面单打印。</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/hero-label-stickers.jpg</image:loc>
+      <image:title>多种标签模板画布预览</image:title>
+      <image:caption>价签、条码、资产贴等多种内置模板标本。</image:caption>
+    </image:image>
+  </url>
+</urlset>
