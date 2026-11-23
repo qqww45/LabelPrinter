@@ -39,6 +39,7 @@ for (const f of ['EAN13', 'EAN8', 'UPC', 'ITF14', 'CODABAR']) {
   const v = sample1DBarcodeValue(f)
   assert(barcodeScanIssue({ format: f, value: v, widthMm: 40, heightMm: 12 }) === 'ok', `sample ${f} scannable`)
 }
+assert(barcodeScanIssue({ format: 'ITF14', value: '10012345678907', widthMm: 40, heightMm: 12 }) === 'itf-check', 'bad ITF-14 sample rejected')
 
 assert(allSymbologyIdsLocal().length >= 10, 'local catalog only')
 assert(!allSymbologyIdsLocal().some(id => /^https?:/i.test(id)), 'no remote symbology ids')

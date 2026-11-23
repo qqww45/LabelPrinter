@@ -1163,7 +1163,9 @@ const EN = {
   '图标加载失败，请重试': 'Icon failed to load. Try again.',
   'EAN-8 校验位不对，扫出来会失败': 'EAN-8 check digit invalid',
   'UPC-A 校验位不对，扫出来会失败': 'UPC-A check digit invalid',
-  '校验位不对，扫出来会失败': 'Check digit invalid'
+  '校验位不对，扫出来会失败': 'Check digit invalid',
+  'ITF-14 需要 14 位数字': 'ITF-14 needs 14 digits',
+  'ITF-14 校验位不对，扫出来会失败': 'ITF-14 check digit invalid'
 }
 
 export function useI18n() {
