@@ -73,8 +73,18 @@ assert(
   indexHtml.includes('src="/marketing/hero-app-editor.jpg"'),
   'static img must point at marketing JPG'
 )
-assert(indexHtml.includes('"image": "https://ci64.com/marketing/hero-app-editor.jpg"'), 'JSON-LD image')
+assert(
+  indexHtml.includes('"@type": "Organization"') || indexHtml.includes('"image": "https://ci64.com/marketing/hero-app-editor.jpg"'),
+  'JSON-LD Organization or image'
+)
 assert(fs.existsSync(path.join(root, 'public/favicon.ico')), 'public/favicon.ico must exist')
+assert(fs.existsSync(path.join(root, 'public/ai.txt')), 'public/ai.txt must exist')
+assert(fs.existsSync(path.join(root, 'public/404.html')), 'public/404.html must exist')
+assert(indexHtml.includes('SEO_BODY_START'), 'index.html prerender body markers')
+assert(indexHtml.includes('hreflang="zh-CN"'), 'hreflang zh-CN')
+const edgeone = JSON.parse(fs.readFileSync(path.join(root, 'edgeone.json'), 'utf8'))
+assert(edgeone.errorPage === '404.html', 'edgeone uses 404.html')
+assert(!edgeone.rewrites?.some((r) => r.source === '/*'), 'no catch-all soft 404 rewrite')
 const favIcon = fs.readFileSync(path.join(root, 'public/favicon.ico'))
 assert(favIcon[0] === 0 && favIcon.length > 20, 'favicon.ico must be a real icon file')
 const robots = fs.readFileSync(path.join(root, 'public/robots.txt'), 'utf8')
@@ -89,7 +99,7 @@ assert(
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 assert(pkg.homepage === OFFICIAL_SITE_URL, 'package.json homepage must match official site')
 
-const SITEMAP_PATHS = ['/', '/templates', '/help']
+import { SITEMAP_PATHS } from '../src/content/seoStatic.js'
 const sitemap = fs.readFileSync(path.join(root, 'public/sitemap.xml'), 'utf8')
 const sitemapLocs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
 const expectedLocs = SITEMAP_PATHS.map(p =>

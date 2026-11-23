@@ -8,13 +8,34 @@ import { ref } from 'vue'
 // 模块级响应式语言（由 settings store 同步），保证所有组件的 t() 一致响应
 const lang = ref('zh')
 
-/** 按浏览器/系统首选语言推断界面：中文系 → zh，其余有语言则 → en，空则兜底 zh */
-export function detectPreferredLang(languages = typeof navigator !== 'undefined'
-  ? (navigator.languages?.length ? navigator.languages : [navigator.language])
-  : []) {
+/** 常见爬虫 UA：无语言偏好时界面默认中文，避免英文 H1 进入摘要 */
+export function isLikelyCrawler(userAgent = '') {
+  const u = String(userAgent).toLowerCase()
+  return /bot|crawler|spider|slurp|bingpreview|facebookexternalhit|twitterbot|linkedinbot|gptbot|oai-searchbot|chatgpt-user|claudebot|anthropic-ai|perplexitybot|google-extended|bytespider|yandex|baiduspider|applebot|semrush|ahrefs|petalbot|headlesschrome|phantomjs/i.test(
+    u
+  )
+}
+
+/**
+ * 按浏览器/系统首选语言推断界面：中文系 → zh，其余有语言则 → en，空则兜底 zh。
+ * 爬虫与无语言头默认 zh，便于 SEO 首屏与 Vue 文案一致。
+ * @param {string[]} [languages]
+ * @param {string} [userAgent]
+ */
+export function detectPreferredLang(
+  languages = typeof navigator !== 'undefined'
+    ? navigator.languages?.length
+      ? navigator.languages
+      : [navigator.language]
+    : [],
+  userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+) {
+  if (isLikelyCrawler(userAgent)) return 'zh'
   const list = Array.isArray(languages) ? languages : [languages]
-  const primary = list.map((raw) => String(raw || '').toLowerCase()).find(Boolean)
-  if (!primary) return 'zh'
+  const normalized = list.map((raw) => String(raw || '').toLowerCase()).filter(Boolean)
+  if (normalized.length === 0) return 'zh'
+  const primary = normalized[0]
+  if (primary === '*' || primary === 'und') return 'zh'
   if (primary === 'zh' || primary.startsWith('zh-')) return 'zh'
   return 'en'
 }
@@ -1086,7 +1107,10 @@ const EN = {
   '完整说明见帮助手册': 'Full guide in Help',
   '表格一行 · 标签一张': 'One row, one label',
   '超市价签 70×40': 'Grocery tag 70×40 mm',
-  '预览': 'Preview'
+  '预览': 'Preview',
+  '页面未找到': 'Page not found',
+  '你访问的链接不存在。': 'This link does not exist.',
+  '返回首页': 'Back to home'
 }
 
 export function useI18n() {

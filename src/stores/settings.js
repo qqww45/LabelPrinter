@@ -7,7 +7,16 @@ const KEY = 'labelprint_settings_v1'
 export const useSettingsStore = defineStore('settings', () => {
   const theme = ref('light')   // 'light' | 'dark'
   // 无本地偏好时跟系统/浏览器语言走；用户点过一次语言按钮后写入 localStorage
-  const lang = ref(detectPreferredLang())
+  const lang = ref(
+    detectPreferredLang(
+      typeof navigator !== 'undefined'
+        ? navigator.languages?.length
+          ? navigator.languages
+          : [navigator.language]
+        : [],
+      typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    )
+  )
 
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || '{}')

@@ -7,12 +7,7 @@
   "agents": {
     "framework": "deepagents"
   },
-  "rewrites": [
-    {
-      "source": "/*",
-      "destination": "/index.html"
-    }
-  ],
+  "errorPage": "404.html",
   "caches": [
     {
       "source": "/theme-boot.js",
