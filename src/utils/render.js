@@ -8,6 +8,8 @@ export function rowIsEmpty(row) {
 }
 
 import { escapeHtmlWithBreaks } from './escapeHtml.js'
+import { normalizeDataMode } from './dataBindModes.js'
+import { formatSerialText } from './controls.js'
 import {
   expandTemplateText,
   fieldRefsFromText,
@@ -37,11 +39,40 @@ export function renderTextHtml(text, row) {
  */
 export function codePayload(component, row) {
   if (!component) return ''
-  if (component.binding && !rowIsEmpty(row)) {
-    const v = row[component.binding]
-    if (v !== undefined && v !== null && String(v) !== '') return String(v)
+  const mode = normalizeDataMode(component)
+
+  if (mode === 'serial') {
+    const serialCfg = {
+      prefix: component.prefix,
+      suffix: component.suffix,
+      pad: component.pad,
+      start: component.start ?? component.serialStart ?? 1,
+      step: component.step ?? component.serialStep ?? 1,
+      sequenceScope: component.sequenceScope || 'label',
+      binding: component.binding,
+      source: component.serialSource || 'sequence'
+    }
+    if (serialCfg.source === 'field' && component.binding) {
+      if (!rowIsEmpty(row)) {
+        const v = row[component.binding]
+        if (v != null && String(v).trim() !== '') return String(v).trim()
+        return ''
+      }
+      return formatSerialText({ ...serialCfg, source: 'field', binding: component.binding }, row)
+    }
+    const serialText = formatSerialText(serialCfg, row)
+    return serialText || ''
+  }
+
+  if ((mode === 'field' || mode === 'batch') && component.binding) {
+    if (!rowIsEmpty(row)) {
+      const v = row[component.binding]
+      if (v !== undefined && v !== null && String(v) !== '') return String(v)
+      return ''
+    }
     return ''
   }
+
   const staticText = component.text != null ? String(component.text) : ''
   if (staticText && !staticText.includes('{{')) return staticText
   return ''

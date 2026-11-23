@@ -80,15 +80,7 @@
           </ul>
           <RouterLink class="expr-manual" to="/help#文本表达式">{{ t('完整说明见帮助手册') }}</RouterLink>
         </details>
-        <div class="bind-field-emphasis">
-          <label class="bind-field-label">{{ t('绑定字段') }}</label>
-          <p class="bind-field-desc">{{ t('与数据列关联后，预览与打印会按行自动填内容') }}</p>
-          <select class="input bind-field-select" :value="selected.binding || ''" @change="onBindingChange($event.target.value)">
-            <option value="">{{ t('（不绑定）') }}</option>
-            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
-          </select>
-          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
-        </div>
+        <DataBindSection :model="selected" kind="text" @patch="patchSelected" />
         <div class="form-row pair">
           <label>{{ t('字号') }}</label>
           <input class="input num" type="number" :value="selected.fontSize" @change="update('fontSize', +$event.target.value)" />
@@ -208,44 +200,28 @@
 
       <!-- 二维码 -->
       <fieldset v-if="selected.type === 'qrcode'">
-        <legend>二维码</legend>
-        <div class="bind-field-emphasis">
-          <label class="bind-field-label">{{ t('绑定字段') }}</label>
-          <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
-            <option value="">{{ t('选择字段') }}</option>
-            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
-          </select>
-          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
-          <p v-else class="hint bind-field-hint">{{ t('未绑定，使用下方静态文本') }}</p>
-        </div>
+        <legend>{{ t('二维码') }}</legend>
+        <DataBindSection :model="selected" kind="qrcode" @patch="patchSelected" />
         <div class="form-row">
-          <label>静态文本</label>
-          <input class="input" :value="selected.text" @input="update('text', $event.target.value)" placeholder="无绑定时的内容" />
+          <label>{{ t('码制') }}</label>
+          <select class="input" :value="selected.format || 'QR'" @change="update('format', $event.target.value)">
+            <optgroup v-for="g in symbology2dGroups" :key="g.key" :label="t(g.name)">
+              <option v-for="it in g.items" :key="it.id" :value="it.id">{{ it.name }} — {{ t(it.hint) }}</option>
+            </optgroup>
+          </select>
         </div>
       </fieldset>
 
       <!-- 条形码 -->
       <fieldset v-if="selected.type === 'barcode'">
-        <legend>条形码</legend>
-        <div class="bind-field-emphasis">
-          <label class="bind-field-label">{{ t('绑定字段') }}</label>
-          <select class="input bind-field-select" :value="selected.binding" @change="update('binding', $event.target.value)">
-            <option value="">{{ t('选择字段') }}</option>
-            <option v-for="f in fieldsWith(selected.binding)" :key="f" :value="f">{{ fieldOptionLabel(f) }}</option>
-          </select>
-          <p v-if="selected.binding" class="hint bind-field-hint">{{ t('当前绑定：{name}', { name: selected.binding }) }}<template v-if="!data.fields.includes(selected.binding)">{{ t('（数据里还没有此列）') }}</template></p>
-          <p v-else class="hint bind-field-hint">{{ t('未绑定，使用下方静态文本') }}</p>
-        </div>
+        <legend>{{ t('条形码') }}</legend>
+        <DataBindSection :model="selected" kind="barcode" @patch="patchSelected" />
         <div class="form-row">
-          <label>静态文本</label>
-          <input class="input" :value="selected.text" @input="update('text', $event.target.value)" />
-        </div>
-        <div class="form-row">
-          <label>格式</label>
+          <label>{{ t('码制') }}</label>
           <select class="input" :value="selected.format || 'CODE128'" @change="update('format', $event.target.value)">
-            <option value="CODE128">CODE128</option>
-            <option value="EAN13">EAN13</option>
-            <option value="CODE39">CODE39</option>
+            <optgroup v-for="g in symbology1dGroups" :key="g.key" :label="t(g.name)">
+              <option v-for="it in g.items" :key="it.id" :value="it.id">{{ it.name }} — {{ t(it.hint) }}</option>
+            </optgroup>
           </select>
         </div>
         <label class="check-line">
@@ -691,6 +667,8 @@ import { heightForFont } from '../utils/textFit'
 import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import PropSection from './PropSection.vue'
+import DataBindSection from './DataBindSection.vue'
+import { ONED_SYMBOLOGY_GROUPS, TWOD_SYMBOLOGY_GROUPS } from '../utils/symbologyCatalog.js'
 
 const project = useProjectStore()
 const data = useDataStore()
@@ -721,7 +699,14 @@ const missingInSelection = computed(() =>
 // 多选工具：直接代理 store
 function align(direction) { project.alignSelected(direction) }
 function distribute(axis) { project.distributeSelected(axis) }
+const symbology1dGroups = ONED_SYMBOLOGY_GROUPS
+const symbology2dGroups = TWOD_SYMBOLOGY_GROUPS
 const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', rect: '矩形', ellipse: '椭圆', line: '直线', date: '日期', serial: '序号', checkbox: '勾选框' }
+
+function patchSelected(patch) {
+  if (!selected.value) return
+  project.updateComponent(selected.value.id, patch)
+}
 
 // 单元格类型 tab：4 选 1（label 用中文原文作 i18n key）
 const typeTabs = [

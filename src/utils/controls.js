@@ -3,6 +3,7 @@
  * 画布、预览、PDF、热敏指令共用，避免各算各的。
  */
 import { rowIsEmpty } from './render.js'
+import { jsBarcodeFormat } from './symbologyCatalog.js'
 
 /** 有数据但价格为空/非法时的占位 */
 export const EMPTY_PRICE_DISPLAY = '—'
@@ -64,7 +65,7 @@ export function dividerEndpoints(c, x, y, w, h) {
 /** 条形码 canvas 选项（displayValue 默认 true，兼容旧模板） */
 export function barcodeCanvasOptions(c, targetWidth, targetHeight) {
   return {
-    format: c?.format || 'CODE128',
+    format: jsBarcodeFormat(c?.format || 'CODE128'),
     textRatio: c?.textRatio,
     displayValue: c?.displayValue !== false,
     targetWidth,

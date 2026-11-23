@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { dedupFieldNames } from '../utils/excel'
+import { applyBatchListToTable } from '../utils/dataBindModes'
 import { replaceFieldToken, rewriteFieldMap } from '../utils/fieldCascade'
 import { useProjectStore } from './project'
 
@@ -271,12 +272,27 @@ export const useDataStore = defineStore('data', () => {
     }
   }
 
+  /** 批量粘贴多行到指定列（不足行自动追加） */
+  function applyBatchPaste({ columnName, rawText }) {
+    const result = applyBatchListToTable({
+      headers: headers.value,
+      rows: rows.value,
+      columnName,
+      lines: rawText,
+      makeRowId: makeRowId
+    })
+    headers.value = result.headers
+    rows.value = result.rows
+    return result
+  }
+
   return {
     headers, rows, activeRowIndex, filter, sourcePath, embedded,
     sortKey, sortDir,
     fields, filteredRows, displayRows, activeRow,
     setData, clear, setActiveIndex, stepActive, setRowPrint, setFilter, setSort,
     addRow, updateRow, removeRow,
-    addColumn, renameColumn, removeColumn
+    addColumn, renameColumn, removeColumn,
+    applyBatchPaste
   }
 })

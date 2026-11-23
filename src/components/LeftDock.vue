@@ -33,6 +33,7 @@
           @save="emit('save')"
           @switch="id => emit('switch', id)"
         />
+        <LibraryPanel v-else-if="view === 'library'" />
         <ComponentPanel v-else-if="view === 'components'" only="components" />
         <ComponentPanel v-else-if="view === 'layers'" only="layers" />
         <FieldBindStrip v-else-if="view === 'fields'" layout="panel" />
@@ -55,6 +56,7 @@ import { useDataStore } from '../stores/data'
 import { useI18n } from '../utils/i18n'
 import ProjectSidebar from './ProjectSidebar.vue'
 import ComponentPanel from './ComponentPanel.vue'
+import LibraryPanel from './LibraryPanel.vue'
 import FieldBindStrip from './FieldBindStrip.vue'
 import AIDialog from './AIDialog.vue'
 
@@ -65,7 +67,7 @@ const data = useDataStore()
 
 const KEY_OPEN = 'labelprint_left_dock_open'
 const KEY_VIEW = 'labelprint_left_dock_view'
-const VIEWS = new Set(['project', 'components', 'layers', 'fields', 'ai'])
+const VIEWS = new Set(['project', 'components', 'library', 'layers', 'fields', 'ai'])
 
 const open = ref(localStorage.getItem(KEY_OPEN) !== '0')
 const savedView = localStorage.getItem(KEY_VIEW)
@@ -90,6 +92,13 @@ const items = computed(() => [
     short: t('组件'),
     badge: null,
     icon: S('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>')
+  },
+  {
+    id: 'library',
+    label: t('条码与素材'),
+    short: t('素材'),
+    badge: null,
+    icon: S('<rect x="5" y="8" width="3" height="14" rx="0.5" fill="currentColor"/><rect x="10" y="8" width="1.5" height="14" rx="0.3"/><rect x="13" y="8" width="4" height="14" rx="0.5"/><rect x="19" y="8" width="1.5" height="14"/><path d="M5 6h14" stroke="currentColor" stroke-width="1.2"/>')
   },
   {
     id: 'layers',

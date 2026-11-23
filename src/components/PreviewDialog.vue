@@ -205,7 +205,7 @@ import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF } from '../utils/vectorPdf'
 import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { MM_TO_PX } from '../utils/canvasFit'
-import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
+import { matrixCodeToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
 import { barcodeCanvasOptions } from '../utils/controls'
 import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { exportElementToImage } from '../utils/pdf'
@@ -487,7 +487,7 @@ const CompRenderer = defineComponent({
               Math.max(1, c.width * S() * 3),
               Math.max(1, c.height * S() * 3)
             ))
-            : qrToCanvas(String(txt), 240)
+            : matrixCodeToCanvas(String(txt), c.format || 'QR', 240)
           const url = cv ? canvasToDataURL(cv) : ''
           if (!url) {
             if (c.type === 'barcode') {
@@ -774,7 +774,7 @@ function tableCellNode(c, r, col, row) {
     const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}|${tw}|${th}`
     if (!cellImgCache.value[key]) {
       const cv = type === 'qrcode'
-        ? qrToCanvas(String(value), 240)
+        ? matrixCodeToCanvas(String(value), cell.format || 'QR', 240)
         : barcodeToCanvas(String(value), { format: cell.format || 'CODE128', targetWidth: tw, targetHeight: th })
       cellImgCache.value[key] = cv ? canvasToDataURL(cv) : ''
     }
