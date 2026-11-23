@@ -313,6 +313,120 @@ export const BUILTIN_TEMPLATES = [
       text('tpl_warehouse_bin-c3', 'SKU', { left: 36, top: 21, width: 40, height: 6, text: 'SKU {{SKU}}', fontSize: 9, fill: '#475569' }),
       text('tpl_warehouse_bin-c4', '品名', { left: 36, top: 28, width: 40, height: 14, text: '{{品名}}', fontSize: 10, fill: '#334155' })
     ]
+  },
+  {
+    id: 'tpl_packing_mark',
+    name: '物流箱唛 100×80',
+    group: '物流',
+    desc: '收寄信息 + 品名/SKU + 条码 + 向上箭头（原创符号）',
+    fields: ['收件人', '地址', '品名', '数量', '单号'],
+    paper: labelPaper(100, 80),
+    label: { width: 100, height: 80, backgroundColor: '#ffffff', showBorder: true, borderColor: '#0f172a', borderWidth: 0.5 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      rect('tpl_packing_mark-r1', '顶栏', { left: 0, top: 0, width: 100, height: 9, fill: '#0f172a' }),
+      text('tpl_packing_mark-h1', '箱唛', { left: 4, top: 2.2, width: 92, height: 5, text: '物流箱唛', fontSize: 10, fontWeight: 'bold', fill: '#ffffff', textAlign: 'center' }),
+      text('tpl_packing_mark-c1', '收件', { left: 5, top: 11, width: 90, height: 7, text: '{{收件人}}', fontSize: 12, fontWeight: 'bold' }),
+      text('tpl_packing_mark-c2', '地址', { left: 5, top: 19, width: 90, height: 10, text: '{{地址}}', fontSize: 8, fill: '#475569' }),
+      line('tpl_packing_mark-l1', '分隔', { left: 5, top: 30, width: 90, stroke: '#cbd5e1', strokeWidth: 0.25 }),
+      text('tpl_packing_mark-c3', '品名', { left: 5, top: 32, width: 56, height: 6, text: '{{品名}}', fontSize: 10, fontWeight: 'bold' }),
+      text('tpl_packing_mark-c4', '单号', { left: 5, top: 39, width: 56, height: 5, text: '单号 {{单号}}', fontSize: 8, fill: '#64748b', binding: '单号' }),
+      text('tpl_packing_mark-c5', '件数', { left: 5, top: 45, width: 56, height: 5, text: '{{数量}} 件', fontSize: 9, binding: '数量' }),
+      barcode('tpl_packing_mark-c6', '条码', { left: 5, top: 52, width: 56, height: 12, binding: '单号' }),
+      {
+        id: 'tpl_packing_mark-ar1', type: 'arrow', name: '向上', left: 68, top: 34, width: 26, height: 26, angle: 0,
+        arrowDirection: 'up', stroke: '#2563eb', strokeWidth: 0.6, strokeStyle: 'solid'
+      },
+      text('tpl_packing_mark-c7', '轻放', { left: 66, top: 62, width: 30, height: 5, text: '小心轻放', fontSize: 7, fill: '#64748b', textAlign: 'center' })
+    ]
+  },
+  {
+    id: 'tpl_asset_equipment',
+    name: '设备资产 70×50',
+    group: '资产',
+    desc: '设备编号 + 名称 + 部门 + 二维码',
+    fields: ['资产编号', '名称', '部门', '保管人'],
+    paper: labelPaper(70, 50),
+    label: { width: 70, height: 50, backgroundColor: '#ffffff', showBorder: true, borderColor: '#64748b', borderWidth: 0.35 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      rect('tpl_asset_equipment-r1', '侧条', { left: 0, top: 0, width: 5, height: 50, fill: '#2563eb' }),
+      qrcode('tpl_asset_equipment-q1', '二维码', { left: 8, top: 10, width: 22, height: 22, binding: '资产编号' }),
+      text('tpl_asset_equipment-c1', '编号', { left: 33, top: 8, width: 34, height: 6, text: '{{资产编号}}', fontSize: 9, fontWeight: 'bold' }),
+      text('tpl_asset_equipment-c2', '名称', { left: 33, top: 15, width: 34, height: 8, text: '{{名称}}', fontSize: 11, fontWeight: 'bold', binding: '名称' }),
+      text('tpl_asset_equipment-c3', '部门', { left: 33, top: 24, width: 34, height: 5, text: '{{部门}}', fontSize: 8, fill: '#64748b' }),
+      text('tpl_asset_equipment-c4', '保管', { left: 33, top: 30, width: 34, height: 5, text: '保管 {{保管人}}', fontSize: 8, fill: '#64748b' }),
+      line('tpl_asset_equipment-l1', '底线', { left: 8, top: 44, width: 59, stroke: '#e2e8f0', strokeWidth: 0.2, strokeStyle: 'dashed' })
+    ]
+  },
+  {
+    id: 'tpl_apparel_size',
+    name: '服装尺码条 45×25',
+    group: '零售',
+    desc: '款号 + 尺码色字 + 条码（挂绳旁小条）',
+    fields: ['款号', '尺码', '颜色', '条码'],
+    paper: labelPaper(45, 25),
+    label: { width: 45, height: 25, backgroundColor: '#ffffff', showBorder: true, borderColor: '#94a3b8', borderWidth: 0.25 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_apparel_size-c1', '款号', { left: 3, top: 2, width: 39, height: 5, text: '{{款号}}', fontSize: 8, fontWeight: 'bold' }),
+      text('tpl_apparel_size-c2', '尺码', { left: 3, top: 8, width: 20, height: 10, text: '{{尺码}}', fontSize: 16, fontWeight: 'bold', fill: '#2563eb', textAlign: 'center' }),
+      text('tpl_apparel_size-c3', '颜色', { left: 24, top: 9, width: 18, height: 5, text: '{{颜色}}', fontSize: 8, fill: '#64748b', textAlign: 'right' }),
+      barcode('tpl_apparel_size-c4', '条码', { left: 3, top: 18, width: 39, height: 6, binding: '条码' })
+    ]
+  },
+  {
+    id: 'tpl_wash_care',
+    name: '洗水唛 60×40',
+    group: '服装',
+    desc: '成分 + 洗涤说明 + 原产国（原创几何洗护符号）',
+    fields: ['成分', '洗涤说明', '原产国', '款号'],
+    paper: labelPaper(60, 40),
+    label: { width: 60, height: 40, backgroundColor: '#ffffff', showBorder: true, borderColor: '#cbd5e1', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_wash_care-c1', '款号', { left: 3, top: 2, width: 54, height: 5, text: '{{款号}}', fontSize: 8, fontWeight: 'bold' }),
+      rect('tpl_wash_care-s1', '水洗框', { left: 3, top: 8, width: 10, height: 10, fill: 'transparent', stroke: '#0f172a', strokeWidth: 0.35, rx: 1 }),
+      text('tpl_wash_care-s1t', '30', { left: 3, top: 13, width: 10, height: 4, text: '30°', fontSize: 6, textAlign: 'center' }),
+      rect('tpl_wash_care-s2', '禁漂白', { left: 15, top: 8, width: 10, height: 10, fill: 'transparent', stroke: '#0f172a', strokeWidth: 0.35, rx: 1 }),
+      line('tpl_wash_care-s2l', '禁漂白线', { left: 17, top: 10, width: 6, stroke: '#c00', strokeWidth: 0.4, angle: 45, strokeStyle: 'solid' }),
+      text('tpl_wash_care-c2', '成分', { left: 28, top: 8, width: 29, height: 12, text: '{{成分}}', fontSize: 7.5, fill: '#334155' }),
+      text('tpl_wash_care-c3', '洗涤', { left: 3, top: 20, width: 54, height: 10, text: '{{洗涤说明}}', fontSize: 7, fill: '#475569' }),
+      line('tpl_wash_care-l1', '分隔', { left: 3, top: 32, width: 54, stroke: '#e2e8f0', strokeWidth: 0.2, strokeStyle: 'dotted' }),
+      text('tpl_wash_care-c4', '产地', { left: 3, top: 33, width: 54, height: 5, text: 'Made in {{原产国}}', fontSize: 7, fill: '#64748b' })
+    ]
+  },
+  {
+    id: 'tpl_wash_fold',
+    name: '折叠洗唛 50×70',
+    group: '服装',
+    desc: '竖版多段洗唛：尺码 + 成分表 + 条码',
+    fields: ['尺码', '成分', '条码', '款号'],
+    paper: labelPaper(50, 70),
+    label: { width: 50, height: 70, backgroundColor: '#ffffff', showBorder: true, borderColor: '#94a3b8', borderWidth: 0.3 },
+    margin: zeroMargin,
+    layout: { ...singleLayout },
+    components: [
+      text('tpl_wash_fold-c1', '尺码', { left: 3, top: 3, width: 44, height: 10, text: '{{尺码}}', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }),
+      table('tpl_wash_fold-t1', '成分表', {
+        left: 3, top: 14, width: 44, height: 28, rows: 3, cols: 2, fontSize: 7,
+        colWidths: [35, 65],
+        cells: {
+          '0,0': { text: '部位', binding: '' },
+          '0,1': { text: '成分', binding: '' },
+          '1,0': { text: '主身', binding: '' },
+          '1,1': { text: '{{成分}}', binding: '成分' },
+          '2,0': { text: '款号', binding: '' },
+          '2,1': { text: '{{款号}}', binding: '款号' }
+        }
+      }),
+      barcode('tpl_wash_fold-c2', '条码', { left: 5, top: 46, width: 40, height: 12, binding: '条码' }),
+      text('tpl_wash_fold-c3', '提示', { left: 3, top: 60, width: 44, height: 6, text: '手洗 · 阴凉处晾干', fontSize: 6.5, fill: '#64748b', textAlign: 'center' })
+    ]
   }
 ]
 

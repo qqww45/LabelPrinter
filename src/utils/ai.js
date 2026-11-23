@@ -267,7 +267,7 @@ function findMatchingClose(s, start) {
 }
 
 // 合法组件类型
-const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'ellipse', 'line', 'date', 'serial', 'checkbox', 'price', 'divider', 'dashedBox'])
+const VALID_TYPES = new Set(['text', 'image', 'table', 'qrcode', 'barcode', 'rect', 'ellipse', 'line', 'date', 'serial', 'checkbox', 'price', 'divider', 'dashedBox', 'arrow', 'polyline'])
 
 /**
  * 校验 + 归一化 + 裁剪到画布
@@ -468,6 +468,20 @@ function normalizeOne(raw, i, LW, LH, seenIds) {
       c.stroke = String(raw.stroke || '#cbd5e1')
       c.strokeWidth = num(raw.strokeWidth, 0.3)
       c.strokeStyle = ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'solid'
+      break
+    case 'arrow':
+      c.stroke = String(raw.stroke || '#2563eb')
+      c.strokeWidth = num(raw.strokeWidth, 0.5)
+      c.strokeStyle = ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'solid'
+      c.arrowDirection = ['left', 'right', 'up', 'down'].includes(String(raw.arrowDirection || '').toLowerCase())
+        ? String(raw.arrowDirection).toLowerCase()
+        : 'right'
+      break
+    case 'polyline':
+      c.stroke = String(raw.stroke || '#0f172a')
+      c.strokeWidth = num(raw.strokeWidth, 0.4)
+      c.strokeStyle = ['solid', 'dashed', 'dotted'].includes(raw.strokeStyle) ? raw.strokeStyle : 'solid'
+      if (Array.isArray(raw.points)) c.points = raw.points
       break
     case 'dashedBox':
       c.fill = 'transparent'

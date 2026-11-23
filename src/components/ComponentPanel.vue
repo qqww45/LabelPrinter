@@ -222,6 +222,17 @@ function svgDashedBox() {
     <rect x="6" y="8" width="28" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
   </svg>`
 }
+function svgArrow() {
+  return `<svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6 20 H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <path d="M26 20 L20 14 L20 17 L34 17 L34 23 L20 23 L20 26 Z" fill="currentColor"/>
+  </svg>`
+}
+function svgPolyline() {
+  return `<svg viewBox="0 0 40 40" width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="6,30 14,12 22,26 34,10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`
+}
 
 const componentTypes = [
   { type: 'text',     name: '文本',     svg: svgText() },
@@ -234,14 +245,16 @@ const componentTypes = [
   { type: 'ellipse',  name: '椭圆',     svg: svgEllipse() },
   { type: 'line',     name: '直线',     svg: svgLine() },
   { type: 'divider',  name: '分隔线',   svg: svgDivider() },
+  { type: 'arrow',    name: '箭头',     svg: svgArrow() },
+  { type: 'polyline', name: '折线',     svg: svgPolyline() },
   { type: 'dashedBox', name: '虚线框',  svg: svgDashedBox() },
   { type: 'date',     name: '日期',     svg: svgDate() },
   { type: 'serial',   name: '序号',     svg: svgSerial() },
   { type: 'checkbox', name: '勾选框',   svg: svgCheckbox() }
 ]
 
-const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', price: '价格', rect: '矩形', ellipse: '椭圆', line: '直线', divider: '分隔线', dashedBox: '虚线框', date: '日期', serial: '序号', checkbox: '勾选框' }
-const icons = { text: 'A', image: '🖼', table: '⊞', qrcode: '▣', barcode: '▌', price: '¥', rect: '▭', ellipse: '⬭', line: '╱', divider: '—', dashedBox: '▢', date: '📅', serial: '#', checkbox: '☑' }
+const typeNames = { text: '文本', image: '图片', table: '表格', qrcode: '二维码', barcode: '条形码', price: '价格', rect: '矩形', ellipse: '椭圆', line: '直线', divider: '分隔线', arrow: '箭头', polyline: '折线', dashedBox: '虚线框', date: '日期', serial: '序号', checkbox: '勾选框' }
+const icons = { text: 'A', image: '🖼', table: '⊞', qrcode: '▣', barcode: '▌', price: '¥', rect: '▭', ellipse: '⬭', line: '╱', divider: '—', arrow: '→', polyline: '⌇', dashedBox: '▢', date: '📅', serial: '#', checkbox: '☑' }
 
 function iconOf(t) { return icons[t] || '·' }
 function labelOf(c) {

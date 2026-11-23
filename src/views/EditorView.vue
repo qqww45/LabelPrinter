@@ -13,6 +13,7 @@
       @print-config="openPrintConfig"
       @layout-editor="layoutEditorVisible = true"
       @template-library="openTemplateLibrary"
+      @label-import="labelImportVisible = true"
       @field-map="openFieldMapManual"
       @print-center="printCenterVisible = true"
       @preview="openPreview"
@@ -67,6 +68,7 @@
 
     <PaperConfig v-if="paperConfigVisible" @close="paperConfigVisible = false" />
     <TemplateDialog v-if="templateVisible" @close="templateVisible = false" />
+    <LabelImportDialog v-if="labelImportVisible" @close="labelImportVisible = false" />
     <FieldMapDialog v-if="fieldMapVisible" :import-wizard="fieldMapImportMode" @close="closeFieldMap" />
     <PrintCenterDialog
       v-if="printCenterVisible"
@@ -190,6 +192,7 @@ function lazyDialog(loader) {
 }
 const PaperConfig = lazyDialog(() => import('../components/PaperConfig.vue'))
 const TemplateDialog = lazyDialog(() => import('../components/TemplateDialog.vue'))
+const LabelImportDialog = lazyDialog(() => import('../components/LabelImportDialog.vue'))
 const FieldMapDialog = lazyDialog(() => import('../components/FieldMapDialog.vue'))
 const PrintCenterDialog = lazyDialog(() => import('../components/PrintCenterDialog.vue'))
 const PrintConfig = lazyDialog(() => import('../components/PrintConfig.vue'))
@@ -314,7 +317,7 @@ project.hydrateFromIdb().then((replaced) => {
 }).finally(settleFirstRun)
 
 function openTemplateLibrary() {
-  router.push({ path: '/templates', query: { pick: '1' } })
+  templateVisible.value = true
 }
 
 let applyingFromQuery = false
@@ -376,6 +379,7 @@ const printConfigVisible = ref(false)
 const layoutEditorVisible = ref(false)
 const previewVisible = ref(false)
 const templateVisible = ref(false)
+const labelImportVisible = ref(false)
 const fieldMapVisible = ref(false)
 const fieldMapImportMode = ref(false)
 const printCenterVisible = ref(false)

@@ -22,6 +22,22 @@ export const SCENE_PACKS = [
     welcomeLabel: '快递面单'
   },
   {
+    id: 'packing',
+    name: '物流箱唛',
+    templateId: 'tpl_packing_mark',
+    sampleId: 'express',
+    blurb: '收件、品名、SKU、条码与向上箭头',
+    welcomeLabel: '箱唛'
+  },
+  {
+    id: 'wash-care',
+    name: '洗水唛',
+    templateId: 'tpl_wash_care',
+    sampleId: 'wash',
+    blurb: '成分、洗涤说明、款号与条码',
+    welcomeLabel: '洗水唛'
+  },
+  {
     id: 'asset',
     name: '资产贴',
     templateId: 'tpl_asset_fixed',
