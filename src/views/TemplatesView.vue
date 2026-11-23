@@ -9,6 +9,9 @@
 
       <div class="tpl-layout">
         <aside class="tpl-filters" :aria-label="t('筛选')">
+          <label class="filter-label">{{ t('行业成品') }}</label>
+          <IndustryTemplateChips v-model="industry" @update:model-value="syncQuery" />
+
           <label class="filter-label">{{ t('行业场景') }}</label>
           <select v-model="scene" class="input" @change="syncQuery">
             <option value="">{{ t('全部') }}</option>
@@ -76,7 +79,7 @@
               <span>{{ t('所需字段') }}：</span>
               {{ selected.fields.join('、') || '—' }}
             </p>
-            <button type="button" class="btn btn-primary" @click="applySelected">
+            <button type="button" class="btn btn-primary" data-testid="template-apply" @click="applySelected">
               {{ t('使用此模板') }}
             </button>
           </aside>
@@ -92,6 +95,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
+import IndustryTemplateChips from '../components/site/IndustryTemplateChips.vue'
 import TemplatePreviewThumb from '../components/site/TemplatePreviewThumb.vue'
 import MarketingImage from '../components/site/MarketingImage.vue'
 import { resolveMarketingAsset } from '../content/marketingAssets'
@@ -103,6 +107,7 @@ import {
   getTemplateCatalog
 } from '../utils/templatesCatalog'
 import { SCENE_PACKS } from '../utils/scenePacks'
+import { filterCatalogByIndustry } from '../utils/industryTemplates'
 import { useI18n } from '../utils/i18n'
 
 const { t } = useI18n()
@@ -114,20 +119,22 @@ const sceneOptions = getSceneFilterOptions()
 const sizeOptions = getSizeFilterOptions(catalog)
 const purposeOptions = getPurposeFilterOptions()
 
+const industry = ref(route.query.industry || '')
 const scene = ref(route.query.scene || '')
 const size = ref(route.query.size || '')
 const purpose = ref(route.query.purpose || '')
 const search = ref(route.query.q || '')
 const selected = ref(null)
 
-const filtered = computed(() =>
-  filterTemplateCatalog(catalog, {
+const filtered = computed(() => {
+  const base = filterTemplateCatalog(catalog, {
     scene: scene.value,
     size: size.value,
     purpose: purpose.value,
     q: search.value
   })
-)
+  return filterCatalogByIndustry(base, industry.value)
+})
 
 watch(filtered, (list) => {
   if (!list.length) {
@@ -142,6 +149,7 @@ watch(filtered, (list) => {
 watch(
   () => route.query,
   (q) => {
+    industry.value = q.industry || ''
     scene.value = q.scene || ''
     size.value = q.size || ''
     purpose.value = q.purpose || ''
@@ -157,6 +165,7 @@ function debouncedSync() {
 
 function syncQuery() {
   const query = {}
+  if (industry.value) query.industry = industry.value
   if (scene.value) query.scene = scene.value
   if (size.value) query.size = size.value
   if (purpose.value) query.purpose = purpose.value
@@ -199,6 +208,9 @@ function applySelected() {
   gap: 6px;
   position: sticky;
   top: 72px;
+}
+.tpl-filters :deep(.industry-chips) {
+  margin-bottom: 4px;
 }
 .filter-label {
   font-size: 12px;

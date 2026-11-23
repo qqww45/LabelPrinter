@@ -317,7 +317,7 @@ project.hydrateFromIdb().then((replaced) => {
 }).finally(settleFirstRun)
 
 function openTemplateLibrary() {
-  templateVisible.value = true
+  router.push({ path: '/templates', query: { pick: '1' } })
 }
 
 let applyingFromQuery = false

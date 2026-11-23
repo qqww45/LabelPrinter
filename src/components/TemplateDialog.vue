@@ -9,26 +9,7 @@
       <div class="tpl-body">
         <div class="tpl-list">
           <div class="group-title">{{ t('行业成品（打开就能改）') }}</div>
-          <div class="industry-chips" data-testid="industry-chips" role="tablist" :aria-label="t('行业分类')">
-            <button
-              v-for="cat in industryCategories"
-              :key="cat.id"
-              type="button"
-              class="chip"
-              :class="{ on: industryFilter === cat.id }"
-              role="tab"
-              :aria-selected="industryFilter === cat.id"
-              @click="industryFilter = cat.id"
-            >{{ t(cat.name) }}</button>
-            <button
-              type="button"
-              class="chip"
-              :class="{ on: !industryFilter }"
-              role="tab"
-              :aria-selected="!industryFilter"
-              @click="industryFilter = ''"
-            >{{ t('全部') }}</button>
-          </div>
+          <IndustryTemplateChips v-model="industryFilter" class="dialog-chips" />
           <div class="group-title">{{ t('场景包（模板 + 示例 + 预览）') }}</div>
           <div class="scene-pack-row">
             <button
@@ -150,7 +131,8 @@ import { extractTemplateFields, autoMatchFieldMap } from '../utils/render'
 import { findSampleForTemplate, loadSampleDataset } from '../utils/samples'
 import { SCENE_PACKS } from '../utils/scenePacks'
 import { applyScenePack } from '../utils/quickStart'
-import { INDUSTRY_CATEGORIES, templatesForIndustry } from '../utils/industryTemplates'
+import IndustryTemplateChips from './site/IndustryTemplateChips.vue'
+import { templatesForIndustry } from '../utils/industryTemplates'
 
 const { t } = useI18n()
 const emit = defineEmits(['close'])
@@ -160,7 +142,6 @@ const data = useDataStore()
 const tplStore = useTemplateStore()
 
 const builtin = BUILTIN_TEMPLATES
-const industryCategories = INDUSTRY_CATEGORIES
 const industryFilter = ref('price')
 const filteredBuiltin = computed(() => {
   if (!industryFilter.value) return builtin
@@ -382,24 +363,12 @@ function remove(item) {
   gap: 6px;
   padding: 0 6px 10px;
 }
-.industry-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.dialog-chips {
   padding: 0 8px 10px;
 }
-.industry-chips .chip {
+.dialog-chips :deep(.chip) {
   font-size: 11px;
   padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-secondary);
-}
-.industry-chips .chip.on {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: rgba(37, 99, 235, 0.08);
 }
 .scene-pack-apply { font-size: 11px; }
 .count { color: var(--text-secondary); }

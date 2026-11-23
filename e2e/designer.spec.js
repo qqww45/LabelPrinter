@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
   page.on('dialog', (dialog) => dialog.accept())
 })
 
-async function openTemplateLibrary(page) {
+async function openTemplateLibraryFromWorkbench(page) {
   const inToolbar = page.locator('.group-secondary [data-sec-id="template-library"]')
   if (await inToolbar.isVisible({ timeout: 5000 }).catch(() => false)) {
     await inToolbar.click()
@@ -23,18 +23,20 @@ async function openTemplateLibrary(page) {
     await page.locator('.group-more .btn').first().click()
     await page.getByRole('menuitem', { name: /^模板库/ }).click()
   }
+  await expect(page).toHaveURL(/\/templates/, { timeout: 15000 })
   await expect(page.getByTestId('industry-chips')).toBeVisible({ timeout: 30000 })
 }
 
 async function applyFirstTemplateInChip(page, chipLabel) {
-  await openTemplateLibrary(page)
+  await openTemplateLibraryFromWorkbench(page)
   await page.locator('.industry-chips .chip').filter({ hasText: chipLabel }).click()
-  await page.locator('.tpl-item').first().click()
+  await page.locator('.tpl-card').first().click()
   await page.getByTestId('template-apply').click()
+  await expect(page).toHaveURL(/\/app/, { timeout: 30000 })
   await expect(page.locator('.info-bar')).toBeVisible({ timeout: 15000 })
 }
 
-test('industry templates apply via dialog with expected label size', async ({ page }) => {
+test('industry templates apply via /templates with expected label size', async ({ page }) => {
   const chips = ['价签', '面单', '资产贴', '服装吊牌', '洗水唛']
   for (const chip of chips) {
     await page.goto('/app')

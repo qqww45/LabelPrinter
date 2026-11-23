@@ -53,6 +53,14 @@ export function industryForTemplateId(templateId) {
   return null
 }
 
+/** @param {Array<{ templateId: string }>} catalog */
+export function filterCatalogByIndustry(catalog, categoryId) {
+  if (!categoryId) return catalog
+  const ids = new Set(templatesForIndustry(categoryId).map((t) => t.id))
+  if (!ids.size) return catalog
+  return catalog.filter((e) => ids.has(e.templateId))
+}
+
 export function featuredIndustryTemplates() {
   const ids = new Set()
   const out = []
