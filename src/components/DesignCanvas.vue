@@ -51,7 +51,7 @@ fabric.FabricObject.ownDefaults.originY = 'top'
 import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import { useSettingsStore } from '../stores/settings'
-import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
+import { resolveRow, renderTextWithAlert, designTextWithAlert, codePayload, rowIsEmpty, isEncodableCode, rewriteBindingText, collectBindingTextFixes } from '../utils/render'
 import { formatCheckboxText, formatPriceText, formatSerialText, barcodeCanvasOptions, strokeStyleDash } from '../utils/controls'
 import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
@@ -703,7 +703,7 @@ function buildFabricObject(c, gen = renderGeneration) {
   switch (c.type) {
     case 'text': {
       // 字段失效 → 原地显示 ⚠字段名（仅设计态提示；打印/导出走 PreviewDialog，不受影响）
-      const r = renderTextWithAlert(c.text || '', row, availFieldSet.value)
+      const r = designTextWithAlert(c, row, availFieldSet.value)
       obj = new fabric.Textbox(r.text, {
         ...baseOpts,
         width: (c.width || 40) * MM_TO_PX,

@@ -8,7 +8,7 @@ export function rowIsEmpty(row) {
 }
 
 import { escapeHtmlWithBreaks } from './escapeHtml.js'
-import { normalizeDataMode } from './dataBindModes.js'
+import { normalizeDataMode, DATA_BIND_MODES } from './dataBindModes.js'
 import { formatSerialText } from './controls.js'
 import {
   expandTemplateText,
@@ -30,6 +30,59 @@ export function renderText(text, row) {
 export function renderTextHtml(text, row) {
   if (!text) return ''
   return escapeHtmlWithBreaks(renderText(text, row))
+}
+
+function explicitDataMode(component) {
+  const m = String(component?.dataMode || '').toLowerCase()
+  return DATA_BIND_MODES.includes(m) ? m : ''
+}
+
+/**
+ * 文本组件要显示/打印的正文（与 codePayload 对称）。
+ * - field/batch：用绑定列（忽略切换模式后残留的静态字）；未显式 dataMode 且 text 含 {{}} 时走旧模板逻辑
+ * - serial：与条码序号规则一致
+ * - fixed：renderText（支持 {{}} / 表达式）
+ */
+export function textPayload(component, row) {
+  if (!component) return ''
+  const mode = normalizeDataMode(component)
+  const explicit = explicitDataMode(component)
+
+  if (mode === 'serial') return codePayload(component, row)
+
+  if ((mode === 'field' || mode === 'batch') && component.binding) {
+    const text = String(component.text || '')
+    if (!explicit && text.includes('{{')) return renderText(text, row)
+    if (!rowIsEmpty(row)) {
+      const v = row[component.binding]
+      if (v !== undefined && v !== null) return String(v)
+      return ''
+    }
+    return `{{${component.binding}}}`
+  }
+
+  return renderText(component.text || '', row)
+}
+
+/** 预览 HTML：文本组件走 textPayload */
+export function renderTextComponentHtml(component, row) {
+  if (!component) return ''
+  return escapeHtmlWithBreaks(textPayload(component, row))
+}
+
+/** 画布设计态：field/batch 绑定告警 + 与打印一致的 payload */
+export function designTextWithAlert(component, row, availableSet) {
+  const mode = normalizeDataMode(component)
+  if ((mode === 'field' || mode === 'batch') && component.binding) {
+    if (availableSet?.size && !availableSet.has(component.binding)) {
+      return { text: `⚠${component.binding}`, missing: [component.binding] }
+    }
+    return { text: textPayload(component, row), missing: [] }
+  }
+  if (mode === 'serial') {
+    return { text: textPayload(component, row), missing: [] }
+  }
+  return renderTextWithAlert(component.text || '', row, availableSet)
 }
 
 /**

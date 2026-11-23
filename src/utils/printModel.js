@@ -3,7 +3,7 @@
  * 纯函数。预览、系统打印、矢量 PDF、热敏指令共用同一份结果，避免各算各的。
  */
 import dayjs from 'dayjs'
-import { codePayload, renderText, rowIsEmpty } from './render.js'
+import { codePayload, renderText, textPayload, rowIsEmpty } from './render.js'
 import { guessCopiesColumn } from './copiesColumn.js'
 
 export { guessCopiesColumn }
@@ -177,7 +177,7 @@ export function componentPlainText(c, row) {
   if (c.type === 'checkbox') return formatCheckboxText(c, row)
   if (c.type === 'price') return formatPriceText(c, row)
   if (c.type === 'qrcode' || c.type === 'barcode') return codePayload(c, row)
-  if (c.type === 'text') return renderText(c.text || '', row)
+  if (c.type === 'text') return textPayload(c, row)
   return ''
 }
 
