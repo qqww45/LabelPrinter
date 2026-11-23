@@ -50,7 +50,10 @@ const SCAN_TEXT = {
   ean13: 'EAN-13 需要 13 位数字',
   ean8: 'EAN-8 需要 8 位数字',
   upca: 'UPC-A 需要 12 位数字',
-  'ean-check': 'EAN-13 校验位不对，扫出来会失败',
+  'ean-check': '校验位不对，扫出来会失败',
+  'ean-check-ean13': 'EAN-13 校验位不对，扫出来会失败',
+  'ean-check-ean8': 'EAN-8 校验位不对，扫出来会失败',
+  'ean-check-upc': 'UPC-A 校验位不对，扫出来会失败',
   codabar: 'Codabar 需以 A–D 起止',
   code39: 'CODE39 只接受大写字母、数字和 - . $ / + % 空格',
   short: '格子太矮，条可能扫不稳',
@@ -58,6 +61,13 @@ const SCAN_TEXT = {
   ok: '按当前格式和格子，这一行可以扫'
 }
 
-export function barcodeScanText(code) {
+export function barcodeScanText(code, format) {
+  if (code === 'ean-check') {
+    const fmt = String(format || 'CODE128').toUpperCase()
+    if (fmt === 'EAN8') return SCAN_TEXT['ean-check-ean8']
+    if (fmt === 'UPC' || fmt === 'UPCA') return SCAN_TEXT['ean-check-upc']
+    if (fmt === 'EAN13') return SCAN_TEXT['ean-check-ean13']
+    return SCAN_TEXT['ean-check']
+  }
   return SCAN_TEXT[code] || SCAN_TEXT.ok
 }

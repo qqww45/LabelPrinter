@@ -1,7 +1,8 @@
 import bwipjs from 'bwip-js'
 import JsBarcode from 'jsbarcode'
 import { twoDEncodes, twoDBcid } from '../src/utils/twoDCode.js'
-import { jsBarcodeFormat, allSymbologyIdsLocal } from '../src/utils/symbologyCatalog.js'
+import { jsBarcodeFormat, allSymbologyIdsLocal, sample1DBarcodeValue } from '../src/utils/symbologyCatalog.js'
+import { barcodeScanIssue } from '../src/utils/barcodeScan.js'
 import { codePayload } from '../src/utils/render.js'
 
 let passed = 0
@@ -33,6 +34,11 @@ assert(
   codePayload({ dataMode: 'serial', prefix: 'SN', pad: 4, start: 10, step: 2, serialSource: 'sequence' }, { __labelIndex: 1 }) === 'SN0012',
   'barcode serial bind payload'
 )
+
+for (const f of ['EAN13', 'EAN8', 'UPC', 'ITF14', 'CODABAR']) {
+  const v = sample1DBarcodeValue(f)
+  assert(barcodeScanIssue({ format: f, value: v, widthMm: 40, heightMm: 12 }) === 'ok', `sample ${f} scannable`)
+}
 
 assert(allSymbologyIdsLocal().length >= 10, 'local catalog only')
 assert(!allSymbologyIdsLocal().some(id => /^https?:/i.test(id)), 'no remote symbology ids')

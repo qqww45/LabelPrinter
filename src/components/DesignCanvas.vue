@@ -775,7 +775,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       if (c.type === 'barcode') {
         const scan = barcodeScanIssue({ format: c.format, value: txt, widthMm: c.width, heightMm: c.height })
         if (scan !== 'ok') {
-          obj = codeErrorPlaceholder(c, baseOpts, t(barcodeScanText(scan)))
+          obj = codeErrorPlaceholder(c, baseOpts, t(barcodeScanText(scan, c.format)))
           break
         }
       }

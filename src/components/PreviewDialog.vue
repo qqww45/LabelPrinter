@@ -478,7 +478,7 @@ const CompRenderer = defineComponent({
           if (c.type === 'barcode') {
             const scan = barcodeScanIssue({ format: c.format, value: txt, widthMm: c.width, heightMm: c.height })
             if (scan !== 'ok') {
-              inner = h('div', { style: codeErrorStyle() }, t(barcodeScanText(scan)))
+              inner = h('div', { style: codeErrorStyle() }, t(barcodeScanText(scan, c.format)))
               break
             }
           }

@@ -83,3 +83,27 @@ export function allSymbologyIdsLocal() {
   for (const g of TWOD_SYMBOLOGY_GROUPS) ids.push(...g.items.map(i => i.id))
   return ids
 }
+
+/** 插入画布时的合法样例值（长度 + 校验位，Codabar 含起止符） */
+const SAMPLE_1D = {
+  CODE128: '1234567890',
+  CODE128A: 'CODE128A',
+  CODE128B: 'Code 128B',
+  CODE128C: '123456789012',
+  CODE39: 'CODE39',
+  CODABAR: 'A40156B',
+  EAN13: '6901234567892',
+  EAN8: '96385074',
+  UPC: '036000291452',
+  ITF14: '10012345678907',
+  ITF: '2401234567'
+}
+
+export function sample1DBarcodeValue(formatId) {
+  const id = String(formatId || 'CODE128').toUpperCase()
+  return SAMPLE_1D[id] || SAMPLE_1D.CODE128
+}
+
+export function sample2DCodeValue() {
+  return 'https://ci64.com/'
+}

@@ -65,8 +65,10 @@ import { ref, computed } from 'vue'
 import { useI18n } from '../utils/i18n'
 import { useProjectStore } from '../stores/project'
 import { ONED_SYMBOLOGY_GROUPS, TWOD_SYMBOLOGY_GROUPS } from '../utils/symbologyCatalog'
-import { filterIcons, iconCategories as iconCats, iconToDataUrl } from '../utils/assetLibrary'
+import { filterIcons, iconCategories as iconCats, iconToDataUrl, iconToPngDataUrl } from '../utils/assetLibrary'
 import { filterSnippets } from '../utils/textSnippets'
+import { sample1DBarcodeValue, sample2DCodeValue } from '../utils/symbologyCatalog'
+import { toast } from '../utils/toast'
 
 const { t } = useI18n()
 const project = useProjectStore()
@@ -89,14 +91,20 @@ function addSym(it) {
   const type = tab.value === '2d' ? 'qrcode' : 'barcode'
   project.requestAddComponent(type, {
     format: it.id,
-    sampleText: type === 'qrcode' ? 'https://ci64.com/' : '1234567890',
+    sampleText: type === 'qrcode' ? sample2DCodeValue() : sample1DBarcodeValue(it.id),
+    text: type === 'qrcode' ? sample2DCodeValue() : sample1DBarcodeValue(it.id),
     dataMode: 'fixed'
   })
 }
 
-function addIcon(ic) {
+async function addIcon(ic) {
+  const src = await iconToPngDataUrl(ic)
+  if (!src) {
+    toast(t('图标加载失败，请重试'))
+    return
+  }
   project.requestAddComponent('image', {
-    src: iconToDataUrl(ic),
+    src,
     source: 'static',
     name: ic.name
   })

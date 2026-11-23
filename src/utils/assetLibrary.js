@@ -1,7 +1,8 @@
 /**
  * 本地 SVG 图标库（原创简易符号，非爬取竞品资源）。
- * 插入画布时转为 data:image/svg+xml 静态图片。
+ * 列表预览用 SVG；插入画布 / PDF 用 PNG（见 rasterImage.js）。
  */
+import { rasterizeDataUrlToPng } from './rasterImage.js'
 
 /** @typedef {{ id: string, name: string, category: string, tags: string[], svg: string }} AssetIcon */
 
@@ -71,4 +72,11 @@ export function iconToDataUrl(iconOrId) {
 /** 图标库不依赖登录或远程 CDN */
 export function assetLibraryIsFullyLocal() {
   return ICON_LIBRARY.every(i => i.svg && !/^https?:/i.test(i.svg))
+}
+
+/** 插入图片组件：栅格化为 PNG，保证 PDF / jsPDF 可嵌入 */
+export async function iconToPngDataUrl(iconOrId, maxPx = 192) {
+  const svgUrl = iconToDataUrl(iconOrId)
+  if (!svgUrl) return ''
+  return rasterizeDataUrlToPng(svgUrl, maxPx)
 }

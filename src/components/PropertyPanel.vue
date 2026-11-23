@@ -241,7 +241,7 @@
             @change="update('textRatio', barcodeTextRatio((+$event.target.value || 22) / 100))"
           />
         </div>
-        <div class="hint" :class="{ warn: barcodeScanCode !== 'ok' }">{{ t(barcodeScanText(barcodeScanCode)) }}</div>
+        <div class="hint" :class="{ warn: barcodeScanCode !== 'ok' }">{{ t(barcodeScanText(barcodeScanCode, selected.format)) }}</div>
       </fieldset>
 
       <!-- 价格 -->

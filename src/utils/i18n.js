@@ -1159,7 +1159,11 @@ const EN = {
   '制造商': 'Manufacturer',
   '原产国': 'Country of origin',
   'CE 符合性声明（简）': 'CE conformity (short)',
-  '批号/日期': 'Batch / date'
+  '批号/日期': 'Batch / date',
+  '图标加载失败，请重试': 'Icon failed to load. Try again.',
+  'EAN-8 校验位不对，扫出来会失败': 'EAN-8 check digit invalid',
+  'UPC-A 校验位不对，扫出来会失败': 'UPC-A check digit invalid',
+  '校验位不对，扫出来会失败': 'Check digit invalid'
 }
 
 export function useI18n() {
