@@ -4,7 +4,7 @@
  */
 import { jsPDF } from 'jspdf'
 import JsBarcode from 'jsbarcode'
-import { renderText } from './render.js'
+import { renderText, textPayload } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, matrixCodeToCanvas } from './cellImage.js'
@@ -418,7 +418,7 @@ function drawComponent(pdf, c, row, ox, oy, rasterCache) {
   const h = Number(c.height) || 0
   if (c.type === 'text' || c.type === 'date' || c.type === 'serial' || c.type === 'checkbox' || c.type === 'price') {
     const text = (c.type === 'text')
-      ? renderText(c.text || '', row)
+      ? textPayload(c, row)
       : c.type === 'price'
         ? formatPriceText(c, row)
         : componentPlainText(c, row)

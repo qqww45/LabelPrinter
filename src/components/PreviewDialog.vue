@@ -197,7 +197,7 @@ import { useProjectStore } from '../stores/project'
 import { useDataStore } from '../stores/data'
 import LayoutEditor from './LayoutEditor.vue'
 import PrintConfig from './PrintConfig.vue'
-import { resolveRow, codePayload, isEncodableCode, renderText, renderTextHtml } from '../utils/render'
+import { resolveRow, codePayload, isEncodableCode, renderText, renderTextComponentHtml } from '../utils/render'
 import { safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, pageForSourceRow, normalizeStartSlot, componentHidden, componentPlainText } from '../utils/printModel'
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
@@ -459,7 +459,7 @@ const CompRenderer = defineComponent({
       let inner = null
       switch (c.type) {
         case 'text': {
-          inner = h('div', { style: textStyle(c), innerHTML: renderTextHtml(c.text || '', row) })
+          inner = h('div', { style: textStyle(c), innerHTML: renderTextComponentHtml(c, row) })
           break
         }
         case 'image': {

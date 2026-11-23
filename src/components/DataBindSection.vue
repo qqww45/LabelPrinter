@@ -28,7 +28,7 @@
     <div v-if="dataMode === 'field'" class="bind-field-emphasis">
       <label class="bind-field-label">{{ t('绑定字段') }}</label>
       <p class="bind-field-desc">{{ t('与数据列关联后，预览与打印会按行自动填内容') }}</p>
-      <select class="input bind-field-select" :value="model.binding || ''" @change="patch({ binding: $event.target.value })">
+      <select class="input bind-field-select" :value="model.binding || ''" @change="patch({ binding: $event.target.value, dataMode: 'field' })">
         <option value="">{{ t('（不绑定）') }}</option>
         <option v-for="f in fields" :key="f" :value="f">{{ f }}</option>
       </select>
