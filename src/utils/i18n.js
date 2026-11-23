@@ -573,6 +573,7 @@ const EN = {
   '识别标签图': 'Import label image',
   '识别标签图 / PDF': 'Import label image / PDF',
   '在浏览器本地处理，不上传服务器。结果是可编辑起步版式，请对照原稿微调。': 'Processed locally in your browser—nothing is uploaded. You get a starter layout; fine-tune against your original.',
+  '图片 OCR 首次可能在浏览器内下载语言包（不上传您的文件）；失败时用本地启发式布局。PDF 文本优先本地提取。': 'For images, the first OCR run may download language packs in your browser (your file is not uploaded). On failure we fall back to local heuristics. PDF text is extracted locally first.',
   '选择图片或 PDF': 'Choose image or PDF',
   '识别中…': 'Recognizing…',
   '识别失败：{msg}': 'Recognition failed: {msg}',

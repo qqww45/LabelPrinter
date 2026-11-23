@@ -28,6 +28,16 @@ assert(layout.components.length >= 3, 'components from fixture')
 assert(layout.components.some((c) => c.type === 'text'), 'has text')
 assert(layout.components.some((c) => c.type === 'barcode'), 'has barcode from fixture')
 
+resetLabelImportIds(0)
+const barcodeOnly = layoutLinesToComponents(
+  [{ text: '6901234567890', x: 10, y: 40, w: 120, h: 20, fontSize: 10 }],
+  { width: 60, height: 40 },
+  { scalePxPerMm: 4 }
+)
+const bc = barcodeOnly.components.find((c) => c.type === 'barcode')
+assert(bc && bc.text === '6901234567890', 'barcode text is recognized digits')
+assert(bc.dataMode === 'fixed', 'barcode fixed mode')
+
 const pdfLines = pdfTextItemsToOcrLines(
   [{ str: 'Hello', transform: [12, 0, 0, 12, 40, 100] }],
   200,

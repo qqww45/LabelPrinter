@@ -101,6 +101,7 @@ export function layoutLinesToComponents(grouped, labelMm, opts = {}) {
     const fontSize = Math.max(6, Math.min(18, (line.fontSize || 10) * fit * 0.28))
 
     if (looksLikeBarcode(text)) {
+      const digits = String(text).replace(/\s/g, '')
       components.push({
         id: nextId(),
         type: 'barcode',
@@ -110,9 +111,9 @@ export function layoutLinesToComponents(grouped, labelMm, opts = {}) {
         width,
         height: Math.max(8, height),
         angle: 0,
-        text: '',
+        text: digits,
         binding: '',
-        format: text.length === 13 ? 'EAN13' : 'CODE128',
+        format: digits.length === 13 ? 'EAN13' : 'CODE128',
         dataMode: 'fixed',
         displayValue: true
       })

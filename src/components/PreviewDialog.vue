@@ -127,6 +127,7 @@
                     v-for="(slot, si) in currentPageData.slots"
                     :key="si"
                     class="label-slot"
+                    data-testid="preview-label-slot"
                     :style="slotStyle(si)"
                   >
                     <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
@@ -204,7 +205,7 @@ import { expandPrintLabels, paginateLabels, pageForSourceRow, normalizeStartSlot
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
 import { exportVectorPDF, buildVectorPdfBlob } from '../utils/vectorPdf'
-import { downloadZipArchive, labelBatchFilenames } from '../utils/zipBatchExport'
+import { buildPerLabelZipEntries, downloadZipArchive } from '../utils/zipBatchExport'
 import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { MM_TO_PX } from '../utils/canvasFit'
 import { matrixCodeToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -686,8 +687,10 @@ function arrowSvg(c) {
   const stroke = c.stroke || '#2563eb'
   const sw = Math.max(0.2, Number(c.strokeWidth) || 0.5)
   const pts = geom.head.map(([x, y]) => `${x},${y}`).join(' ')
+  const dash = (c.strokeStyle === 'dashed') ? '6 4' : (c.strokeStyle === 'dotted' ? '2 3' : '')
+  const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
   return `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-    <line x1="${geom.shaft[0][0]}" y1="${geom.shaft[0][1]}" x2="${geom.shaft[1][0]}" y2="${geom.shaft[1][1]}" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round"/>
+    <line x1="${geom.shaft[0][0]}" y1="${geom.shaft[0][1]}" x2="${geom.shaft[1][0]}" y2="${geom.shaft[1][1]}" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/>
     <polygon points="${pts}" fill="${stroke}"/>
   </svg>`
 }
@@ -1178,12 +1181,11 @@ async function onExportZip() {
   await withBusy(t('正在打包 ZIP…'), async () => {
     try {
       const base = project.project.meta.name || 'labels'
-      const pdfBlob = await buildVectorPdfBlob({ project: project.project, labels })
-      const names = labelBatchFilenames(base, Math.min(labels.length, 3), 'pdf')
-      const entries = [{ name: `${base}-batch.pdf`, data: pdfBlob }]
-      for (let i = 0; i < Math.min(labels.length, names.length); i++) {
-        entries.push({ name: names[i], data: pdfBlob })
-      }
+      const entries = await buildPerLabelZipEntries({
+        project: project.project,
+        labels,
+        buildPdfBlob: (opts) => buildVectorPdfBlob(opts)
+      })
       await downloadZipArchive(entries, `${base}.zip`)
       toastSuccess(t('ZIP 已下载'))
     } catch (e) {

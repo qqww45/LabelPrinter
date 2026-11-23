@@ -7,6 +7,7 @@
       </div>
       <div class="modal-body">
         <p class="hint">{{ t('在浏览器本地处理，不上传服务器。结果是可编辑起步版式，请对照原稿微调。') }}</p>
+        <p class="hint ocr-note">{{ t('图片 OCR 首次可能在浏览器内下载语言包（不上传您的文件）；失败时用本地启发式布局。PDF 文本优先本地提取。') }}</p>
         <input
           ref="fileInput"
           class="sr-only"
@@ -77,7 +78,8 @@ async function onPick(ev) {
 
 <style scoped>
 .import-modal { max-width: 440px; width: 92vw; }
-.hint { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+.hint { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+.hint.ocr-note { font-size: 12px; margin-bottom: 12px; }
 .pick-btn { width: 100%; }
 .warn-list { margin-top: 12px; font-size: 12px; color: var(--warning); padding-left: 18px; }
 .sr-only {

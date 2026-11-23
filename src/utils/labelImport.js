@@ -4,6 +4,7 @@
 import {
   groupOcrLines,
   layoutLinesToComponents,
+  mergeImportLayout,
   pdfTextItemsToOcrLines,
   resetLabelImportIds
 } from './labelImportCore.js'
@@ -90,6 +91,7 @@ async function ocrImageWithTesseract(canvas) {
   if (canvas.width < 48 || canvas.height < 48) return null
   try {
     const { createWorker } = await import('tesseract.js')
+    // 首跑可能从 CDN 拉取 traineddata（非用户图片）；离线失败时走 heuristic 兜底（见导入弹窗说明）。
     const worker = await createWorker('chi_sim+eng', 1, { logger: () => {} })
     const { data } = await worker.recognize(canvas)
     await worker.terminate()
@@ -137,7 +139,7 @@ async function imageFileToLayout(file, labelMmOverride) {
 
   resetLabelImportIds()
   const grouped = groupOcrLines(rawLines)
-  const layout = layoutLinesToComponents(grouped, labelMm, { scalePxPerMm: cw / labelMm.width })
+  const baseLayout = layoutLinesToComponents(grouped, labelMm, { scalePxPerMm: cw / labelMm.width })
   const bg = canvas.toDataURL('image/png')
   const bgComp = {
     id: 'imp_bg',
@@ -153,10 +155,14 @@ async function imageFileToLayout(file, labelMmOverride) {
     binding: '',
     opacity: 0.35
   }
+  const layout = mergeImportLayout(baseLayout, bgComp)
   return {
     layout,
-    warnings: ['识别结果为起步版式，请对照原稿微调文字与位置。'],
-    stats: { lines: grouped.length, components: layout.components.length + 1 }
+    warnings: [
+      '识别结果为起步版式，请对照原稿微调文字与位置。',
+      '图片 OCR 首次使用可能在浏览器内下载中英文语言包（不上传您的文件）；失败时将使用本地启发式布局。'
+    ],
+    stats: { lines: grouped.length, components: layout.components.length }
   }
 }
 
