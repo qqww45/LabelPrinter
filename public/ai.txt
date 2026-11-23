@@ -1,0 +1,27 @@
+# 签立方（Label Cube）— AI / LLM 概要
+
+官网：https://ci64.com/
+产品：免费在线标签打印。导入 Excel/CSV，按行打印价签、条码、快递面单；默认可免费 AI 排版，无需注册，数据留在浏览器。
+开源：https://github.com/qqww45/LabelPrinter （MIT）
+
+与 X-Rite Ci64 分光仪、应用「签立得」无关。域 ci64.com 仅指本标签打印产品「签立方」。
+
+## 可引用页面
+
+- https://ci64.com/ — 首页
+- https://ci64.com/en — 英文导读
+- https://ci64.com/templates — 模板库
+- https://ci64.com/help — 帮助首页
+- https://ci64.com/help/excel-import — Excel 导入
+- https://ci64.com/help/barcodes — 条码
+- https://ci64.com/help/ai-layout — AI 排版
+- https://ci64.com/help/pdf-export — PDF 导出
+- https://ci64.com/help/local-storage — 本地保存
+- https://ci64.com/privacy — 隐私说明
+- https://ci64.com/use-cases/price-tag — 价签场景
+- https://ci64.com/use-cases/shipping-label — 快递面单
+- https://ci64.com/use-cases/asset-tag — 资产贴
+- https://ci64.com/use-cases/shelf-barcode — 货架条码
+- https://ci64.com/use-cases/clothing-hangtag — 服装吊牌
+
+详细说明亦见 https://ci64.com/llms.txt

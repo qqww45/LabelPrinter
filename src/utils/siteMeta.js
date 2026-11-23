@@ -36,6 +36,90 @@ export const ROUTE_SITE_META = {
       '签立方标签设计与打印工作台。导入表格、绑定字段、批量打印或导出 PDF。默认可免费 AI 排版，可选自备 API Key。',
     robots: 'noindex,follow',
     canonicalPath: '/app'
+  },
+  '/en': {
+    title: 'LabelCube — free online label printing from Excel',
+    description:
+      'Batch-print price tags, barcodes and shipping labels in the browser. Import Excel, optional free AI layout. No signup; data stays on your device.',
+    robots: 'index,follow',
+    canonicalPath: '/en'
+  },
+  '/privacy': {
+    title: '签立方隐私与数据说明',
+    description:
+      '签立方无需注册：表格与项目默认保存在本机浏览器。说明本地存储、AI 可选密钥请求与站点托管方式。',
+    robots: 'index,follow',
+    canonicalPath: '/privacy'
+  },
+  '/use-cases/price-tag': {
+    title: '超市价签打印：Excel 按行批量出价签｜签立方',
+    description:
+      '免费在线价签打印：导入品名、规格、价格与条码，套用模板后批量打印或导出 PDF。数据留在浏览器。',
+    robots: 'index,follow',
+    canonicalPath: '/use-cases/price-tag'
+  },
+  '/use-cases/shipping-label': {
+    title: '快递面单批量打印｜签立方',
+    description:
+      '按 Excel 行打印收件人、电话、地址与运单二维码；电商发货表批量出面单，免费在线无需安装。',
+    robots: 'index,follow',
+    canonicalPath: '/use-cases/shipping-label'
+  },
+  '/use-cases/asset-tag': {
+    title: '固定资产标签打印｜签立方',
+    description:
+      '资产编号、部门与条码吊牌；导入表格按行打印，扫码盘点。无账号，本地保存。',
+    robots: 'index,follow',
+    canonicalPath: '/use-cases/asset-tag'
+  },
+  '/use-cases/shelf-barcode': {
+    title: '货架条码与货架条打印｜签立方',
+    description:
+      '库位、SKU 与品名绑定条码或宽条货架签，Excel 按行批量打印。',
+    robots: 'index,follow',
+    canonicalPath: '/use-cases/shelf-barcode'
+  },
+  '/use-cases/clothing-hangtag': {
+    title: '服装吊牌打印｜签立方',
+    description:
+      '款号、尺码、颜色与吊牌价：套用服装吊牌模板，导入 Excel 批量打印。',
+    robots: 'index,follow',
+    canonicalPath: '/use-cases/clothing-hangtag'
+  },
+  '/help/excel-import': {
+    title: '导入 Excel 批量打标签｜签立方帮助',
+    description:
+      '签立方如何导入 Excel/CSV：追加、按主键更新或替换；字段映射与表头对齐说明。',
+    robots: 'index,follow',
+    canonicalPath: '/help/excel-import'
+  },
+  '/help/barcodes': {
+    title: '条形码与二维码打印｜签立方帮助',
+    description:
+      '在标签上绑定条码或二维码列，预览、打印与 PDF 输出一致；免费在线条码打印。',
+    robots: 'index,follow',
+    canonicalPath: '/help/barcodes'
+  },
+  '/help/ai-layout': {
+    title: 'AI 排版说明｜签立方帮助',
+    description:
+      '默认可免费 AI 排版，不用填密钥；可选自备 API Key。不用 AI 时数据不发送。',
+    robots: 'index,follow',
+    canonicalPath: '/help/ai-layout'
+  },
+  '/help/pdf-export': {
+    title: '导出 PDF 与打印｜签立方帮助',
+    description:
+      '矢量 PDF、PNG 与浏览器打印；中文嵌入、拉丁字色与画布预览一致。',
+    robots: 'index,follow',
+    canonicalPath: '/help/pdf-export'
+  },
+  '/help/local-storage': {
+    title: '本地保存与无登录｜签立方帮助',
+    description:
+      '项目与表格保存在浏览器 localStorage/IndexedDB，无需注册；如何备份与隐私说明。',
+    robots: 'index,follow',
+    canonicalPath: '/help/local-storage'
   }
 }
 

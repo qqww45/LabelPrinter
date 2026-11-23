@@ -24,4 +24,15 @@
       <image:caption>价签、条码、资产贴等多种内置模板标本。</image:caption>
     </image:image>
   </url>
+  <url>
+    <loc>https://ci64.com/templates</loc>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/sample-price-tag.jpg</image:loc>
+      <image:title>签立方价签模板预览</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://ci64.com/marketing/sample-waybill.jpg</image:loc>
+      <image:title>签立方快递面单模板预览</image:title>
+    </image:image>
+  </url>
 </urlset>

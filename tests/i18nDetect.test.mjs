@@ -1,7 +1,7 @@
 /**
  * 语言探测：无本地偏好时按浏览器/系统语言选 zh 或 en
  */
-import { detectPreferredLang } from '../src/utils/i18n.js'
+import { detectPreferredLang, isLikelyCrawler } from '../src/utils/i18n.js'
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg)
@@ -17,5 +17,8 @@ assert(detectPreferredLang(['zh-CN', 'en-US']) === 'zh', '首选中文')
 assert(detectPreferredLang(['en-US', 'zh-CN']) === 'en', '首选英文（忽略后面的中文）')
 assert(detectPreferredLang([]) === 'zh', '空列表兜底中文')
 assert(detectPreferredLang([null, '']) === 'zh', '无效项兜底中文')
+assert(isLikelyCrawler('Mozilla/5.0 (compatible; Googlebot/2.1)'), 'googlebot')
+assert(detectPreferredLang(['en-US'], 'Mozilla/5.0 (compatible; baiduspider)') === 'zh', '爬虫 en 仍 zh')
+assert(detectPreferredLang(['*']) === 'zh', '* 语言兜底中文')
 
-console.log('i18nDetect.test.mjs: 10 passed')
+console.log('i18nDetect.test.mjs: 13 passed')

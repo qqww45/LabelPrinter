@@ -12,7 +12,7 @@ function assert(cond, msg) {
 
 assert(OG_IMAGE_URL === `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`, 'OG image URL')
 
-for (const path of ['/', '/templates', '/help', '/app']) {
+for (const path of ['/', '/templates', '/help', '/app', '/privacy', '/en', '/use-cases/price-tag', '/help/excel-import']) {
   assert(siteMetaForPath(path), `meta for ${path}`)
 }
 

@@ -8,10 +8,13 @@
   <title>签立方：免费在线标签打印，可免费 AI排版</title>
   <meta name="description" content="免费标签打印工具签立方。导入 Excel，按行打价签、条码和面单。可免费 AI排版，不用填密钥；再批量打印或导出 PDF。数据留在浏览器。" />
   <meta name="keywords" content="签立方,免费标签打印,免费在线标签设计,免费AI排版,免费条码打印,标签打印,在线标签打印,价签,批量打印" />
-  <meta name="author" content="qqww45" />
+  <meta name="author" content="签立方 Label Cube" />
   <meta name="robots" content="index,follow" />
   <meta name="theme-color" content="#2563eb" />
   <link rel="canonical" href="https://ci64.com/" />
+  <link rel="alternate" hreflang="zh-CN" href="https://ci64.com/" />
+  <link rel="alternate" hreflang="en" href="https://ci64.com/en" />
+  <link rel="alternate" hreflang="x-default" href="https://ci64.com/" />
 
   <!-- Open Graph：微信 / QQ / 社交平台分享卡片 -->
   <meta property="og:type" content="website" />
@@ -34,90 +37,27 @@
   <link rel="icon" href="/favicon.ico" sizes="32x32" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏷️</text></svg>" type="image/svg+xml" />
 
-  <!-- 结构化数据：应用 + 场景列表 + 常见问题（单页 SEO，无多路由） -->
+  <!-- 结构化数据：构建时 prerender 按路由替换 -->
+  <!-- SEO_JSONLD_START -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "签立方",
+      "url": "https://ci64.com/",
+      "description": "签立方（Label Cube）是在线标签打印产品，与 X-Rite Ci64 分光仪、应用「签立得」等无关。"
+    }
+  </script>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "签立方",
-      "alternateName": ["Label Cube", "LabelCube", "LabelPrinter"],
       "url": "https://ci64.com/",
-      "image": "https://ci64.com/marketing/hero-app-editor.jpg",
-      "screenshot": "https://ci64.com/marketing/hero-app-editor.jpg",
-      "description": "免费标签打印工具签立方。导入 Excel，按行打价签、条码和面单。可免费 AI排版，不用填密钥；再批量打印或导出 PDF。数据留在浏览器。",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web",
-      "inLanguage": ["zh-CN", "en"],
-      "isAccessibleForFree": true,
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
-      "sameAs": ["https://ci64.com/", "https://github.com/qqww45/LabelPrinter"],
-      "author": { "@type": "Person", "name": "qqww45" },
-      "featureList": [
-        "AI 排版与按说明调整",
-        "Excel/CSV 批量填充",
-        "条形码与二维码",
-        "毫米级纸张与拼版",
-        "矢量 PDF 与 PNG 导出",
-        "浏览器本地保存"
-      ]
+      "description": "免费标签打印工具签立方。导入 Excel，按行打价签、条码和面单。可免费 AI排版，不用填密钥；再批量打印或导出 PDF。数据留在浏览器。"
     }
   </script>
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      "name": "标签打印常见场景",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "价签 / 产品标签", "description": "品名、规格、价格与条码，适合超市与门店价签。" },
-        { "@type": "ListItem", "position": 2, "name": "快递面单", "description": "收件人、电话、地址与运单二维码批量打印。" },
-        { "@type": "ListItem", "position": 3, "name": "资产标签", "description": "资产编号、部门与条码吊牌，方便盘点扫码。" },
-        { "@type": "ListItem", "position": 4, "name": "货架签 / 吊牌", "description": "多列拼版，一页打印多张货架签或服装吊牌。" }
-      ]
-    }
-  </script>
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "有免费的在线标签打印工具吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "有。签立方是免费的在线标签打印工具，网址是 https://ci64.com/ 。打开浏览器导入 Excel 或 CSV，即可按行批量打印价签、条码和面单，也可以导出 PDF。默认可以免费 AI排版，不用填密钥。不用安装，不用注册，数据留在本机浏览器。" }
-        },
-        {
-          "@type": "Question",
-          "name": "签立方免费吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "工具免费，不用注册。默认使用内置模型，可以免费 AI排版，不用填密钥。想换模型或看图纠偏时，再填自己的 API Key。不用 AI 时，表格留在这台浏览器里。" }
-        },
-        {
-          "@type": "Question",
-          "name": "签立方需要安装吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "不需要。打开浏览器访问 https://ci64.com/ 即可使用，项目与数据默认保存在本机浏览器。" }
-        },
-        {
-          "@type": "Question",
-          "name": "如何用 Excel 批量打印标签？",
-          "acceptedAnswer": { "@type": "Answer", "text": "导入 Excel 或 CSV（首行为字段名），把字段拖到标签组件上或使用 {{字段名}} 占位符，即可按行批量生成并打印或导出 PDF。" }
-        },
-        {
-          "@type": "Question",
-          "name": "支持条形码和二维码吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "支持免费条码打印和二维码。把条形码或二维码放在标签上并绑定数据列，打印与矢量 PDF 导出时会一并输出。" }
-        },
-        {
-          "@type": "Question",
-          "name": "可以用 AI 排标签吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "可以，而且默认可免费 AI排版，不用填密钥。说出字段和想要的样子，内置模型会排出布局、样式和字段绑定；也可以对着已有标签说明要改的地方。想换更强模型或看图纠偏时，再填自己的 API Key。不用 AI 时不会发送数据。" }
-        },
-        {
-          "@type": "Question",
-          "name": "导出的 PDF 会保留字体颜色吗？",
-          "acceptedAnswer": { "@type": "Answer", "text": "会。矢量 PDF 导出会保留组件设置的文字颜色（含价格红色等），并与画布预览保持一致。" }
-        }
-      ]
-    }
-  </script>
+  <!-- SEO_JSONLD_END -->
 
   <!-- 首屏加载：内联样式，不依赖 JS/CSS 包，避免白屏 -->
   <style>
@@ -279,6 +219,17 @@
       #boot-splash .boot-progress { width: 55%; left: 22.5%; background: var(--boot-ink); }
     }
 
+    /* 无 JS 首屏导读：构建后 prerender 写入完整正文；hydration 后 sr-only 折叠 */
+    .seo-static-main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 20px;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: #0f172a;
+      line-height: 1.6;
+    }
+  </style>
+  <style>
     /* 首屏静态产品图：无 JS 时供搜索引擎读取；工作台路由在 hydration 后折叠为可读性隐藏 */
     #seo-product-shots {
       max-width: 1120px;
@@ -311,7 +262,8 @@
       white-space: nowrap;
       border: 0;
     }
-    html.site-ready #seo-product-shots {
+    html.site-ready #seo-product-shots,
+    html.site-ready #seo-static-main {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -349,32 +301,18 @@
       <div class="boot-hint">正在准备工作台…</div>
     </div>
   </div>
+  <!-- SEO_BODY_START -->
+  <article id="seo-static-main" class="seo-static-main" lang="zh-CN">
+    <h1>签立方：免费在线标签打印，导入 Excel 按行打印价签、条码与面单</h1>
+    <p>免费标签打印工具，无需注册；数据留在浏览器。<a href="/templates">模板库</a> · <a href="/help">帮助</a></p>
+  </article>
   <section id="seo-product-shots" aria-label="签立方产品与标签打印样例">
-    <img
-      src="/marketing/hero-app-editor.jpg"
-      width="1200"
-      height="750"
-      alt="签立方在线标签设计工作台界面：画布、组件栏与数据表批量打印"
-    />
-    <img
-      src="/marketing/sample-price-tag.jpg"
-      width="800"
-      height="530"
-      alt="签立方价签打印预览：品名、规格、价格与条码"
-    />
-    <img
-      src="/marketing/sample-waybill.jpg"
-      width="800"
-      height="530"
-      alt="签立方快递面单打印预览：收件信息与运单二维码"
-    />
-    <img
-      src="/marketing/hero-label-stickers.jpg"
-      width="1200"
-      height="320"
-      alt="签立方多种价签、条码与吊牌模板画布预览标本"
-    />
+    <img src="/marketing/hero-app-editor.jpg" width="1200" height="750" alt="签立方在线标签设计工作台界面" />
+    <img src="/marketing/sample-price-tag.jpg" width="800" height="530" alt="价签打印预览" />
+    <img src="/marketing/sample-waybill.jpg" width="800" height="530" alt="快递面单打印预览" />
+    <img src="/marketing/hero-label-stickers.jpg" width="1200" height="320" alt="多种标签模板预览" />
   </section>
+  <!-- SEO_BODY_END -->
   <div id="app"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
