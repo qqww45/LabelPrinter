@@ -55,8 +55,7 @@ import { resolveRow, renderTextWithAlert, codePayload, rowIsEmpty, isEncodableCo
 import { formatCheckboxText, formatPriceText, formatSerialText, barcodeCanvasOptions, strokeStyleDash } from '../utils/controls'
 import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
-import { generateQRCode } from '../utils/qrcode'
-import { qrToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
+import { barcodeToCanvas, canvasToDataURL, matrixCodeToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
 import { readSceneGeometry } from '../utils/sceneGeom'
 import { heightForFont } from '../utils/textFit'
@@ -397,17 +396,46 @@ function addComponent(type, xMm, yMm, extra = {}) {
   let comp = {}
   switch (type) {
     case 'text':
-      comp = { ...def, text: '文本', fontSize: 12, fill: '#000', fontFamily: 'Microsoft YaHei',
-               fontWeight: 'normal', textAlign: 'left', binding: '' }
+      comp = {
+        ...def,
+        text: extra.text || '文本',
+        fontSize: extra.fontSize || 12,
+        fill: '#000',
+        fontFamily: 'Microsoft YaHei',
+        fontWeight: 'normal',
+        textAlign: 'left',
+        binding: extra.binding || '',
+        name: extra.name || def.name,
+        dataMode: extra.dataMode || 'fixed'
+      }
       break
     case 'image':
-      comp = { ...def, src: '', source: 'static', binding: '' }
+      comp = {
+        ...def,
+        src: extra.src || '',
+        source: extra.source || 'static',
+        binding: extra.binding || '',
+        name: extra.name || def.name
+      }
       break
     case 'qrcode':
-      comp = { ...def, text: 'QR', binding: '' }
+      comp = {
+        ...def,
+        text: extra.sampleText || 'QR',
+        binding: extra.binding || '',
+        format: extra.format || 'QR',
+        dataMode: extra.dataMode || (extra.binding ? 'field' : 'fixed')
+      }
       break
     case 'barcode':
-      comp = { ...def, text: '', binding: '', format: 'CODE128', displayValue: true }
+      comp = {
+        ...def,
+        text: extra.sampleText || '',
+        binding: extra.binding || '',
+        format: extra.format || 'CODE128',
+        displayValue: extra.displayValue !== false,
+        dataMode: extra.dataMode || (extra.binding ? 'field' : 'fixed')
+      }
       break
     case 'rect':
       comp = { ...def, fill: 'transparent', stroke: '#000', strokeWidth: 1, rx: 0 }
@@ -747,7 +775,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       if (c.type === 'barcode') {
         const scan = barcodeScanIssue({ format: c.format, value: txt, widthMm: c.width, heightMm: c.height })
         if (scan !== 'ok') {
-          obj = codeErrorPlaceholder(c, baseOpts, t(barcodeScanText(scan)))
+          obj = codeErrorPlaceholder(c, baseOpts, t(barcodeScanText(scan, c.format)))
           break
         }
       }
@@ -755,7 +783,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       const boxH = Math.max(1, c.height * MM_TO_PX)
       const ready = c.type === 'barcode'
         ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, barcodeCanvasOptions(c, boxW * 2, boxH * 2))))
-        : generateQRCode(txt, { width: 200 })
+        : Promise.resolve(matrixCodeToDataURL(txt, c.format || 'QR', boxW * 2))
       ready.then(dataUrl => {
         if (!dataUrl) return
         fabric.Image.fromURL(dataUrl).then(img => {
@@ -1235,7 +1263,8 @@ watch(() => data.activeRow, () => renderAll())
 watch(() => pj.addRequest, () => {
   const type = pj.addRequestType
   if (!type) return
-  addComponent(type, pj.project.label.width / 2, pj.project.label.height / 2)
+  const extra = pj.consumeAddRequestExtra() || {}
+  addComponent(type, pj.project.label.width / 2, pj.project.label.height / 2, extra)
 })
 // 字段映射变化 → 立即重绘（实时）
 watch(() => pj.project.dataSource.fieldMap, () => renderAll(), { deep: true })

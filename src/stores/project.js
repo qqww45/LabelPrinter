@@ -111,6 +111,7 @@ export const useProjectStore = defineStore('project', () => {
   // 左侧组件单击添加：DesignCanvas 监听后放到标签中心
   const addRequest = ref(0)
   const addRequestType = ref('')
+  const addRequestExtra = ref(null)
 
   const selectedComponent = computed(() =>
     project.value.components.find(c => c.id === selectedId.value)
@@ -278,10 +279,17 @@ export const useProjectStore = defineStore('project', () => {
     project.value.meta.updatedAt = new Date().toISOString()
   }
 
-  function requestAddComponent(type) {
+  function requestAddComponent(type, extra = null) {
     if (!type) return
     addRequestType.value = type
+    addRequestExtra.value = extra && typeof extra === 'object' ? { ...extra } : null
     addRequest.value += 1
+  }
+
+  function consumeAddRequestExtra() {
+    const x = addRequestExtra.value
+    addRequestExtra.value = null
+    return x
   }
 
   function addComponent(comp) {
@@ -961,7 +969,7 @@ export const useProjectStore = defineStore('project', () => {
 
   return {
     project, filePath, dirty, selectedId, selectedIds, zoom, showGrid, autoFit,
-    addRequest, addRequestType, requestAddComponent,
+    addRequest, addRequestType, addRequestExtra, requestAddComponent, consumeAddRequestExtra,
     selectedComponent, isMultiSelect,
     labelAreaOrigin, labelAreaSize, labelsPerPage,
     projects, currentId, persistError,

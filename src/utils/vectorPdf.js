@@ -7,10 +7,11 @@ import JsBarcode from 'jsbarcode'
 import { renderText } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
-import { barcodeToCanvas, canvasToDataURL, qrToCanvas } from './cellImage.js'
+import { barcodeToCanvas, canvasToDataURL, matrixCodeToCanvas } from './cellImage.js'
 import { barcodePrintPx } from './barcodeFit.js'
 import { applyPdfLineDash, barcodeCanvasOptions, dividerEndpoints, formatPriceText } from './controls.js'
 import { safeImageSrc } from './escapeHtml.js'
+import { imageSrcForPdfEmbed, isSvgDataUrl } from './rasterImage.js'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from './tableGeom.js'
 
 export { tableColumnWidths, tableRowHeights }
@@ -317,18 +318,19 @@ function drawDashedBox(pdf, c, x, y, w, h) {
   applyPdfLineDash(pdf, 'solid')
 }
 
-function drawImage(pdf, c, row, x, y, w, h) {
-  // 只拦危险协议；正常 http(s)/data:image 与预览一致，不改版式
-  const src = safeImageSrc(c.source === 'field' ? (row?.[c.binding] || '') : (c.src || ''))
-  if (!src || w <= 0 || h <= 0) return
+function drawImage(pdf, c, row, x, y, w, h, rasterCache) {
+  const raw = safeImageSrc(c.source === 'field' ? (row?.[c.binding] || '') : (c.src || ''))
+  if (!raw || w <= 0 || h <= 0) return
+  const src = rasterCache?.get(raw) || raw
+  if (isSvgDataUrl(src)) return
   try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 跨域或坏图就跳过 */ }
 }
 
-function drawCellVisual(pdf, cell, text, x, y, w, h) {
+function drawCellVisual(pdf, cell, text, x, y, w, h, rasterCache) {
   const type = cell?.type || 'text'
   if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
     const cv = type === 'qrcode'
-      ? qrToCanvas(String(text), 240)
+      ? matrixCodeToCanvas(String(text), cell.format || 'QR', 240)
       : barcodeToCanvas(String(text), barcodeCanvasOptions(
         { format: cell.format || 'CODE128' },
         barcodePrintPx(w),
@@ -338,8 +340,9 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
     return
   }
   if (type === 'image') {
-    const src = safeImageSrc(text || cell?.src || '')
-    if (src) {
+    const raw = safeImageSrc(text || cell?.src || '')
+    const src = rasterCache?.get(raw) || raw
+    if (src && !isSvgDataUrl(src)) {
       try { pdf.addImage(src, x, y, w, h) } catch (e) { /* 坏图跳过 */ }
     }
     return
@@ -354,7 +357,7 @@ function drawCellVisual(pdf, cell, text, x, y, w, h) {
   })
 }
 
-function drawTable(pdf, c, row, x, y, w, h) {
+function drawTable(pdf, c, row, x, y, w, h, rasterCache) {
   const colW = tableColumnWidths(c, w)
   const rowH = tableRowHeights(c, h)
   const cols = colW.length
@@ -402,12 +405,12 @@ function drawTable(pdf, c, row, x, y, w, h) {
         _weight: header ? 'bold' : c.fontWeight,
         _vAlign: c.vAlign || 'middle',
         _fill: header ? (c.headerText || '#111111') : (c.cellTextColor || cell.fill || '#111111')
-      }, text, cx, cy, cw, ch)
+      }, text, cx, cy, cw, ch, rasterCache)
     }
   }
 }
 
-function drawComponent(pdf, c, row, ox, oy) {
+function drawComponent(pdf, c, row, ox, oy, rasterCache) {
   if (!c || componentHidden(c, row)) return
   const x = ox + (Number(c.left) || 0)
   const y = oy + (Number(c.top) || 0)
@@ -424,7 +427,7 @@ function drawComponent(pdf, c, row, ox, oy) {
     const text = componentPlainText(c, row)
     if (!text) return
     if (typeof document === 'undefined') { drawQr(pdf, text, x, y, w, h); return }
-    const cv = qrToCanvas(String(text), 240)
+    const cv = matrixCodeToCanvas(String(text), c.format || 'QR', 240)
     if (cv) {
       try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
     }
@@ -447,9 +450,9 @@ function drawComponent(pdf, c, row, ox, oy) {
   } else if (c.type === 'dashedBox') {
     drawDashedBox(pdf, c, x, y, w, h)
   } else if (c.type === 'image') {
-    drawImage(pdf, c, row, x, y, w, h)
+    drawImage(pdf, c, row, x, y, w, h, rasterCache)
   } else if (c.type === 'table') {
-    drawTable(pdf, c, row, x, y, w, h)
+    drawTable(pdf, c, row, x, y, w, h, rasterCache)
   }
 }
 
@@ -468,6 +471,41 @@ function drawLabelChrome(pdf, project, ox, oy) {
  * @param {{ project: object, labels: Array, filename?: string }} args
  * @returns {Promise<number>} 页数
  */
+function collectImageSrcCandidates(project, labels) {
+  const set = new Set()
+  const add = (s) => {
+    const x = safeImageSrc(s)
+    if (x) set.add(x)
+  }
+  for (const c of project?.components || []) {
+    if (c?.type === 'image') {
+      add(c.src)
+      if (c.source === 'field' && Array.isArray(labels)) {
+        for (const item of labels) add(item?.row?.[c.binding])
+      }
+    }
+    if (c?.type === 'table' && c.cells) {
+      for (const cell of Object.values(c.cells)) {
+        if (cell?.type === 'image') add(cell.src)
+      }
+    }
+  }
+  return [...set]
+}
+
+async function buildRasterCache(srcList) {
+  const map = new Map()
+  for (const raw of srcList) {
+    if (!isSvgDataUrl(raw)) {
+      map.set(raw, raw)
+      continue
+    }
+    const png = await imageSrcForPdfEmbed(raw)
+    if (png) map.set(raw, png)
+  }
+  return map
+}
+
 export async function exportVectorPDF({ project, labels, filename, onPage }) {
   const paper = project?.paper || { width: 210, height: 297 }
   const pw = Number(paper.width) || 210
@@ -484,13 +522,14 @@ export async function exportVectorPDF({ project, labels, filename, onPage }) {
     format: [pw, ph],
     compress: true
   })
+  const rasterCache = await buildRasterCache(collectImageSrcCandidates(project, labels))
   for (let pi = 0; pi < pages.length; pi++) {
     const page = pages[pi]
     if (pi > 0) pdf.addPage([pw, ph], orient)
     page.slots.forEach((slot, si) => {
       if (slot.empty) return
       const box = slotOffsetMm(si, project)
-      for (const c of project.components || []) drawComponent(pdf, c, slot.row || {}, box.x, box.y)
+      for (const c of project.components || []) drawComponent(pdf, c, slot.row || {}, box.x, box.y, rasterCache)
       drawLabelChrome(pdf, project, box.x, box.y)
     })
     // 有进度回调时让出主线程，遮罩上的转圈才能在多页导出时继续动

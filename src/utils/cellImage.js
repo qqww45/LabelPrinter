@@ -1,6 +1,8 @@
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { BARCODE_QUIET_MODULES, barcodeBarHeight, barcodeFontSize, barcodeModuleWidth, barcodeTextRatio } from './barcodeFit.js'
+import { jsBarcodeFormat } from './symbologyCatalog.js'
+import { twoDToCanvas } from './twoDCode.js'
 
 /**
  * 同步生成二维码 canvas（用于 canvas 内即时渲染，无需等待异步加载）
@@ -36,7 +38,7 @@ export function qrToCanvas(text, px = 200, opts = {}) {
 export function barcodeToCanvas(text, opts = {}) {
   const value = text == null ? '' : String(text).trim()
   if (!value) return null
-  const format = opts.format || 'CODE128'
+  const format = jsBarcodeFormat(opts.format || 'CODE128')
   const showText = opts.displayValue !== false
   try {
     const probe = document.createElement('canvas')
@@ -78,4 +80,16 @@ export function barcodeToCanvas(text, opts = {}) {
 export function canvasToDataURL(cv) {
   if (!cv) return ''
   return cv.toDataURL('image/png')
+}
+
+/**
+ * 二维码 / PDF417 / Data Matrix 等二维码统一出口（画布≈预览≈PDF）。
+ */
+export function matrixCodeToCanvas(text, format, targetPx, opts = {}) {
+  return twoDToCanvas(text, format, targetPx, opts)
+}
+
+export function matrixCodeToDataURL(text, format, targetPx, opts = {}) {
+  const cv = matrixCodeToCanvas(text, format, targetPx, opts)
+  return canvasToDataURL(cv)
 }
