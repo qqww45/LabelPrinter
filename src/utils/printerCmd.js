@@ -7,6 +7,7 @@ import { renderText } from './render.js'
 import { componentHidden, componentPlainText } from './printModel.js'
 import { calibrationPieces, normalizeCalibrate, transformPiece } from './thermalCalibrate.js'
 import { clampGapMm } from './thermalMedia.js'
+import { arrowGeometryMm, polylinePointsMm } from './shapeGeom.js'
 
 function dpiOf(job) {
   return Number(job?.dpi) === 300 ? 300 : 203
@@ -123,6 +124,34 @@ function pieces(components, row) {
         w: Number(c.width) || 10,
         h: Math.max(0.2, (Number(c.strokeWidth) || 1) * 25.4 / 96)
       })
+      continue
+    }
+    if (c.type === 'arrow') {
+      const geom = arrowGeometryMm(c)
+      const ox = Number(c.left) || 0
+      const oy = Number(c.top) || 0
+      const x1 = ox + geom.shaft[0][0]
+      const y1 = oy + geom.shaft[0][1]
+      const x2 = ox + geom.shaft[1][0]
+      const y2 = oy + geom.shaft[1][1]
+      const w = Math.hypot(x2 - x1, y2 - y1) || 1
+      const h = Math.max(0.2, (Number(c.strokeWidth) || 0.5) * 25.4 / 96)
+      out.push({ kind: 'line', x: x1, y: y1, w, h })
+      continue
+    }
+    if (c.type === 'polyline') {
+      const pts = polylinePointsMm(c)
+      const ox = Number(c.left) || 0
+      const oy = Number(c.top) || 0
+      const sw = Math.max(0.2, (Number(c.strokeWidth) || 0.4) * 25.4 / 96)
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [x1, y1] = pts[i]
+        const [x2, y2] = pts[i + 1]
+        const px = ox + x1
+        const py = oy + y1
+        const w = Math.hypot(x2 - x1, y2 - y1) || 0.1
+        out.push({ kind: 'line', x: px, y: py, w, h: sw })
+      }
     }
   }
   return out

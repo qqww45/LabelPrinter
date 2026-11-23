@@ -1,5 +1,5 @@
 <template>
-  <div class="design-canvas-root">
+  <div class="design-canvas-root" data-testid="design-canvas">
     <div class="design-canvas-wrap" ref="wrapRef" :class="{ 'is-dark': settings.theme === 'dark' }">
       <!-- 标签画布：只显示一个标签（数据单元） -->
       <div class="label-canvas-wrapper" :style="canvasWrapperStyle">
@@ -57,6 +57,7 @@ import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
 import { barcodeToCanvas, canvasToDataURL, matrixCodeToDataURL } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
+import { arrowGeometryMm, polylinePointsMm } from '../utils/shapeGeom'
 import { readSceneGeometry } from '../utils/sceneGeom'
 import { heightForFont } from '../utils/textFit'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
@@ -378,7 +379,9 @@ function addComponent(type, xMm, yMm, extra = {}) {
     checkbox:{ w: Math.min(8, lw - 4),  h: Math.min(8, lh - 4) },
     price:  { w: Math.min(32, lw - 4),  h: Math.min(10, lh - 4) },
     divider:{ w: Math.min(50, lw - 4),  h: Math.min(0.6, lh - 4) },
-    dashedBox:{ w: Math.min(40, lw - 4), h: Math.min(22, lh - 4) }
+    dashedBox:{ w: Math.min(40, lw - 4), h: Math.min(22, lh - 4) },
+    arrow:   { w: Math.min(28, lw - 4),  h: Math.min(16, lh - 4) },
+    polyline:{ w: Math.min(40, lw - 4),  h: Math.min(20, lh - 4) }
   }
   const sz = sizeDefaults[type] || { w: Math.min(40, lw - 4), h: Math.min(20, lh - 4) }
 
@@ -444,7 +447,13 @@ function addComponent(type, xMm, yMm, extra = {}) {
       comp = { ...def, name: '椭圆', fill: 'transparent', stroke: '#000', strokeWidth: 1 }
       break
     case 'line':
-      comp = { ...def, stroke: '#000', strokeWidth: 1 }
+      comp = { ...def, stroke: '#000', strokeWidth: 1, strokeStyle: 'solid' }
+      break
+    case 'arrow':
+      comp = { ...def, name: '箭头', stroke: '#2563eb', strokeWidth: 0.5, strokeStyle: 'solid', arrowDirection: 'right' }
+      break
+    case 'polyline':
+      comp = { ...def, name: '折线', stroke: '#0f172a', strokeWidth: 0.4, strokeStyle: 'solid', points: polylinePointsMm(def) }
       break
     case 'date':
       comp = { ...def, text: dayjs().format('YYYY-MM-DD'), source: 'now', format: 'YYYY-MM-DD HH:mm:ss', binding: '',
@@ -831,8 +840,41 @@ function buildFabricObject(c, gen = renderGeneration) {
     case 'line': {
       obj = new fabric.Line(
         [0, 0, c.width * MM_TO_PX, 0],
-        { ...baseOpts, stroke: c.stroke, strokeWidth: c.strokeWidth }
+        {
+          ...baseOpts,
+          stroke: c.stroke,
+          strokeWidth: c.strokeWidth,
+          strokeDashArray: strokeStyleDash(c.strokeStyle || 'solid')
+        }
       )
+      break
+    }
+    case 'arrow': {
+      const geom = arrowGeometryMm(c)
+      const sc = MM_TO_PX
+      const stroke = c.stroke || '#2563eb'
+      const sw = Math.max(0.5, (c.strokeWidth || 0.5) * sc * 0.35)
+      const dash = strokeStyleDash(c.strokeStyle || 'solid')
+      const shaft = new fabric.Line(
+        [geom.shaft[0][0] * sc, geom.shaft[0][1] * sc, geom.shaft[1][0] * sc, geom.shaft[1][1] * sc],
+        { stroke, strokeWidth: sw, strokeDashArray: dash, selectable: false, evented: false }
+      )
+      const headPts = geom.head.map(([x, y]) => ({ x: x * sc, y: y * sc }))
+      const head = new fabric.Polygon(headPts, { fill: stroke, stroke: stroke, strokeWidth: sw * 0.5, selectable: false, evented: false })
+      obj = new fabric.Group([shaft, head], { ...baseOpts, subTargetCheck: false })
+      break
+    }
+    case 'polyline': {
+      const pts = polylinePointsMm(c).map(([x, y]) => ({ x: x * MM_TO_PX, y: y * MM_TO_PX }))
+      obj = new fabric.Polyline(pts, {
+        ...baseOpts,
+        fill: 'transparent',
+        stroke: c.stroke || '#0f172a',
+        strokeWidth: Math.max(0.5, (c.strokeWidth || 0.4) * MM_TO_PX * 0.35),
+        strokeDashArray: strokeStyleDash(c.strokeStyle || 'solid'),
+        strokeLineCap: 'round',
+        strokeLineJoin: 'round'
+      })
       break
     }
     case 'divider': {

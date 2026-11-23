@@ -10,6 +10,7 @@ import { qrMatrix } from './codeGeom.js'
 import { barcodeToCanvas, canvasToDataURL, matrixCodeToCanvas } from './cellImage.js'
 import { barcodePrintPx } from './barcodeFit.js'
 import { applyPdfLineDash, barcodeCanvasOptions, dividerEndpoints, formatPriceText } from './controls.js'
+import { arrowGeometryMm, polylinePointsMm } from './shapeGeom.js'
 import { safeImageSrc } from './escapeHtml.js'
 import { imageSrcForPdfEmbed, isSvgDataUrl } from './rasterImage.js'
 import { sizeOffsets, tableColumnWidths, tableRowHeights } from './tableGeom.js'
@@ -293,8 +294,42 @@ function drawLine(pdf, c, x, y, w) {
   const sw = Math.max(0.05, pxMm(c.strokeWidth || 1))
   setStroke(pdf, c.stroke || '#000000')
   pdf.setLineWidth(sw)
-  applyPdfLineDash(pdf, 'solid')
+  applyPdfLineDash(pdf, c.strokeStyle || 'solid')
   pdf.line(x, y + sw / 2, x + w, y + sw / 2)
+  applyPdfLineDash(pdf, 'solid')
+}
+
+function drawPolyline(pdf, c, x, y) {
+  const sw = Math.max(0.05, pxMm(c.strokeWidth || 0.4))
+  setStroke(pdf, c.stroke || '#0f172a')
+  pdf.setLineWidth(sw)
+  applyPdfLineDash(pdf, c.strokeStyle || 'solid')
+  const pts = polylinePointsMm(c)
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, y1] = pts[i]
+    const [x2, y2] = pts[i + 1]
+    pdf.line(x + x1, y + y1, x + x2, y + y2)
+  }
+  applyPdfLineDash(pdf, 'solid')
+}
+
+function drawArrow(pdf, c, x, y) {
+  const geom = arrowGeometryMm(c)
+  const sw = Math.max(0.05, pxMm(c.strokeWidth || 0.5))
+  setStroke(pdf, c.stroke || '#2563eb')
+  setFill(pdf, c.stroke || '#2563eb')
+  pdf.setLineWidth(sw)
+  applyPdfLineDash(pdf, c.strokeStyle || 'solid')
+  const s0 = geom.shaft[0]
+  const s1 = geom.shaft[1]
+  pdf.line(x + s0[0], y + s0[1], x + s1[0], y + s1[1])
+  const h = geom.head
+  if (h.length >= 3 && typeof pdf.triangle === 'function') {
+    pdf.triangle(x + h[0][0], y + h[0][1], x + h[1][0], y + h[1][1], x + h[2][0], y + h[2][1], 'F')
+  } else if (h.length >= 3) {
+    pdf.lines([[h[1][0] - h[0][0], h[1][1] - h[0][1], h[2][0] - h[1][0], h[2][1] - h[1][1]]], x + h[0][0], y + h[0][1], [1, 1], 'F', true)
+  }
+  applyPdfLineDash(pdf, 'solid')
 }
 
 function drawDivider(pdf, c, x, y, w, h) {
@@ -445,6 +480,10 @@ function drawComponent(pdf, c, row, ox, oy, rasterCache) {
     drawEllipse(pdf, c, x, y, w, h)
   } else if (c.type === 'line') {
     drawLine(pdf, c, x, y, w)
+  } else if (c.type === 'polyline') {
+    drawPolyline(pdf, c, x, y)
+  } else if (c.type === 'arrow') {
+    drawArrow(pdf, c, x, y)
   } else if (c.type === 'divider') {
     drawDivider(pdf, c, x, y, w, h)
   } else if (c.type === 'dashedBox') {
@@ -538,6 +577,42 @@ export async function exportVectorPDF({ project, labels, filename, onPage }) {
       await new Promise(r => setTimeout(r, 0))
     }
   }
-  pdf.save(filename || `${project?.meta?.name || 'label'}.pdf`)
+  const name = filename || `${project?.meta?.name || 'label'}.pdf`
+  pdf.save(name)
   return pages.length
+}
+
+/** 返回 PDF Blob（ZIP 批量导出用） */
+export async function buildVectorPdfBlob({ project, labels, onPage }) {
+  const paper = project?.paper || { width: 210, height: 297 }
+  const pw = Number(paper.width) || 210
+  const ph = Number(paper.height) || 297
+  const per = (() => {
+    const L = project?.layout || {}
+    return L.mode === 'auto' ? Math.max(1, (L.cols || 1) * (L.rows || 1)) : 1
+  })()
+  const pages = paginateLabels(labels, per, project?.printConfig?.startSlot)
+  const orient = pw > ph ? 'landscape' : 'portrait'
+  const pdf = new jsPDF({
+    orientation: orient,
+    unit: 'mm',
+    format: [pw, ph],
+    compress: true
+  })
+  const rasterCache = await buildRasterCache(collectImageSrcCandidates(project, labels))
+  for (let pi = 0; pi < pages.length; pi++) {
+    const page = pages[pi]
+    if (pi > 0) pdf.addPage([pw, ph], orient)
+    page.slots.forEach((slot, si) => {
+      if (slot.empty) return
+      const box = slotOffsetMm(si, project)
+      for (const c of project.components || []) drawComponent(pdf, c, slot.row || {}, box.x, box.y, rasterCache)
+      drawLabelChrome(pdf, project, box.x, box.y)
+    })
+    if (typeof onPage === 'function') {
+      await Promise.resolve(onPage(pi + 1, pages.length))
+      await new Promise((r) => setTimeout(r, 0))
+    }
+  }
+  return pdf.output('blob')
 }

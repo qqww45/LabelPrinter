@@ -13,6 +13,11 @@ app.use(router)
 app.mount('#app')
 document.documentElement.classList.add('site-ready')
 
+// Playwright / 本地 UI 回归：仅在 dev 下暴露 Pinia（生产构建不挂载）
+if (import.meta.env.DEV) {
+  window.__labelprintTest = { pinia }
+}
+
 // 首屏加载屏：等一帧绘制后再淡出，避免闪切（见 index.html #boot-splash）
 requestAnimationFrame(() => {
   requestAnimationFrame(() => {

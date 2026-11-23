@@ -30,7 +30,7 @@ export const SAMPLE_DATASETS = [
     desc: '收件人 / 电话 / 地址 / 单号',
     path: '/samples/sample-express.csv',
     fileName: 'sample-express.csv',
-    suggestedTemplateIds: ['tpl_express']
+    suggestedTemplateIds: ['tpl_express', 'tpl_packing_mark']
   },
   {
     id: 'asset',
@@ -38,7 +38,7 @@ export const SAMPLE_DATASETS = [
     desc: '资产编号 / 名称 / 部门 / 保管人',
     path: '/samples/sample-asset.csv',
     fileName: 'sample-asset.csv',
-    suggestedTemplateIds: ['tpl_asset_fixed']
+    suggestedTemplateIds: ['tpl_asset_fixed', 'tpl_asset_equipment']
   },
   {
     id: 'jewelry',
@@ -54,7 +54,15 @@ export const SAMPLE_DATASETS = [
     desc: '款号 / 尺码 / 颜色 / 吊牌价 / 条码',
     path: '/samples/sample-apparel.csv',
     fileName: 'sample-apparel.csv',
-    suggestedTemplateIds: ['tpl_apparel_hang']
+    suggestedTemplateIds: ['tpl_apparel_hang', 'tpl_apparel_size']
+  },
+  {
+    id: 'wash',
+    name: '洗水唛示例',
+    desc: '款号 / 尺码 / 成分 / 洗涤说明 / 原产国 / 条码',
+    path: '/samples/sample-wash.csv',
+    fileName: 'sample-wash.csv',
+    suggestedTemplateIds: ['tpl_wash_care', 'tpl_wash_fold']
   },
   {
     id: 'warehouse',

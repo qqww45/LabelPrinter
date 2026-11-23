@@ -324,6 +324,55 @@
           <label>颜色</label><input class="input" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
           <label>粗细</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
         </div>
+        <div class="form-row">
+          <label>{{ t('线型') }}</label>
+          <select class="input" :value="selected.strokeStyle || 'solid'" @change="update('strokeStyle', $event.target.value)">
+            <option value="solid">{{ t('实线') }}</option>
+            <option value="dashed">{{ t('虚线') }}</option>
+            <option value="dotted">{{ t('点线') }}</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset v-if="selected.type === 'arrow'">
+        <legend>{{ t('箭头') }}</legend>
+        <div class="form-row">
+          <label>{{ t('方向') }}</label>
+          <select class="input" :value="selected.arrowDirection || 'right'" @change="update('arrowDirection', $event.target.value)">
+            <option value="right">{{ t('向右') }}</option>
+            <option value="left">{{ t('向左') }}</option>
+            <option value="up">{{ t('向上') }}</option>
+            <option value="down">{{ t('向下') }}</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>颜色</label><input class="input" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
+          <label>粗细</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('线型') }}</label>
+          <select class="input" :value="selected.strokeStyle || 'solid'" @change="update('strokeStyle', $event.target.value)">
+            <option value="solid">{{ t('实线') }}</option>
+            <option value="dashed">{{ t('虚线') }}</option>
+            <option value="dotted">{{ t('点线') }}</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset v-if="selected.type === 'polyline'">
+        <legend>{{ t('折线') }}</legend>
+        <div class="form-row">
+          <label>颜色</label><input class="input" type="color" :value="selected.stroke" @input="update('stroke', $event.target.value)" />
+          <label>粗细</label><input class="input" type="number" :value="selected.strokeWidth" @input="update('strokeWidth', +$event.target.value)" />
+        </div>
+        <div class="form-row">
+          <label>{{ t('线型') }}</label>
+          <select class="input" :value="selected.strokeStyle || 'solid'" @change="update('strokeStyle', $event.target.value)">
+            <option value="solid">{{ t('实线') }}</option>
+            <option value="dashed">{{ t('虚线') }}</option>
+            <option value="dotted">{{ t('点线') }}</option>
+          </select>
+        </div>
       </fieldset>
 
       <!-- 分隔线 -->

@@ -71,6 +71,7 @@
               <button class="btn" type="button" :disabled="busy" :class="{ active: moreOpen }" @click="moreOpen = !moreOpen">{{ t('更多') }} ▾</button>
               <div v-if="moreOpen" class="more-menu" @click.stop>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('pdf')">{{ t('导出 PDF') }}</button>
+                <button class="more-item" type="button" :disabled="busy" data-testid="export-zip" @click="runMore('zip')">{{ t('导出 ZIP 批量') }}</button>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('image')">{{ t('导出图片') }}</button>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('queue')" :title="t('按当前打印设置加入队列，稍后依次打印')">{{ t('加入队列') }}</button>
                 <button class="more-item" type="button" :disabled="busy" @click="runMore('tspl')">{{ t('下载 TSPL') }}</button>
@@ -126,6 +127,7 @@
                     v-for="(slot, si) in currentPageData.slots"
                     :key="si"
                     class="label-slot"
+                    data-testid="preview-label-slot"
                     :style="slotStyle(si)"
                   >
                     <CompRenderer v-if="!slot.empty" :c="comp" :row="mappedRow(slot.row)" v-for="comp in project.project.components" :key="comp.id" />
@@ -202,7 +204,8 @@ import { safeImageSrc } from '../utils/escapeHtml'
 import { expandPrintLabels, paginateLabels, pageForSourceRow, normalizeStartSlot, componentHidden, componentPlainText } from '../utils/printModel'
 import { pageBoxStyle, labelAreaStyle } from '../utils/pageBox'
 import { buildPreviewBrief } from '../utils/diagnose'
-import { exportVectorPDF } from '../utils/vectorPdf'
+import { exportVectorPDF, buildVectorPdfBlob } from '../utils/vectorPdf'
+import { buildPerLabelZipEntries, downloadZipArchive } from '../utils/zipBatchExport'
 import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { MM_TO_PX } from '../utils/canvasFit'
 import { matrixCodeToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
@@ -214,6 +217,7 @@ import { useI18n } from '../utils/i18n'
 import { toastError, toastSuccess } from '../utils/toast'
 import { downloadPrinterCommand } from '../utils/downloadPrinterCmd'
 import dayjs from 'dayjs'
+import { arrowGeometryMm, polylinePointsMm } from '../utils/shapeGeom'
 
 const { t } = useI18n()
 
@@ -259,6 +263,7 @@ function runMore(kind) {
   if (busy.value) return
   if (kind === 'pdf') onExportPDF()
   else if (kind === 'image') onExportImage()
+  else if (kind === 'zip') onExportZip()
   else if (kind === 'queue') addQueue()
   else if (kind === 'tspl' || kind === 'zpl') onDownloadCmd(kind)
 }
@@ -510,6 +515,14 @@ const CompRenderer = defineComponent({
           inner = h('div', { style: lineStyle(c) })
           break
         }
+        case 'arrow': {
+          inner = h('div', { style: shapeSvgWrap(c), innerHTML: arrowSvg(c) })
+          break
+        }
+        case 'polyline': {
+          inner = h('div', { style: shapeSvgWrap(c), innerHTML: polylineSvg(c) })
+          break
+        }
         case 'divider': {
           inner = h('div', { style: dividerStyle(c) })
           break
@@ -652,11 +665,46 @@ function ellipseStyle(c) {
 }
 
 function lineStyle(c) {
+  const sw = Math.max(1, (c.strokeWidth || 1) * scale.value)
+  const style = c.strokeStyle || 'solid'
+  const borderStyle = style === 'dotted' ? 'dotted' : style === 'dashed' ? 'dashed' : 'solid'
   return {
     width: '100%',
-    height: Math.max(1, (c.strokeWidth || 1) * scale.value) + 'px',
-    background: c.stroke || '#000'
+    height: sw + 'px',
+    borderTop: `${sw}px ${borderStyle} ${c.stroke || '#000'}`,
+    boxSizing: 'border-box'
   }
+}
+
+function shapeSvgWrap(c) {
+  return { width: '100%', height: '100%', lineHeight: 0 }
+}
+
+function arrowSvg(c) {
+  const geom = arrowGeometryMm(c)
+  const w = Number(c.width) || 24
+  const h = Number(c.height) || 10
+  const stroke = c.stroke || '#2563eb'
+  const sw = Math.max(0.2, Number(c.strokeWidth) || 0.5)
+  const pts = geom.head.map(([x, y]) => `${x},${y}`).join(' ')
+  const dash = (c.strokeStyle === 'dashed') ? '6 4' : (c.strokeStyle === 'dotted' ? '2 3' : '')
+  const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
+  return `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${geom.shaft[0][0]}" y1="${geom.shaft[0][1]}" x2="${geom.shaft[1][0]}" y2="${geom.shaft[1][1]}" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round"${dashAttr}/>
+    <polygon points="${pts}" fill="${stroke}"/>
+  </svg>`
+}
+
+function polylineSvg(c) {
+  const pts = polylinePointsMm(c).map(([x, y]) => `${x},${y}`).join(' ')
+  const w = Number(c.width) || 30
+  const h = Number(c.height) || 12
+  const stroke = c.stroke || '#0f172a'
+  const sw = Math.max(0.2, Number(c.strokeWidth) || 0.4)
+  const dash = (c.strokeStyle === 'dashed') ? '6 4' : (c.strokeStyle === 'dotted' ? '2 3' : '')
+  return `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="${pts}" fill="none" stroke="${stroke}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"${dash ? ` stroke-dasharray="${dash}"` : ''}/>
+  </svg>`
 }
 
 function dividerStyle(c) {
@@ -1120,6 +1168,26 @@ async function onExportPDF() {
         printSnapshot: printSnapshotForHistory()
       })
       toastSuccess(t('PDF 已导出'))
+    } catch (e) {
+      toastError(t('导出失败：{msg}', { msg: e?.message || e }))
+    }
+  })
+}
+
+async function onExportZip() {
+  if (nothingChecked.value) { toastError(t('没有勾选要打的行')); return }
+  const labels = printLabels.value
+  if (labels.length < 1) { toastError(t('没有可导出的内容')); return }
+  await withBusy(t('正在打包 ZIP…'), async () => {
+    try {
+      const base = project.project.meta.name || 'labels'
+      const entries = await buildPerLabelZipEntries({
+        project: project.project,
+        labels,
+        buildPdfBlob: (opts) => buildVectorPdfBlob(opts)
+      })
+      await downloadZipArchive(entries, `${base}.zip`)
+      toastSuccess(t('ZIP 已下载'))
     } catch (e) {
       toastError(t('导出失败：{msg}', { msg: e?.message || e }))
     }

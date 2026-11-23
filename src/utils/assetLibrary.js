@@ -26,6 +26,12 @@ const ARROW_UP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><p
 
 const RECYCLE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path d="M16 8l8 14h-6l4 18-14-8 4-10h-8z M32 8l-8 14h6l-4 18 14-8-4-10h8z" fill="none" stroke="#15803d" stroke-width="2"/></svg>`
 
+const TUMBLE_DRY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="4" fill="none" stroke="#1a1a1a" stroke-width="2"/><circle cx="24" cy="24" r="10" fill="none" stroke="#1a1a1a" stroke-width="2"/><path d="M20 24h8" stroke="#1a1a1a" stroke-width="2"/></svg>`
+
+const IRON_LOW = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path d="M8 32 L28 12 L36 20 L16 40 Z" fill="none" stroke="#1a1a1a" stroke-width="2"/><text x="22" y="38" font-size="8" text-anchor="middle">LOW</text></svg>`
+
+const HAZARD_GENERIC = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56"><polygon points="28,6 50,46 6,46" fill="#fff" stroke="#ca8a04" stroke-width="2"/><text x="28" y="38" font-size="16" font-weight="700" text-anchor="middle" fill="#ca8a04">!</text></svg>`
+
 /** @type {AssetIcon[]} */
 export const ICON_LIBRARY = [
   { id: 'ce', name: 'CE', category: '认证', tags: ['ce', 'eu'], svg: CE },
@@ -37,7 +43,10 @@ export const ICON_LIBRARY = [
   { id: 'ghs_flame', name: '易燃', category: 'GHS', tags: ['ghs', 'fire'], svg: GHS_FLAME },
   { id: 'ghs_corrosive', name: '腐蚀', category: 'GHS', tags: ['ghs', 'acid'], svg: GHS_CORROSIVE },
   { id: 'arrow_up', name: '向上', category: '包装', tags: ['arrow', 'this way up'], svg: ARROW_UP },
-  { id: 'recycle', name: '回收', category: '环保', tags: ['recycle'], svg: RECYCLE }
+  { id: 'recycle', name: '回收', category: '环保', tags: ['recycle'], svg: RECYCLE },
+  { id: 'tumble_dry', name: '滚筒烘干', category: '洗水唛', tags: ['dry', 'textile'], svg: TUMBLE_DRY },
+  { id: 'iron_low', name: '低温熨烫', category: '洗水唛', tags: ['iron'], svg: IRON_LOW },
+  { id: 'hazard_warn', name: '注意', category: 'GHS', tags: ['hazard', 'warn'], svg: HAZARD_GENERIC }
 ]
 
 export function iconCategories() {

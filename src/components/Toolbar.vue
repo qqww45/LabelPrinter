@@ -208,10 +208,11 @@ const { t } = useI18n()
 const emit = defineEmits([
   'import-data', 'switch',
   'paper-config', 'print-config', 'layout-editor', 'preview', 'print', 'export-pdf', 'export-image',
-  'template-library', 'field-map', 'print-center', 'ai', 'about'
+  'template-library', 'field-map', 'print-center', 'ai', 'about', 'label-import'
 ])
 
 const secondaryActions = [
+  { id: 'label-import', label: '识别标签图', short: '识图', icon: 'import' },
   { id: 'template-library', label: '模板库', short: '模板库', icon: 'library' },
   { id: 'ai', label: 'AI 调整', short: 'AI', icon: 'ai' },
   { id: 'field-map', label: '字段映射', short: '映射', icon: 'map' },
@@ -246,6 +247,7 @@ function pickMore(ev) {
 
 const S = (d) => `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const icons = {
+  import: S('<path d="M12 4v12M8 10l4 4 4-4"/><path d="M5 20h14"/>'),
   library: S('<path d="M4 5h5v14H4zM10 5h5v14h-5zM16 7h4v12h-4z"/><path d="M6.5 8h1M6.5 11h1M12.5 8h1M12.5 11h1"/>'),
   ai: S('<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4.5"/><path d="M9.5 12h5"/>'),
   map: S('<path d="M4 7h7l2 3h7"/><path d="M7 17h10"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>'),

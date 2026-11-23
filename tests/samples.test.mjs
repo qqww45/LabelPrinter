@@ -26,7 +26,7 @@ function assert(cond, msg) {
 
 console.log('samples / Phase B templates')
 
-assert(SAMPLE_DATASETS.length === 6, '6 sample datasets registered')
+assert(SAMPLE_DATASETS.length === 7, '7 sample datasets registered')
 assert(SAMPLE_DATASETS.every(s => s.path.startsWith('/samples/')), 'sample paths under /samples/')
 assert(findSampleIdForTemplate('tpl_grocery_price') === 'retail', 'grocery → retail sample')
 assert(findSampleIdForTemplate('tpl_price_tag') === 'retail', 'price tag → retail sample')
@@ -43,7 +43,8 @@ const fileMap = {
   asset: 'public/samples/sample-asset.csv',
   jewelry: 'public/samples/sample-jewelry.csv',
   apparel: 'public/samples/sample-apparel.csv',
-  warehouse: 'public/samples/sample-warehouse.csv'
+  warehouse: 'public/samples/sample-warehouse.csv',
+  wash: 'public/samples/sample-wash.csv'
 }
 
 for (const s of SAMPLE_DATASETS) {
@@ -84,6 +85,11 @@ for (const col of ['款号', '尺码', '颜色', '吊牌价', '条码']) {
 const warehouse = parseCSVText(readFileSync(join(root, fileMap.warehouse), 'utf8'))
 for (const col of ['库位', 'SKU', '品名']) {
   assert(warehouse.headers.includes(col), `warehouse has column ${col}`)
+}
+
+const wash = parseCSVText(readFileSync(join(root, fileMap.wash), 'utf8'))
+for (const col of ['款号', '尺码', '成分', '洗涤说明', '原产国', '条码']) {
+  assert(wash.headers.includes(col), `wash has column ${col}`)
 }
 
 // 每个内置模板都能找到示例，且模板 fields 都在示例列里
