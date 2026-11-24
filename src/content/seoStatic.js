@@ -84,7 +84,8 @@ function homeBody() {
     ['资产标签', '资产编号、部门与条码，方便盘点。', '/templates/asset', '资产贴场景'],
     ['货架条', '宽条价签、货位与价格。', '/templates/retail-shelf', '货架条场景'],
     ['库位条码', '库位、SKU 与品名条码贴。', '/templates/warehouse', '库位场景'],
-    ['服装吊牌', '款号、尺码、颜色与吊牌价。', '/templates/apparel', '服装吊牌场景']
+    ['服装吊牌', '款号、尺码、颜色与吊牌价。', '/templates/apparel', '服装吊牌场景'],
+    ['珠宝吊牌', '品名、克重、工费与小条码。', '/templates?scene=jewelry', '珠宝模板筛选']
   ]
   const sceneHtml = scenes
     .map(

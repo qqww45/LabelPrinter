@@ -35,5 +35,6 @@ for (const slug of TEMPLATE_SCENE_SLUGS) {
 }
 
 assert(parseTemplateSceneSlug('/templates/not-a-scene') === null, 'unknown slug')
+assert(parseTemplateSceneSlug('/templates/jewelry') === null, 'jewelry is not a landing')
 
 console.log('templateSceneSeo ok')

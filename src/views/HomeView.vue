@@ -46,7 +46,7 @@
           <RouterLink
             v-for="s in scenes"
             :key="s.id"
-            :to="`/templates/${s.id}`"
+            :to="templateSceneRouteTarget(s.id)"
             class="scene-card"
           >
             <div class="scene-card-photo scene-card-photo--specimen">
@@ -97,6 +97,7 @@ import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
 import MarketingImage from '../components/site/MarketingImage.vue'
 import { SCENE_PACKS } from '../utils/scenePacks'
+import { HOME_FEATURED_SCENE_IDS, templateSceneRouteTarget } from '../content/templateSceneSeo'
 import { HOME_CAPABILITIES } from '../content/helpChapters'
 import { HERO, resolveMarketingAsset } from '../content/marketingAssets'
 import { useI18n } from '../utils/i18n'
@@ -116,9 +117,7 @@ const steps = [
   { n: 3, title: '打印或导出', desc: '预览无误后打印、PDF 或热敏指令' }
 ]
 
-const scenes = SCENE_PACKS.filter((p) =>
-  ['retail-price', 'express', 'asset', 'warehouse', 'jewelry', 'apparel'].includes(p.id)
-)
+const scenes = SCENE_PACKS.filter((p) => HOME_FEATURED_SCENE_IDS.includes(p.id))
 
 function sceneAsset(id) {
   return resolveMarketingAsset('scene', id)

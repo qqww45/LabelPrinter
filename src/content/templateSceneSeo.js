@@ -15,6 +15,16 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+/** 首页「常见场景」卡片（与 HomeView 一致） */
+export const HOME_FEATURED_SCENE_IDS = [
+  'retail-price',
+  'express',
+  'asset',
+  'warehouse',
+  'jewelry',
+  'apparel'
+]
+
 /** @type {readonly string[]} */
 export const TEMPLATE_SCENE_SLUGS = [
   'retail-price',
@@ -108,6 +118,26 @@ const SCENE_PAGE_COPY = {
  * @param {string} path
  * @returns {string | null}
  */
+/**
+ * Vue Router 目标：有落地页走 `/templates/{id}`，否则模板库筛选。
+ * @param {string} sceneId
+ */
+export function templateSceneRouteTarget(sceneId) {
+  const id = String(sceneId || '')
+  if (TEMPLATE_SCENE_SLUGS.includes(id)) {
+    return { path: `/templates/${id}` }
+  }
+  return { path: '/templates', query: { scene: id } }
+}
+
+/**
+ * @param {string} sceneId
+ * @returns {boolean}
+ */
+export function hasTemplateSceneLanding(sceneId) {
+  return TEMPLATE_SCENE_SLUGS.includes(String(sceneId || ''))
+}
+
 export function parseTemplateSceneSlug(path) {
   const m = String(path || '').match(/^\/templates\/([^/]+)$/)
   if (!m) return null
