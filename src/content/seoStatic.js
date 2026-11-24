@@ -8,7 +8,31 @@ import { getTemplateCatalog } from '../utils/templatesCatalog.js'
 import { SCENE_PACKS } from '../utils/scenePacks.js'
 import { HOME_FAQ, ORGANIZATION_DISAMBIGUATION } from './seoFaq.js'
 
+/** @deprecated use SITEMAP_ENTRIES[routePath].lastmod */
 export const SEO_LASTMOD = '2026-11-23'
+
+/**
+ * Per-URL sitemap lastmod (content change date, not build stamp).
+ * Technical-only head/body wrapper changes on / and /en are dated 2026-11-24; other pages unchanged.
+ * @type {Record<string, { lastmod: string, changefreq: string, priority: string }>}
+ */
+export const SITEMAP_ENTRIES = {
+  '/': { lastmod: '2026-11-24', changefreq: 'weekly', priority: '1.0' },
+  '/en': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.75' },
+  '/templates': { lastmod: '2026-11-23', changefreq: 'weekly', priority: '0.9' },
+  '/help': { lastmod: '2026-11-23', changefreq: 'monthly', priority: '0.8' },
+  '/help/excel-import': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/help/barcodes': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/help/ai-layout': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/help/pdf-export': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/help/local-storage': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/privacy': { lastmod: '2026-11-18', changefreq: 'yearly', priority: '0.5' },
+  '/use-cases/price-tag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/shipping-label': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/asset-tag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/shelf-barcode': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/clothing-hangtag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' }
+}
 
 /** @param {string} s */
 export function escapeHtml(s) {
@@ -62,7 +86,7 @@ function homeBody() {
         <a href="/templates">浏览模板库</a>
         <a href="/app">打开工作台</a>
         <a href="/help">使用帮助</a>
-        <a href="/en" hreflang="en">English</a>
+        <a href="/en">English</a>
       </nav>
     </header>
     <section class="seo-block"><h2>三步上手</h2>
@@ -347,9 +371,9 @@ function englishHomeBody() {
       <h1>LabelCube: batch-print price tags, barcodes &amp; shipping labels from Excel</h1>
       <p class="seo-lede">Design labels in the browser, import Excel/CSV, preview, print or export PDF. Optional free AI layout. No signup; data stays on your device.</p>
       <nav class="seo-actions">
-        <a href="/templates" hreflang="zh">Templates (中文)</a>
+        <a href="/templates">Templates (中文)</a>
         <a href="/app">Open editor</a>
-        <a href="/" hreflang="zh-CN">中文首页</a>
+        <a href="/">中文首页</a>
       </nav>
     </header>
     <section class="seo-block"><h2>Quick steps</h2>

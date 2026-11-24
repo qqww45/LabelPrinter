@@ -7,13 +7,56 @@
   <title>页面未找到｜签立方</title>
   <link rel="icon" href="/favicon.ico" />
   <style>
-    body { font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 2rem; color: #0f172a; }
-    a { color: #2563eb; }
+    :root {
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --border: rgba(15, 23, 42, 0.12);
+      --bg: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: linear-gradient(165deg, #f7f9fc 0%, #eef2f7 48%, #e8eef6 100%);
+    }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      margin-bottom: 2rem;
+    }
+    h1 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0 0 1rem; line-height: 1.25; }
+    p { color: var(--text-muted); line-height: 1.6; }
+    nav { margin-top: 1.75rem; display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; }
+    nav a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    nav a:hover { text-decoration: underline; }
+    hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0 0; }
   </style>
 </head>
 <body>
-  <h1>404 — 页面未找到</h1>
-  <p>你访问的链接不存在。签立方免费在线标签打印：<a href="https://ci64.com/">https://ci64.com/</a></p>
-  <p><a href="/">返回首页</a> · <a href="/templates">模板库</a> · <a href="/help">帮助</a></p>
+  <div class="wrap">
+    <a class="brand" href="/">签立方 Label Cube</a>
+    <h1>404 — 页面未找到</h1>
+    <p>你访问的链接不存在。免费在线标签打印，数据留在浏览器、无需注册。</p>
+    <nav aria-label="站点导航">
+      <a href="/">返回首页</a>
+      <a href="/templates">模板库</a>
+      <a href="/help">帮助</a>
+      <a href="/en">English</a>
+    </nav>
+    <hr />
+    <p style="font-size: 14px;">打开 <a href="/app">工作台</a> 设计与打印标签。</p>
+  </div>
 </body>
 </html>

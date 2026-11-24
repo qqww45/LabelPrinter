@@ -128,10 +128,35 @@ export const ROUTE_SITE_META = {
  * @returns {string}
  */
 export function canonicalUrlForPath(path) {
+  if (path === '/app') return null
   const meta = ROUTE_SITE_META[path]
   if (!meta) return OFFICIAL_SITE_URL
   if (meta.canonicalPath === '/') return OFFICIAL_SITE_URL
   return `${OFFICIAL_SITE_ORIGIN}${meta.canonicalPath}`
+}
+
+const HOME_HREFLANG = [
+  { hreflang: 'zh-CN', href: OFFICIAL_SITE_URL },
+  { hreflang: 'en', href: `${OFFICIAL_SITE_ORIGIN}/en` },
+  { hreflang: 'x-default', href: OFFICIAL_SITE_URL }
+]
+
+function clearHreflangAlternates() {
+  document.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((el) => el.remove())
+}
+
+function upsertHreflangAlternates() {
+  clearHreflangAlternates()
+  for (const { hreflang, href } of HOME_HREFLANG) {
+    let el = document.head.querySelector(`link[rel="alternate"][hreflang="${hreflang}"]`)
+    if (!el) {
+      el = document.createElement('link')
+      el.setAttribute('rel', 'alternate')
+      el.setAttribute('hreflang', hreflang)
+      document.head.appendChild(el)
+    }
+    el.setAttribute('href', href)
+  }
 }
 
 /**
@@ -172,6 +197,10 @@ function upsertCanonical(href) {
   el.setAttribute('href', href)
 }
 
+function removeCanonical() {
+  document.head.querySelector('link[rel="canonical"]')?.remove()
+}
+
 /**
  * 路由切换后更新 document 级 SEO 标签（SPA 无 SSR 时的客户端补偿）。
  * @param {string} path
@@ -184,11 +213,24 @@ export function applyRouteSiteMeta(path) {
   document.title = meta.title
   upsertMetaByName('description', meta.description)
   upsertMetaByName('robots', meta.robots)
-  upsertCanonical(canonical)
+
+  if (path === '/') {
+    upsertHreflangAlternates()
+    upsertCanonical(canonical ?? OFFICIAL_SITE_URL)
+  } else if (path === '/en') {
+    upsertHreflangAlternates()
+    upsertCanonical(canonical ?? `${OFFICIAL_SITE_ORIGIN}/en`)
+  } else {
+    clearHreflangAlternates()
+    if (path === '/app') removeCanonical()
+    else if (canonical) upsertCanonical(canonical)
+  }
+
+  const ogUrl = canonical ?? (path === '/app' ? `${OFFICIAL_SITE_ORIGIN}/app` : OFFICIAL_SITE_URL)
 
   upsertMetaByProperty('og:title', meta.title)
   upsertMetaByProperty('og:description', meta.description)
-  upsertMetaByProperty('og:url', canonical)
+  upsertMetaByProperty('og:url', ogUrl)
   upsertMetaByProperty('og:image', OG_IMAGE_URL)
   upsertMetaByProperty('og:image:type', OG_IMAGE_TYPE)
 

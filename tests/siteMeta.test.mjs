@@ -19,7 +19,7 @@ for (const path of ['/', '/templates', '/help', '/app', '/privacy', '/en', '/use
 assert(canonicalUrlForPath('/') === OFFICIAL_SITE_URL, 'home canonical trailing slash')
 assert(canonicalUrlForPath('/templates') === `${OFFICIAL_SITE_ORIGIN}/templates`, 'templates canonical')
 assert(canonicalUrlForPath('/help') === `${OFFICIAL_SITE_ORIGIN}/help`, 'help canonical')
-assert(canonicalUrlForPath('/app') === `${OFFICIAL_SITE_ORIGIN}/app`, 'app canonical')
+assert(canonicalUrlForPath('/app') === null, '/app must not have canonical (noindex)')
 
 assert(ROUTE_SITE_META['/app'].robots === 'noindex,follow', '/app must be noindex')
 assert(ROUTE_SITE_META['/'].robots === 'index,follow', 'home indexable')

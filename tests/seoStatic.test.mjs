@@ -18,8 +18,9 @@ const h1s = new Map()
 for (const routePath of PRERENDER_PATHS) {
   const html = renderStaticBodyHtml(routePath)
   assert(html.includes('<h1'), `${routePath} missing h1`)
-  const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/)
-  const h1 = m ? m[1].replace(/<[^>]+>/g, '').trim() : ''
+  const h1Matches = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)]
+  assert(h1Matches.length === 1, `${routePath} exactly one h1 in static body`)
+  const h1 = h1Matches[0][1].replace(/<[^>]+>/g, '').trim()
   assert(h1, `${routePath} empty h1`)
   h1s.set(routePath, h1)
   const payload = getSeoRoutePayload(routePath)

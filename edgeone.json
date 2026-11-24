@@ -3,11 +3,22 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "nodeVersion": "20.18.0",
-  "framework": "vite",
   "agents": {
     "framework": "deepagents"
   },
   "errorPage": "404.html",
+  "redirects": [
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "statusCode": 301
+    },
+    {
+      "source": "/en/",
+      "destination": "/en",
+      "statusCode": 301
+    }
+  ],
   "caches": [
     {
       "source": "/theme-boot.js",
