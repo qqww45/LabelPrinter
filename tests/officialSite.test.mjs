@@ -89,6 +89,10 @@ assert(edgeone.errorPage === '404.html', 'edgeone uses 404.html')
 assert(!edgeone.rewrites?.some((r) => r.source === '/*'), 'no catch-all soft 404 rewrite')
 assert(edgeone.framework === undefined, 'omit framework:vite so Makers serves MPA + 404.html instead of SPA fallback')
 assert(
+  fs.existsSync(path.join(root, 'scripts', 'write-edgeone-routes.mjs')),
+  'build emits .edgeone/routes.json to override Makers source SPA detection'
+)
+assert(
   edgeone.redirects?.some((r) => r.source === '/index.html' && r.destination === '/' && r.statusCode === 301),
   '301 /index.html → /'
 )
