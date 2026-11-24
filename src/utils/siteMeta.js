@@ -1,4 +1,5 @@
 import { OFFICIAL_SITE_ORIGIN, OFFICIAL_SITE_URL, REPO_URL } from './site.js'
+import { TEMPLATE_SCENE_SLUGS, siteMetaForTemplateScene } from '../content/templateSceneSeo.js'
 
 /** 社交分享与 og:image 默认图（public/marketing/，JPG 便于百度与微信抓取） */
 export const OG_IMAGE_URL = `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`
@@ -120,7 +121,33 @@ export const ROUTE_SITE_META = {
       '项目与表格保存在浏览器 localStorage/IndexedDB，无需注册；如何备份与隐私说明。',
     robots: 'index,follow',
     canonicalPath: '/help/local-storage'
+  },
+  '/help/field-mapping': {
+    title: '字段映射与表头记忆｜签立方帮助',
+    description:
+      '把版式字段与 Excel 表头对齐：工具栏字段映射、导入后提示与「用上次映射」记忆。',
+    robots: 'index,follow',
+    canonicalPath: '/help/field-mapping'
+  },
+  '/help/preflight': {
+    title: '打印前体检说明｜签立方帮助',
+    description:
+      '打印与导出前的自动检查：缺字段、空行、纸张放不下与场景行校验；如何继续或修复。',
+    robots: 'index,follow',
+    canonicalPath: '/help/preflight'
+  },
+  '/help/paper-layout': {
+    title: '纸张尺寸与 A4 拼版｜签立方帮助',
+    description:
+      '毫米标签纸、边距、一页多枚拼版与打印排版；单张纸尺寸应与标签尺寸一致。',
+    robots: 'index,follow',
+    canonicalPath: '/help/paper-layout'
   }
+}
+
+for (const slug of TEMPLATE_SCENE_SLUGS) {
+  const path = `/templates/${slug}`
+  ROUTE_SITE_META[path] = siteMetaForTemplateScene(slug)
 }
 
 /**
@@ -164,7 +191,8 @@ function upsertHreflangAlternates() {
  * @returns {(typeof ROUTE_SITE_META)[string] | null}
  */
 export function siteMetaForPath(path) {
-  return ROUTE_SITE_META[path] ?? null
+  if (ROUTE_SITE_META[path]) return ROUTE_SITE_META[path]
+  return null
 }
 
 function upsertMetaByName(name, content) {

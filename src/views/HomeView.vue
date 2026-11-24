@@ -46,7 +46,7 @@
           <RouterLink
             v-for="s in scenes"
             :key="s.id"
-            :to="{ path: '/templates', query: { scene: s.id } }"
+            :to="`/templates/${s.id}`"
             class="scene-card"
           >
             <div class="scene-card-photo scene-card-photo--specimen">

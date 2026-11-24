@@ -17,6 +17,15 @@
 - https://ci64.com/help/ai-layout — AI 排版
 - https://ci64.com/help/pdf-export — PDF 导出
 - https://ci64.com/help/local-storage — 本地保存
+- https://ci64.com/help/field-mapping — 字段映射
+- https://ci64.com/help/preflight — 打印前体检
+- https://ci64.com/help/paper-layout — 纸张与拼版
+- https://ci64.com/templates/retail-price — 生鲜价签模板场景
+- https://ci64.com/templates/express — 快递面单模板场景
+- https://ci64.com/templates/asset — 资产贴模板场景
+- https://ci64.com/templates/apparel — 服装吊牌模板场景
+- https://ci64.com/templates/retail-shelf — 货架条模板场景
+- https://ci64.com/templates/warehouse — 库位条码模板场景
 - https://ci64.com/privacy — 隐私说明
 - https://ci64.com/use-cases/price-tag — 价签场景
 - https://ci64.com/use-cases/shipping-label — 快递面单

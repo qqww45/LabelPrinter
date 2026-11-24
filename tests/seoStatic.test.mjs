@@ -32,6 +32,17 @@ for (const routePath of PRERENDER_PATHS) {
   if (routePath === '/templates') {
     assert(h1 !== h1s.get('/'), 'templates must differ from home h1')
     assert(html.includes('模板'), 'templates body')
+    assert(html.includes('/templates/retail-price'), 'templates links scene landings')
+  }
+  if (routePath === '/en') {
+    assert(html.includes('FAQ'), 'en FAQ section')
+    assert(h1 !== h1s.get('/'), 'en h1 differs from zh home')
+  }
+  if (routePath.startsWith('/templates/')) {
+    assert(html.includes('breadcrumb'), `${routePath} breadcrumb class`)
+  }
+  if (routePath === '/help/field-mapping') {
+    assert(html.includes('seo-breadcrumb'), 'help topic breadcrumb')
   }
 }
 
