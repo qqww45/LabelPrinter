@@ -22,9 +22,24 @@ if (!fs.existsSync(distIndex)) {
 
 const baseHtml = fs.readFileSync(distIndex, 'utf8')
 
+const HREFLANG_HOME = `  <link rel="alternate" hreflang="zh-CN" href="${OFFICIAL_SITE_URL}" />
+  <link rel="alternate" hreflang="en" href="${OFFICIAL_SITE_ORIGIN}/en" />
+  <link rel="alternate" hreflang="x-default" href="${OFFICIAL_SITE_URL}" />`
+
 /** @param {string} html */
-/** @param {{ title: string, description: string, canonical: string, lang?: string }} meta */
-function patchHead(html, meta) {
+function stripHreflang(html) {
+  return html.replace(/\n?\s*<link rel="alternate" hreflang="[^"]*" href="[^"]*"\s*\/>/g, '')
+}
+
+/** @param {string} html */
+function stripCanonical(html) {
+  return html.replace(/\n?\s*<link rel="canonical" href="[^"]*"\s*\/>/, '')
+}
+
+/** @param {string} html */
+/** @param {{ title: string, description: string, canonical: string, lang?: string, robots?: string, omitCanonical?: boolean }} meta */
+/** @param {string} routePath */
+function patchHead(html, meta, routePath) {
   let out = html
   const lang = meta.lang ?? 'zh-CN'
   out = out.replace(/<html([^>]*)lang="[^"]*"/, `<html$1lang="${lang}"`)
@@ -57,23 +72,30 @@ function patchHead(html, meta) {
     /<meta name="twitter:description" content="[^"]*" \/>/,
     `<meta name="twitter:description" content="${meta.description}" />`
   )
-  out = out.replace(
-    /<link rel="canonical" href="[^"]*" \/>/,
-    `<link rel="canonical" href="${meta.canonical}" />`
-  )
-  const hreflang =
-    meta.lang === 'en'
-      ? `<link rel="alternate" hreflang="zh-CN" href="${OFFICIAL_SITE_URL}" />\n  <link rel="alternate" hreflang="en" href="${OFFICIAL_SITE_ORIGIN}/en" />\n  <link rel="alternate" hreflang="x-default" href="${OFFICIAL_SITE_URL}" />`
-      : `<link rel="alternate" hreflang="zh-CN" href="${meta.canonical === OFFICIAL_SITE_URL ? OFFICIAL_SITE_URL : meta.canonical}" />\n  <link rel="alternate" hreflang="en" href="${OFFICIAL_SITE_ORIGIN}/en" />\n  <link rel="alternate" hreflang="x-default" href="${OFFICIAL_SITE_URL}" />`
-  if (!out.includes('hreflang="zh-CN"')) {
-    out = out.replace(/<link rel="canonical"[^/]+\/>/, (m) => `${m}\n  ${hreflang}`)
-  }
   if (meta.robots) {
     out = out.replace(
       /<meta name="robots" content="[^"]*" \/>/,
       `<meta name="robots" content="${meta.robots}" />`
     )
   }
+
+  out = stripHreflang(out)
+
+  if (meta.omitCanonical) {
+    out = stripCanonical(out)
+  } else {
+    out = out.replace(
+      /<link rel="canonical" href="[^"]*" \/>/,
+      `<link rel="canonical" href="${meta.canonical}" />`
+    )
+    if (routePath === '/' || routePath === '/en') {
+      out = out.replace(
+        /<link rel="canonical" href="[^"]*"\s*\/>/,
+        (m) => `${m}\n${HREFLANG_HOME}`
+      )
+    }
+  }
+
   return out
 }
 
@@ -94,13 +116,14 @@ function patchBody(html, bodyHtml) {
 
 function metaForRoute(routePath) {
   const meta = ROUTE_SITE_META[routePath] ?? ROUTE_SITE_META['/']
-  const canonical = canonicalUrlForPath(routePath)
+  const canonical = canonicalUrlForPath(routePath) ?? OFFICIAL_SITE_URL
   return {
     title: meta.title,
     description: meta.description,
     canonical,
     robots: meta.robots,
-    lang: routePath === '/en' ? 'en' : 'zh-CN'
+    lang: routePath === '/en' ? 'en' : 'zh-CN',
+    omitCanonical: routePath === '/app'
   }
 }
 
@@ -113,7 +136,7 @@ function distPathForRoute(routePath) {
 for (const routePath of PRERENDER_PATHS) {
   const payload = getSeoRoutePayload(routePath)
   if (!payload) continue
-  let html = patchHead(baseHtml, metaForRoute(routePath))
+  let html = patchHead(baseHtml, metaForRoute(routePath), routePath)
   html = patchJsonLd(html, payload.jsonLd)
   html = patchBody(html, payload.bodyHtml)
   const outFile = distPathForRoute(routePath)

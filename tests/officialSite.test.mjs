@@ -81,10 +81,25 @@ assert(fs.existsSync(path.join(root, 'public/favicon.ico')), 'public/favicon.ico
 assert(fs.existsSync(path.join(root, 'public/ai.txt')), 'public/ai.txt must exist')
 assert(fs.existsSync(path.join(root, 'public/404.html')), 'public/404.html must exist')
 assert(indexHtml.includes('SEO_BODY_START'), 'index.html prerender body markers')
-assert(indexHtml.includes('hreflang="zh-CN"'), 'hreflang zh-CN')
+assert(indexHtml.includes('hreflang="zh-CN"'), 'hreflang zh-CN on home shell')
+assert(!indexHtml.includes('<h1 class="boot-title"'), 'boot brand must not be h1')
+assert(indexHtml.includes('class="boot-title"'), 'boot brand marker')
 const edgeone = JSON.parse(fs.readFileSync(path.join(root, 'edgeone.json'), 'utf8'))
 assert(edgeone.errorPage === '404.html', 'edgeone uses 404.html')
 assert(!edgeone.rewrites?.some((r) => r.source === '/*'), 'no catch-all soft 404 rewrite')
+assert(edgeone.framework === undefined, 'omit framework:vite so Makers serves MPA + 404.html instead of SPA fallback')
+assert(
+  edgeone.redirects?.some((r) => r.source === '/index.html' && r.destination === '/' && r.statusCode === 301),
+  '301 /index.html → /'
+)
+assert(
+  edgeone.redirects?.some((r) => r.source === '/en/' && r.destination === '/en' && r.statusCode === 301),
+  '301 /en/ → /en'
+)
+const page404 = fs.readFileSync(path.join(root, 'public/404.html'), 'utf8')
+assert(page404.includes('noindex,nofollow'), '404.html robots noindex')
+assert(!page404.includes('rel="canonical"'), '404.html must not set canonical')
+assert(page404.includes('/templates'), '404.html nav')
 const favIcon = fs.readFileSync(path.join(root, 'public/favicon.ico'))
 assert(favIcon[0] === 0 && favIcon.length > 20, 'favicon.ico must be a real icon file')
 const robots = fs.readFileSync(path.join(root, 'public/robots.txt'), 'utf8')
@@ -99,9 +114,22 @@ assert(
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 assert(pkg.homepage === OFFICIAL_SITE_URL, 'package.json homepage must match official site')
 
-import { SITEMAP_PATHS } from '../src/content/seoStatic.js'
+import { SITEMAP_PATHS, SITEMAP_ENTRIES } from '../src/content/seoStatic.js'
+
+for (const p of SITEMAP_PATHS) {
+  assert(SITEMAP_ENTRIES[p], `SITEMAP_ENTRIES missing ${p}`)
+}
+
 const sitemap = fs.readFileSync(path.join(root, 'public/sitemap.xml'), 'utf8')
 const sitemapLocs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
+const lastmods = [...sitemap.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1])
+const distinctLastmod = new Set(lastmods)
+assert(distinctLastmod.size >= 3, 'sitemap lastmod should vary per URL, not one build stamp for all')
+for (const p of SITEMAP_PATHS) {
+  const loc = p === '/' ? `${OFFICIAL_SITE_URL}` : `${OFFICIAL_SITE_ORIGIN}${p}`
+  const block = sitemap.split('<url>').find((chunk) => chunk.includes(`<loc>${loc}</loc>`))
+  assert(block?.includes(`<lastmod>${SITEMAP_ENTRIES[p].lastmod}</lastmod>`), `${p} sitemap lastmod`)
+}
 const expectedLocs = SITEMAP_PATHS.map(p =>
   p === '/' ? `${OFFICIAL_SITE_ORIGIN}/` : `${OFFICIAL_SITE_ORIGIN}${p}`
 )
