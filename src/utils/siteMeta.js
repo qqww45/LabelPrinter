@@ -1,5 +1,6 @@
 import { OFFICIAL_SITE_ORIGIN, OFFICIAL_SITE_URL, REPO_URL } from './site.js'
 import { TEMPLATE_SCENE_SLUGS, siteMetaForTemplateScene } from '../content/templateSceneSeo.js'
+import { canonicalUrlForRoute } from './siteCanonical.js'
 
 /** 社交分享与 og:image 默认图（public/marketing/，JPG 便于百度与微信抓取） */
 export const OG_IMAGE_URL = `${OFFICIAL_SITE_ORIGIN}/marketing/hero-app-editor.jpg`
@@ -231,12 +232,15 @@ function removeCanonical() {
 
 /**
  * 路由切换后更新 document 级 SEO 标签（SPA 无 SSR 时的客户端补偿）。
- * @param {string} path
+ * @param {string | { path: string, query?: Record<string, unknown> }} toOrPath
  */
-export function applyRouteSiteMeta(path) {
+export function applyRouteSiteMeta(toOrPath) {
   if (typeof document === 'undefined') return
+  const to =
+    typeof toOrPath === 'string' ? { path: toOrPath, query: {} } : toOrPath
+  const path = to.path || '/'
   const meta = siteMetaForPath(path) ?? ROUTE_SITE_META['/']
-  const canonical = canonicalUrlForPath(path)
+  const canonical = canonicalUrlForRoute(to)
 
   document.title = meta.title
   upsertMetaByName('description', meta.description)

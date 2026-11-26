@@ -14,6 +14,11 @@ export default defineConfig({
     outDir: 'dist',
     // fabric / xlsx / jspdf 都偏大；分 chunk 后首屏可并行加载、缓存更稳
     chunkSizeWarningLimit: 1200,
+    modulePreload: {
+      resolveDependencies(_filename, deps) {
+        return deps.filter((d) => !d.includes('vendor-pdf'))
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

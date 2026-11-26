@@ -68,7 +68,7 @@ export function createAppRouter() {
   })
 
   router.afterEach((to) => {
-    applyRouteSiteMeta(to.path)
+    applyRouteSiteMeta(to)
   })
 
   return router

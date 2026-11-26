@@ -115,10 +115,6 @@ const SCENE_PAGE_COPY = {
 }
 
 /**
- * @param {string} path
- * @returns {string | null}
- */
-/**
  * Vue Router 目标：有落地页走 `/templates/{id}`，否则模板库筛选。
  * @param {string} sceneId
  */

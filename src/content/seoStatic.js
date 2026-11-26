@@ -59,12 +59,21 @@ export function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+/** @param {string} jpg @param {number} w @param {number} h @param {string} alt */
+function marketingPicture(jpg, w, h, alt) {
+  const webp = jpg.replace(/\.jpg$/, '.webp')
+  return `<picture>
+    <source type="image/webp" srcset="${webp}" />
+    <img src="${jpg}" width="${w}" height="${h}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />
+  </picture>`
+}
+
 const PRODUCT_JPGS = `
   <section id="seo-product-shots" aria-label="签立方产品与标签打印样例">
-    <img src="/marketing/hero-app-editor.jpg" width="1200" height="750" alt="签立方在线标签设计工作台界面：画布、组件栏与数据表批量打印" />
-    <img src="/marketing/sample-price-tag.jpg" width="800" height="530" alt="签立方价签打印预览：品名、规格、价格与条码" />
-    <img src="/marketing/sample-waybill.jpg" width="800" height="530" alt="签立方快递面单打印预览：收件信息与运单二维码" />
-    <img src="/marketing/hero-label-stickers.jpg" width="1200" height="320" alt="签立方多种价签、条码与吊牌模板画布预览标本" />
+    ${marketingPicture('/marketing/hero-app-editor.jpg', 1200, 750, '签立方在线标签设计工作台界面：画布、组件栏与数据表批量打印')}
+    ${marketingPicture('/marketing/sample-price-tag.jpg', 800, 530, '签立方价签打印预览：品名、规格、价格与条码')}
+    ${marketingPicture('/marketing/sample-waybill.jpg', 800, 530, '签立方快递面单打印预览：收件信息与运单二维码')}
+    ${marketingPicture('/marketing/hero-label-stickers.jpg', 1200, 320, '签立方多种价签、条码与吊牌模板画布预览标本')}
   </section>`
 
 function faqSection(faqs) {
