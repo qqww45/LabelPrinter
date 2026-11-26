@@ -62,6 +62,16 @@ assert(
   preFs.some((r) => r.src === '^/(.+)/$' && r.headers?.Location === '/$1' && r.status === 301),
   'routes.json general trailing-slash 301'
 )
+const generalStripIdx = preFs.findIndex((r) => r.src === '^/(.+)/$' && r.status === 301)
+const prefixRewriteIdx = preFs.findIndex(
+  (r) => r.src === '^/(templates|help|use-cases)/.+$' && r.dest === '/__not_found'
+)
+assert(prefixRewriteIdx >= 0, 'routes.json nested prefix miss rewrite')
+assert(
+  preFs[prefixRewriteIdx].status == null,
+  'routes.json prefix rewrite no status'
+)
+assert(prefixRewriteIdx > generalStripIdx, 'routes.json rewrite after general strip')
 assert(catchAll[0]?.['server-name'] === 'file', 'catch-all 404 server-name file')
 
 const assetsCfg = path.join(root, 'dist', '.edgeone-assets-config.json')
