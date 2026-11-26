@@ -20,6 +20,13 @@ export const SCENE_REDIRECT_BLOCKING_QUERY_KEYS = [
   'pick'
 ]
 
+/** Static file 404 response (must match post-filesystem catch-all). */
+export const FILE_404_RESPONSE = {
+  dest: '/404.html',
+  status: 404,
+  'server-name': 'file'
+}
+
 /** @param {string} p */
 export function re2EscapePath(p) {
   return String(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -92,8 +99,7 @@ export function buildPrefixChild404Routes(prefix, validChildPaths) {
   const prefixEsc = re2EscapePath(prefix)
   routes.push({
     src: `^${prefixEsc}/[^/]+$`,
-    dest: '/404.html',
-    status: 404
+    ...FILE_404_RESPONSE
   })
   return routes
 }
@@ -148,9 +154,7 @@ export function buildEdgeOneRoutes(opts) {
   routes.push({ handle: 'filesystem' })
   routes.push({
     src: '/.*',
-    dest: '/404.html',
-    status: 404,
-    'server-name': 'file'
+    ...FILE_404_RESPONSE
   })
 
   return { version: 3, routes }

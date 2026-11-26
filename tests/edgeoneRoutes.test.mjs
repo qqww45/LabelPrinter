@@ -49,10 +49,14 @@ assert(
   preFs.some((r) => r.headers?.Location === '/templates' && r.src === '^/templates/$'),
   'routes.json /templates/ strip'
 )
-assert(
-  preFs.some((r) => r.dest === '/404.html' && r.status === 404 && r.src === '^/templates/[^/]+$'),
-  'routes.json templates child 404 before filesystem'
+const tplChild404 = preFs.find((r) => r.src === '^/templates/[^/]+$' && r.status === 404)
+assert(tplChild404?.dest === '/404.html', 'routes.json templates child 404 before filesystem')
+assert(tplChild404?.['server-name'] === 'file', 'routes.json templates child 404 server-name file')
+const prefix404s = preFs.filter(
+  (r) => r.status === 404 && r.dest === '/404.html' && r['server-name'] === 'file'
 )
+assert(prefix404s.length === 3, 'templates/help/use-cases prefix 404 routes use server-name file')
+assert(catchAll[0]?.['server-name'] === 'file', 'catch-all 404 server-name file')
 
 const assetsCfg = path.join(root, 'dist', '.edgeone-assets-config.json')
 assert(fs.existsSync(assetsCfg), 'dist/.edgeone-assets-config.json')
