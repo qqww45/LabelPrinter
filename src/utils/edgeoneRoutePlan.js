@@ -59,6 +59,16 @@ export const GENERAL_TRAILING_SLASH_STRIP = {
 }
 
 /**
+ * Internal rewrite so unknown nested marketing paths miss filesystem (EdgeOne otherwise
+ * returns empty 404 + Location to the default project prefix). Not a client redirect and
+ * not pre-fs /404.html — filesystem misses like /foo, then post-fs catch-all.
+ */
+export const NESTED_MARKETING_PREFIX_MISS_REWRITE = {
+  src: '^/(templates|help|use-cases)/.+$',
+  dest: '/__not_found'
+}
+
+/**
  * @param {readonly string[]} paths
  */
 export function buildTrailingSlashStripRoutes(paths) {
@@ -162,6 +172,7 @@ export function buildEdgeOneRoutes(opts) {
   // Do not use add-slash `continue` — on EdgeOne it makes filesystem fetch `{path}/index.html`
   // under prefixes with child dirs, COS NoSuchKey → platform 404 instead of post-fs catch-all.
   routes.push({ ...GENERAL_TRAILING_SLASH_STRIP })
+  routes.push({ ...NESTED_MARKETING_PREFIX_MISS_REWRITE })
 
   routes.push({ handle: 'filesystem' })
   routes.push({

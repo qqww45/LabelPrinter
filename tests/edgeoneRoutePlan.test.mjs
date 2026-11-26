@@ -4,7 +4,8 @@ import {
   buildTrailingSlashStripRoutes,
   buildPrefixChildDestRoutes,
   FILE_404_RESPONSE,
-  GENERAL_TRAILING_SLASH_STRIP
+  GENERAL_TRAILING_SLASH_STRIP,
+  NESTED_MARKETING_PREFIX_MISS_REWRITE
 } from '../src/utils/edgeoneRoutePlan.js'
 import { PRERENDER_PATHS } from '../src/content/seoStatic.js'
 import { TEMPLATE_SCENE_SLUGS } from '../src/content/templateSceneSeo.js'
@@ -69,10 +70,19 @@ const generalStrip = beforeFs.find(
 )
 assert(generalStrip, 'general trailing-slash 301 before filesystem')
 assert(generalStrip.headers?.Location === '/$1', 'general strip Location /$1')
+const generalIdx = beforeFs.indexOf(generalStrip)
+const prefixMiss = beforeFs.find(
+  (r) => r.src === NESTED_MARKETING_PREFIX_MISS_REWRITE.src && r.dest === '/__not_found'
+)
+assert(prefixMiss, 'nested prefix miss rewrite before filesystem')
+assert(prefixMiss.status == null && prefixMiss.headers == null, 'rewrite is internal only')
+assert(beforeFs.indexOf(prefixMiss) > generalIdx, 'rewrite after general trailing-slash strip')
 assert(
   beforeFs.some((r) => r.dest === '/templates/retail-price/index.html'),
   'valid child dest before filesystem'
 )
+const retailDestIdx = beforeFs.findIndex((r) => r.dest === '/templates/retail-price/index.html')
+assert(retailDestIdx >= 0 && retailDestIdx < generalIdx, 'valid dest wins before general strip')
 
 const catchAll = afterFs.find((r) => r.src === '/.*')
 assert(catchAll, 'post-filesystem catch-all')
