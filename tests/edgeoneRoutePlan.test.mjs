@@ -2,7 +2,7 @@ import {
   buildEdgeOneRoutes,
   buildSceneQueryRedirectRoutes,
   buildTrailingSlashStripRoutes,
-  buildPrefixChild404Routes,
+  buildPrefixChildDestRoutes,
   FILE_404_RESPONSE
 } from '../src/utils/edgeoneRoutePlan.js'
 import { PRERENDER_PATHS } from '../src/content/seoStatic.js'
@@ -33,27 +33,16 @@ assert(
   'scene landing strip trailing slash'
 )
 
-const tpl404 = buildPrefixChild404Routes(
+const tplDests = buildPrefixChildDestRoutes(
   '/templates',
   TEMPLATE_SCENE_SLUGS.map((s) => `/templates/${s}`)
 )
-const tplUnknown404 = tpl404.find((r) => r.src === '^/templates/[^/]+$')
-assert(tplUnknown404, 'templates unknown child 404')
-assert(tplUnknown404.dest === '/404.html' && tplUnknown404.status === 404, 'templates 404 shape')
-assert(tplUnknown404['server-name'] === 'file', 'templates prefix 404 server-name file')
-
-for (const prefix of ['/help', '/use-cases']) {
-  const children =
-    prefix === '/help' ?
-      PRERENDER_PATHS.filter((p) => p.startsWith('/help/') && p !== '/help')
-    : PRERENDER_PATHS.filter((p) => p.startsWith('/use-cases/'))
-  const block = buildPrefixChild404Routes(prefix, children)
-  const unk = block.find((r) => r.status === 404)
-  assert(unk?.['server-name'] === 'file', `${prefix} prefix 404 server-name file`)
-  assert(unk?.dest === FILE_404_RESPONSE.dest, `${prefix} prefix 404 dest`)
-}
 assert(
-  tpl404.some((r) => r.dest === '/templates/retail-price/index.html'),
+  !tplDests.some((r) => r.status === 404 || r.dest === '/404.html'),
+  'prefix child builder must not emit 404'
+)
+assert(
+  tplDests.some((r) => r.dest === '/templates/retail-price/index.html'),
   'valid scene dest index.html'
 )
 
@@ -61,6 +50,12 @@ const full = buildEdgeOneRoutes({ prerenderPaths: PRERENDER_PATHS, edgeoneRedire
 const fsIdx = full.routes.findIndex((r) => r.handle === 'filesystem')
 assert(fsIdx >= 0, 'filesystem handler')
 const beforeFs = full.routes.slice(0, fsIdx)
+const afterFs = full.routes.slice(fsIdx + 1)
+
+assert(
+  !beforeFs.some((r) => r.status === 404 && r.dest === '/404.html'),
+  'no pre-filesystem 404 routes'
+)
 assert(
   beforeFs.some((r) => r.headers?.Location === '/templates/retail-price' && r.status === 301),
   'scene redirect in full config'
@@ -70,10 +65,15 @@ assert(stripBeforeFs.length >= 1, 'templates slash strip before filesystem')
 const addSlash = beforeFs.find((r) => r.continue === true && r.dest === '/$1/')
 assert(addSlash, 'add trailing slash continue still present')
 assert(addSlash.src === '^/([^.]+[^/.])$', 'add-slash pattern')
-const tplNope404 = beforeFs.find(
-  (r) => r.status === 404 && r.src === '^/templates/[^/]+$' && r.dest === '/404.html'
+assert(
+  beforeFs.some((r) => r.dest === '/templates/retail-price/index.html'),
+  'valid child dest before filesystem'
 )
-assert(tplNope404, 'templates nope 404 before filesystem')
-assert(tplNope404['server-name'] === 'file', 'full config prefix 404 server-name')
+
+const catchAll = afterFs.find((r) => r.src === '/.*')
+assert(catchAll, 'post-filesystem catch-all')
+assert(catchAll.dest === FILE_404_RESPONSE.dest, 'catch-all dest')
+assert(catchAll.status === FILE_404_RESPONSE.status, 'catch-all status')
+assert(catchAll['server-name'] === 'file', 'catch-all server-name file')
 
 console.log('edgeoneRoutePlan ok')
