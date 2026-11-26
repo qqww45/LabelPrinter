@@ -51,6 +51,13 @@ export function marketingPathsForTrailingSlashRedirect(paths) {
   return paths.filter((p) => p && p !== '/' && p !== '/app')
 }
 
+/** 301 any trailing slash (except `/`) → canonical path without slash. */
+export const GENERAL_TRAILING_SLASH_STRIP = {
+  src: '^/(.+)/$',
+  headers: { Location: '/$1' },
+  status: 301
+}
+
 /**
  * @param {readonly string[]} paths
  */
@@ -152,10 +159,9 @@ export function buildEdgeOneRoutes(opts) {
     routes.push({ src: `^${re2EscapePath(p)}$`, dest: `${p}/index.html` })
   }
 
-  const hasNestedIndex = prerenderPaths.some((p) => p.includes('/') && p !== '/app')
-  if (hasNestedIndex) {
-    routes.push({ src: '^/([^.]+[^/.])$', dest: '/$1/', continue: true })
-  }
+  // Do not use add-slash `continue` — on EdgeOne it makes filesystem fetch `{path}/index.html`
+  // under prefixes with child dirs, COS NoSuchKey → platform 404 instead of post-fs catch-all.
+  routes.push({ ...GENERAL_TRAILING_SLASH_STRIP })
 
   routes.push({ handle: 'filesystem' })
   routes.push({
