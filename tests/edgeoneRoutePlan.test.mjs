@@ -3,7 +3,8 @@ import {
   buildSceneQueryRedirectRoutes,
   buildTrailingSlashStripRoutes,
   buildPrefixChildDestRoutes,
-  FILE_404_RESPONSE
+  FILE_404_RESPONSE,
+  GENERAL_TRAILING_SLASH_STRIP
 } from '../src/utils/edgeoneRoutePlan.js'
 import { PRERENDER_PATHS } from '../src/content/seoStatic.js'
 import { TEMPLATE_SCENE_SLUGS } from '../src/content/templateSceneSeo.js'
@@ -62,9 +63,12 @@ assert(
 )
 const stripBeforeFs = beforeFs.filter((r) => r.status === 301 && r.headers?.Location === '/templates')
 assert(stripBeforeFs.length >= 1, 'templates slash strip before filesystem')
-const addSlash = beforeFs.find((r) => r.continue === true && r.dest === '/$1/')
-assert(addSlash, 'add trailing slash continue still present')
-assert(addSlash.src === '^/([^.]+[^/.])$', 'add-slash pattern')
+assert(!beforeFs.some((r) => r.continue === true), 'no add-slash continue before filesystem')
+const generalStrip = beforeFs.find(
+  (r) => r.src === GENERAL_TRAILING_SLASH_STRIP.src && r.status === 301
+)
+assert(generalStrip, 'general trailing-slash 301 before filesystem')
+assert(generalStrip.headers?.Location === '/$1', 'general strip Location /$1')
 assert(
   beforeFs.some((r) => r.dest === '/templates/retail-price/index.html'),
   'valid child dest before filesystem'

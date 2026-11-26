@@ -57,6 +57,11 @@ assert(
   preFs.some((r) => r.dest === '/templates/retail-price/index.html'),
   'routes.json valid template child dest'
 )
+assert(!preFs.some((r) => r.continue === true), 'routes.json no add-slash continue')
+assert(
+  preFs.some((r) => r.src === '^/(.+)/$' && r.headers?.Location === '/$1' && r.status === 301),
+  'routes.json general trailing-slash 301'
+)
 assert(catchAll[0]?.['server-name'] === 'file', 'catch-all 404 server-name file')
 
 const assetsCfg = path.join(root, 'dist', '.edgeone-assets-config.json')
