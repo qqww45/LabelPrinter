@@ -14,7 +14,8 @@
 - https://ci64.com/en — 英文导读页
 - https://ci64.com/templates — 模板库
 - https://ci64.com/help — 帮助与常见问题
-- https://ci64.com/help/excel-import · /help/barcodes · /help/ai-layout · /help/pdf-export · /help/local-storage — 帮助专题
+- https://ci64.com/help/excel-import · /help/barcodes · /help/ai-layout · /help/pdf-export · /help/local-storage · /help/field-mapping · /help/preflight · /help/paper-layout — 帮助专题
+- https://ci64.com/templates/retail-price · /templates/express · /templates/asset · /templates/apparel · /templates/retail-shelf · /templates/warehouse — 模板场景落地页（中文）
 - https://ci64.com/use-cases/price-tag · shipping-label · asset-tag · shelf-barcode · clothing-hangtag — 场景落地页
 - https://ci64.com/privacy — 隐私与本地数据说明
 - https://ci64.com/ai.txt — 给 AI 爬虫的简要索引

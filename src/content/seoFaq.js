@@ -32,3 +32,27 @@ export const HOME_FAQ = [
 
 export const ORGANIZATION_DISAMBIGUATION =
   '签立方（Label Cube）是在线标签打印产品，与 X-Rite Ci64 分光仪、应用「签立得」等无关。'
+
+/** English home FAQ (structured data + /en prerender body) */
+export const EN_HOME_FAQ = [
+  {
+    q: 'Is LabelCube free?',
+    a: 'Yes. The editor, import, batch print and PDF export are free. Optional AI layout uses a built-in model with free quota—no API key required. Your spreadsheet stays in the browser; no signup.'
+  },
+  {
+    q: 'Do I need to install software?',
+    a: 'No. Open https://ci64.com/ in a modern browser. Projects and tables are stored locally (localStorage and IndexedDB), not on LabelCube servers.'
+  },
+  {
+    q: 'How do I print labels from Excel?',
+    a: 'Pick a template, apply it in the editor, import .xlsx or .csv (header row = field names), map columns to label components, then preview and print or export PDF.'
+  },
+  {
+    q: 'Barcodes and QR codes?',
+    a: 'Bind a barcode or QR component to a column. Output matches canvas preview in print, PNG and vector PDF.'
+  },
+  {
+    q: 'Chinese and English?',
+    a: 'The product UI follows your language setting. This page is English; templates and help are primarily in Chinese at /templates and /help.'
+  }
+]

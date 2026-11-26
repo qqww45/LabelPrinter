@@ -5,6 +5,14 @@
       <header class="tpl-head">
         <h1>{{ t('模板库') }}</h1>
         <p class="site-lede">{{ t('筛选行业与尺寸，预览字段说明，一键套用进工作台（含示例数据）。') }}</p>
+        <nav class="tpl-scene-landings" aria-label="场景落地页">
+          <RouterLink
+            v-for="slug in templateSceneSlugs"
+            :key="slug"
+            :to="`/templates/${slug}`"
+            class="tpl-scene-link"
+          >{{ sceneLandingLabel(slug) }}</RouterLink>
+        </nav>
       </header>
 
       <div class="tpl-layout">
@@ -92,7 +100,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import SiteHeader from '../components/site/SiteHeader.vue'
 import SiteFooter from '../components/site/SiteFooter.vue'
 import IndustryTemplateChips from '../components/site/IndustryTemplateChips.vue'
@@ -106,7 +114,8 @@ import {
   getSizeFilterOptions,
   getTemplateCatalog
 } from '../utils/templatesCatalog'
-import { SCENE_PACKS } from '../utils/scenePacks'
+import { SCENE_PACKS, getScenePack } from '../utils/scenePacks'
+import { TEMPLATE_SCENE_SLUGS } from '../content/templateSceneSeo'
 import { filterCatalogByIndustry } from '../utils/industryTemplates'
 import { useI18n } from '../utils/i18n'
 
@@ -178,6 +187,12 @@ function coverFor(templateId) {
   return resolveMarketingAsset('template', templateId)
 }
 
+const templateSceneSlugs = TEMPLATE_SCENE_SLUGS
+
+function sceneLandingLabel(slug) {
+  return getScenePack(slug)?.name || slug
+}
+
 function applySelected() {
   if (!selected.value) return
   const entry = selected.value
@@ -195,6 +210,24 @@ function applySelected() {
 .tpl-head h1 {
   margin: 0 0 8px;
   font-size: 28px;
+}
+.tpl-scene-landings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+.tpl-scene-link {
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.tpl-scene-link:hover {
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
 }
 .tpl-layout {
   display: grid;

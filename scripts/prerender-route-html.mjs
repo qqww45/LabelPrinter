@@ -114,6 +114,15 @@ function patchBody(html, bodyHtml) {
   )
 }
 
+/** @param {string} html @param {string} routePath */
+function stripVendorPdfPreload(html, routePath) {
+  if (routePath === '/app') return html
+  return html.replace(
+    /\n?\s*<link rel="modulepreload"[^>]*href="[^"]*vendor-pdf[^"]*"[^>]*\/>/g,
+    ''
+  )
+}
+
 function metaForRoute(routePath) {
   const meta = ROUTE_SITE_META[routePath] ?? ROUTE_SITE_META['/']
   const canonical = canonicalUrlForPath(routePath) ?? OFFICIAL_SITE_URL
@@ -139,6 +148,7 @@ for (const routePath of PRERENDER_PATHS) {
   let html = patchHead(baseHtml, metaForRoute(routePath), routePath)
   html = patchJsonLd(html, payload.jsonLd)
   html = patchBody(html, payload.bodyHtml)
+  html = stripVendorPdfPreload(html, routePath)
   const outFile = distPathForRoute(routePath)
   fs.mkdirSync(path.dirname(outFile), { recursive: true })
   fs.writeFileSync(outFile, html, 'utf8')

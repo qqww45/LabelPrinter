@@ -89,4 +89,29 @@ watch(
 .seo-static-page :deep(#seo-product-shots) {
   display: none;
 }
+
+.seo-static-page :deep(.seo-breadcrumb) {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.seo-static-page :deep(.seo-breadcrumb ol) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.seo-static-page :deep(.seo-breadcrumb li:not(:last-child)::after) {
+  content: '/';
+  margin-left: 0.5rem;
+  color: var(--text-muted);
+}
+
+.seo-static-page :deep(.seo-breadcrumb a) {
+  color: var(--primary);
+}
 </style>

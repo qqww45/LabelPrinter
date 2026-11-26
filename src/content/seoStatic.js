@@ -5,8 +5,15 @@
 import { OFFICIAL_SITE_ORIGIN, OFFICIAL_SITE_URL, REPO_URL } from '../utils/site.js'
 import { ROUTE_SITE_META } from '../utils/siteMeta.js'
 import { getTemplateCatalog } from '../utils/templatesCatalog.js'
-import { SCENE_PACKS } from '../utils/scenePacks.js'
-import { HOME_FAQ, ORGANIZATION_DISAMBIGUATION } from './seoFaq.js'
+import { SCENE_PACKS, getScenePack } from '../utils/scenePacks.js'
+import { HOME_FAQ, EN_HOME_FAQ, ORGANIZATION_DISAMBIGUATION } from './seoFaq.js'
+import {
+  TEMPLATE_SCENE_SLUGS,
+  parseTemplateSceneSlug,
+  renderTemplateSceneBodyHtml,
+  renderBreadcrumbHtml,
+  jsonLdTemplateScene
+} from './templateSceneSeo.js'
 
 /** @deprecated use SITEMAP_ENTRIES[routePath].lastmod */
 export const SEO_LASTMOD = '2026-11-23'
@@ -19,19 +26,28 @@ export const SEO_LASTMOD = '2026-11-23'
 export const SITEMAP_ENTRIES = {
   '/': { lastmod: '2026-11-24', changefreq: 'weekly', priority: '1.0' },
   '/en': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.75' },
-  '/templates': { lastmod: '2026-11-23', changefreq: 'weekly', priority: '0.9' },
-  '/help': { lastmod: '2026-11-23', changefreq: 'monthly', priority: '0.8' },
+  '/templates': { lastmod: '2026-11-24', changefreq: 'weekly', priority: '0.9' },
+  '/help': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.8' },
   '/help/excel-import': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
   '/help/barcodes': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
   '/help/ai-layout': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
   '/help/pdf-export': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
   '/help/local-storage': { lastmod: '2026-11-20', changefreq: 'monthly', priority: '0.72' },
+  '/help/field-mapping': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.7' },
+  '/help/preflight': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.7' },
+  '/help/paper-layout': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.7' },
   '/privacy': { lastmod: '2026-11-18', changefreq: 'yearly', priority: '0.5' },
-  '/use-cases/price-tag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
-  '/use-cases/shipping-label': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
-  '/use-cases/asset-tag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
-  '/use-cases/shelf-barcode': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' },
-  '/use-cases/clothing-hangtag': { lastmod: '2026-11-22', changefreq: 'monthly', priority: '0.78' }
+  '/use-cases/price-tag': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/shipping-label': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/asset-tag': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/shelf-barcode': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.78' },
+  '/use-cases/clothing-hangtag': { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.78' },
+  ...Object.fromEntries(
+    TEMPLATE_SCENE_SLUGS.map((slug) => [
+      `/templates/${slug}`,
+      { lastmod: '2026-11-24', changefreq: 'monthly', priority: '0.82' }
+    ])
+  )
 }
 
 /** @param {string} s */
@@ -43,12 +59,21 @@ export function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+/** @param {string} jpg @param {number} w @param {number} h @param {string} alt */
+function marketingPicture(jpg, w, h, alt) {
+  const webp = jpg.replace(/\.jpg$/, '.webp')
+  return `<picture>
+    <source type="image/webp" srcset="${webp}" />
+    <img src="${jpg}" width="${w}" height="${h}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />
+  </picture>`
+}
+
 const PRODUCT_JPGS = `
   <section id="seo-product-shots" aria-label="签立方产品与标签打印样例">
-    <img src="/marketing/hero-app-editor.jpg" width="1200" height="750" alt="签立方在线标签设计工作台界面：画布、组件栏与数据表批量打印" />
-    <img src="/marketing/sample-price-tag.jpg" width="800" height="530" alt="签立方价签打印预览：品名、规格、价格与条码" />
-    <img src="/marketing/sample-waybill.jpg" width="800" height="530" alt="签立方快递面单打印预览：收件信息与运单二维码" />
-    <img src="/marketing/hero-label-stickers.jpg" width="1200" height="320" alt="签立方多种价签、条码与吊牌模板画布预览标本" />
+    ${marketingPicture('/marketing/hero-app-editor.jpg', 1200, 750, '签立方在线标签设计工作台界面：画布、组件栏与数据表批量打印')}
+    ${marketingPicture('/marketing/sample-price-tag.jpg', 800, 530, '签立方价签打印预览：品名、规格、价格与条码')}
+    ${marketingPicture('/marketing/sample-waybill.jpg', 800, 530, '签立方快递面单打印预览：收件信息与运单二维码')}
+    ${marketingPicture('/marketing/hero-label-stickers.jpg', 1200, 320, '签立方多种价签、条码与吊牌模板画布预览标本')}
   </section>`
 
 function faqSection(faqs) {
@@ -63,11 +88,13 @@ function faqSection(faqs) {
 
 function homeBody() {
   const scenes = [
-    ['价签 / 产品标签', '品名、规格、价格与条码，适合超市与门店。', '/use-cases/price-tag', '价签场景说明'],
-    ['快递面单', '收件人、电话、地址与运单二维码。', '/use-cases/shipping-label', '面单场景说明'],
-    ['资产标签', '资产编号、部门与条码，方便盘点。', '/use-cases/asset-tag', '资产贴场景'],
-    ['货架签 / 吊牌', '宽条价签与服装吊牌拼版打印。', '/use-cases/shelf-barcode', '货架条码场景'],
-    ['服装吊牌', '款号、尺码、颜色与吊牌价。', '/use-cases/clothing-hangtag', '服装吊牌场景']
+    ['价签 / 产品标签', '品名、规格、价格与条码，适合超市与门店。', '/templates/retail-price', '价签模板场景'],
+    ['快递面单', '收件人、电话、地址与运单二维码。', '/templates/express', '面单模板场景'],
+    ['资产标签', '资产编号、部门与条码，方便盘点。', '/templates/asset', '资产贴场景'],
+    ['货架条', '宽条价签、货位与价格。', '/templates/retail-shelf', '货架条场景'],
+    ['库位条码', '库位、SKU 与品名条码贴。', '/templates/warehouse', '库位场景'],
+    ['服装吊牌', '款号、尺码、颜色与吊牌价。', '/templates/apparel', '服装吊牌场景'],
+    ['珠宝吊牌', '品名、克重、工费与小条码。', '/templates?scene=jewelry', '珠宝模板筛选']
   ]
   const sceneHtml = scenes
     .map(
@@ -81,7 +108,7 @@ function homeBody() {
     <header class="seo-hero">
       <p class="seo-kicker">免费在线标签打印 · Excel 按行出签</p>
       <h1>签立方：免费在线标签打印，导入 Excel 按行打印价签、条码与面单</h1>
-      <p class="seo-lede">在浏览器里设计标签，导入 Excel 或 CSV，批量预览、打印或导出 PDF。默认可免费 AI 排版，不用注册；数据留在本机浏览器。</p>
+      <p class="seo-lede">在浏览器里设计标签，导入 Excel 或 CSV，批量预览、打印或导出 PDF。支持条形码、二维码、文本表达式、按列份数、A4 拼版与热敏 TSPL/ZPL。默认可免费 AI 排版，不用注册；项目与表格只保存在本机浏览器（localStorage + IndexedDB），不上传服务器。</p>
       <nav class="seo-actions" aria-label="快捷入口">
         <a href="/templates">浏览模板库</a>
         <a href="/app">打开工作台</a>
@@ -99,10 +126,13 @@ function homeBody() {
     <section class="seo-block"><h2>常见场景</h2><ul class="seo-list">${sceneHtml}</ul></section>
     <section class="seo-block"><h2>产品能力</h2>
       <ul class="seo-list">
-        <li>毫米级纸张与 A4 拼版；条形码、二维码绑定数据列</li>
-        <li>文本表达式、按列份数、打印前体检</li>
+        <li>毫米级纸张与 <a href="/help/paper-layout">A4 拼版</a>；条形码、二维码绑定数据列</li>
+        <li>文本表达式（{{字段}}、join、ifempty）、按列份数、图片 URL/Base64 字段</li>
+        <li><a href="/help/preflight">打印前体检</a>：缺字段、空价格、纸张放不下等自动提示</li>
+        <li><a href="/help/field-mapping">字段映射</a>与表头记忆；追加 / 按主键更新 / 替换导入</li>
         <li><a href="/help/ai-layout">免费 AI 排版</a>（默认内置模型，可选自备密钥）</li>
         <li><a href="/help/local-storage">本地保存</a>：项目与表格留在浏览器，无需账号</li>
+        <li>打印中心队列、矢量 PDF/PNG 与画布预览一致；热敏指令可下载</li>
       </ul>
     </section>
     ${faqSection(HOME_FAQ)}
@@ -129,9 +159,18 @@ function templatesBody() {
       .join('')
     lists += `<section class="seo-block"><h2>${escapeHtml(group)}模板</h2><ul class="seo-list">${items}</ul></section>`
   }
-  const sceneLinks = SCENE_PACKS.map(
-    (p) => `<li><a href="/templates?scene=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a> — ${escapeHtml(p.blurb)}</li>`
-  ).join('')
+  const featuredScenes = TEMPLATE_SCENE_SLUGS.map((id) => getScenePack(id)).filter(Boolean)
+  const sceneLinks = featuredScenes
+    .map(
+      (p) =>
+        `<li><a href="/templates/${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a> — ${escapeHtml(p.blurb)} · <a href="/templates?scene=${encodeURIComponent(p.id)}">在库中筛选</a></li>`
+    )
+    .join('')
+  const moreScenes = SCENE_PACKS.filter((p) => !TEMPLATE_SCENE_SLUGS.includes(p.id))
+    .map(
+      (p) => `<li><a href="/templates?scene=${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a> — ${escapeHtml(p.blurb)}</li>`
+    )
+    .join('')
 
   return `
   <article id="seo-static-main" class="seo-static-main" lang="zh-CN">
@@ -140,7 +179,8 @@ function templatesBody() {
       <p class="seo-lede">按行业与纸型浏览内置模板，查看尺寸与字段说明，一键套用进工作台后导入 Excel 按行打印。</p>
       <nav class="seo-actions"><a href="/app">打开工作台</a><a href="/">返回首页</a><a href="/help">帮助</a></nav>
     </header>
-    <section class="seo-block"><h2>按场景浏览</h2><ul class="seo-list">${sceneLinks}</ul></section>
+    <section class="seo-block"><h2>场景落地页</h2><ul class="seo-list">${sceneLinks}</ul></section>
+    <section class="seo-block"><h2>更多场景筛选</h2><ul class="seo-list">${moreScenes}</ul></section>
     ${lists}
     <section class="seo-block"><h2>相关场景页</h2>
       <ul class="seo-list">
@@ -159,7 +199,10 @@ function helpBody() {
   const chapters = [
     ['快速开始', '/', '首页与模板库入口'],
     ['导入 Excel/CSV', '/help/excel-import', '追加、替换与主键更新'],
+    ['字段映射', '/help/field-mapping', '表头对齐与「用上次映射」'],
     ['条形码与二维码', '/help/barcodes', '绑定列与打印输出'],
+    ['纸张与拼版', '/help/paper-layout', '毫米纸型与一页多枚'],
+    ['打印前体检', '/help/preflight', '缺字段与场景行校验'],
     ['AI 排版', '/help/ai-layout', '默认可免费使用'],
     ['PDF 与导出', '/help/pdf-export', '矢量 PDF 与配色一致'],
     ['本地保存与隐私', '/help/local-storage', '无账号、数据在浏览器']
@@ -175,7 +218,7 @@ function helpBody() {
   <article id="seo-static-main" class="seo-static-main" lang="zh-CN">
     <header class="seo-hero">
       <h1>签立方帮助：导入 Excel、排版与打印导出</h1>
-      <p class="seo-lede">签立方把表格每一行印成一张标签。下列专题解答导入、条码、AI 排版、PDF 与本地数据；完整手册可在工作台内打开帮助页交互浏览。</p>
+      <p class="seo-lede">签立方把表格每一行印成一张标签。下列专题解答导入、字段映射、条码、拼版、体检、AI 排版、PDF 与本地数据；下方三步流程与首页一致。完整分章手册可在 <a href="/help">/help</a> 页面交互浏览（左侧目录锚点）。</p>
       <nav class="seo-actions"><a href="/templates">模板库</a><a href="/app">工作台</a></nav>
     </header>
     <section class="seo-block"><h2>帮助专题</h2><ul class="seo-list">${links}</ul></section>
@@ -190,7 +233,7 @@ function helpBody() {
   </article>`
 }
 
-/** @param {{ h1: string, lede: string, sections: {h2:string, html:string}[], faq?: typeof HOME_FAQ, links?: {href:string,label:string}[] }} cfg */
+/** @param {{ h1: string, lede: string, sections: {h2:string, html:string}[], faq?: typeof HOME_FAQ, links?: {href:string,label:string}[], breadcrumbs?: {label:string,href?:string}[] }} cfg */
 function docBody(cfg) {
   const secs = cfg.sections
     .map((s) => `<section class="seo-block"><h2>${escapeHtml(s.h2)}</h2>${s.html}</section>`)
@@ -199,8 +242,10 @@ function docBody(cfg) {
     .map((l) => `<a href="${l.href}">${escapeHtml(l.label)}</a>`)
     .join(' · ')
   const faq = cfg.faq?.length ? faqSection(cfg.faq) : ''
+  const crumbs = cfg.breadcrumbs?.length ? renderBreadcrumbHtml(cfg.breadcrumbs) : ''
   return `
   <article id="seo-static-main" class="seo-static-main" lang="zh-CN">
+    ${crumbs}
     <header class="seo-hero">
       <h1>${escapeHtml(cfg.h1)}</h1>
       <p class="seo-lede">${escapeHtml(cfg.lede)}</p>
@@ -214,7 +259,7 @@ function docBody(cfg) {
 const USE_CASES = {
   '/use-cases/price-tag': {
     h1: '超市价签打印：Excel 按行批量出价签',
-    lede: '导入品名、规格、价格与条码列，套用价签模板后批量打印或导出 PDF。免费在线，无需注册。',
+    lede: '导入品名、规格、价格与条码列，套用价签模板后批量打印或导出 PDF。支持按列份数、文本表达式与打印前体检（空价格/条码会提示）。免费在线，无需注册。',
     img: '/marketing/sample-price-tag.jpg',
     imgAlt: '价签打印样例：品名、价格与条码',
     templateQuery: 'retail-price',
@@ -231,7 +276,7 @@ const USE_CASES = {
   },
   '/use-cases/shipping-label': {
     h1: '快递面单批量打印：Excel 导入收件信息',
-    lede: '按行打印收件人、电话、地址与运单二维码；适合电商发货表批量出面单。',
+    lede: '按行打印收件人、电话、地址与运单二维码；适合电商发货表批量出面单。体检会检查手机号格式；可导出 PDF 或热敏 TSPL/ZPL。',
     img: '/marketing/sample-waybill.jpg',
     imgAlt: '快递面单打印样例',
     templateQuery: 'express',
@@ -298,6 +343,24 @@ const HELP_TOPICS = {
     lede: '项目列表与表格写在 localStorage 与 IndexedDB；不用注册，签立方不上传你的表格到自有服务器。',
     body: `<p>左侧项目栏可新建、切换、导出 JSON 备份。切换项目前会自动把当前表格写回该项目。</p>
       <p>清除浏览器数据会删除本地项目；重要表格请自行导出 Excel 或项目 JSON。详见 <a href="/privacy">隐私说明</a>。</p>`
+  },
+  '/help/field-mapping': {
+    h1: '字段映射：让表头与版式字段对齐',
+    lede: '模板里的 {{字段}} 与组件绑定列需与 Excel 首行表头一致；映射可手动调整并在相同表头再次导入时恢复。',
+    body: `<p>导入后若提示缺列，点工具栏「字段映射」把标签字段拖到表头列。版式占位符支持轻量表达式，见工作台属性面板说明。</p>
+      <p>导入确认框勾选「用上次映射」可在列名不变时跳过重复对齐。数据面板改单元格会实时写回当前项目。</p>`
+  },
+  '/help/preflight': {
+    h1: '打印前体检：缺字段与场景行检查',
+    lede: '点打印、导出 PDF/PNG 前会自动体检。阻塞项需先修复；提示级问题可仍继续。',
+    body: `<p>通用检查包括：绑定列为空、标签超出纸张、图片 URL 无效等。价签场景会额外检查空价格、缺条码；面单场景检查手机号。</p>
+      <p>体检结果可一键跳到字段映射、导入或选中问题组件。仅提示时仍可继续打印。</p>`
+  },
+  '/help/paper-layout': {
+    h1: '纸张尺寸与 A4 拼版',
+    lede: '按毫米设置单张标签纸或 A4 上多枚拼版；「打印排版」调行列与间距。',
+    body: `<p>工具栏「纸张」设置标签宽高、边距与 DPI；单张标签纸请让标签尺寸等于纸张尺寸，避免偏移裁切。</p>
+      <p>「打印排版」配置一页几行几列；预览顶栏按展开份数统计张数，与真实打印一致。热敏纸类型（间隙/黑标/连续）在打印设置里选择。</p>`
   }
 }
 
@@ -329,9 +392,25 @@ function useCaseBody(path) {
 function helpTopicBody(path) {
   const cfg = HELP_TOPICS[path]
   if (!cfg) return ''
+  const short = path.replace('/help/', '')
+  const titleMap = {
+    'excel-import': '导入 Excel',
+    barcodes: '条形码',
+    'ai-layout': 'AI 排版',
+    'pdf-export': 'PDF 导出',
+    'local-storage': '本地保存',
+    'field-mapping': '字段映射',
+    preflight: '打印前体检',
+    'paper-layout': '纸张与拼版'
+  }
   return docBody({
     h1: cfg.h1,
     lede: cfg.lede,
+    breadcrumbs: [
+      { label: '首页', href: '/' },
+      { label: '帮助', href: '/help' },
+      { label: titleMap[short] || cfg.h1 }
+    ],
     links: [
       { href: '/help', label: '帮助首页' },
       { href: '/templates', label: '模板库' }
@@ -363,26 +442,63 @@ function privacyBody() {
   })
 }
 
+function englishFaqSection(faqs) {
+  const items = faqs
+    .map(
+      (f) =>
+        `<details class="seo-faq-item"><summary><h3>${escapeHtml(f.q)}</h3></summary><p>${escapeHtml(f.a)}</p></details>`
+    )
+    .join('\n')
+  return `<section class="seo-block" id="seo-faq"><h2>FAQ</h2>${items}</section>`
+}
+
 function englishHomeBody() {
+  const scenes = [
+    ['Price tags', 'Name, spec, price, barcode — retail &amp; grocery.', '/use-cases/price-tag'],
+    ['Shipping labels', 'Recipient, phone, address, tracking QR.', '/use-cases/shipping-label'],
+    ['Asset tags', 'Asset ID, department, barcode for inventory.', '/use-cases/asset-tag'],
+    ['Shelf strips', 'Wide shelf labels with location and price.', '/use-cases/shelf-barcode'],
+    ['Apparel hang tags', 'Style, size, color, price.', '/use-cases/clothing-hangtag'],
+    ['Template scenes (中文)', 'Dedicated pages for retail, express, asset &amp; more.', '/templates/retail-price']
+  ]
+  const sceneHtml = scenes
+    .map(([name, desc, href]) => `<li><strong>${name}</strong> — ${desc} <a href="${href}">Details</a></li>`)
+    .join('')
+
   return `
   <article id="seo-static-main" class="seo-static-main" lang="en">
     <header class="seo-hero">
-      <p class="seo-kicker">Free online label printing</p>
-      <h1>LabelCube: batch-print price tags, barcodes &amp; shipping labels from Excel</h1>
-      <p class="seo-lede">Design labels in the browser, import Excel/CSV, preview, print or export PDF. Optional free AI layout. No signup; data stays on your device.</p>
-      <nav class="seo-actions">
-        <a href="/templates">Templates (中文)</a>
+      <p class="seo-kicker">Label Cube · 签立方 — browser-native label printer</p>
+      <h1>LabelCube: free online label design and batch printing from Excel</h1>
+      <p class="seo-lede">LabelCube (签立方) runs entirely in your browser at ci64.com. Design millimeter-accurate labels, import Excel or CSV row-by-row, preview imposition, print or export vector PDF/PNG. Built-in barcodes and QR codes, column-based copy counts, optional free AI layout, and local-only project storage—no account and no upload of your spreadsheet to LabelCube servers.</p>
+      <nav class="seo-actions" aria-label="Quick links">
         <a href="/app">Open editor</a>
+        <a href="/templates">Template library (中文)</a>
+        <a href="/help">Help (中文)</a>
         <a href="/">中文首页</a>
       </nav>
     </header>
     <section class="seo-block"><h2>Quick steps</h2>
       <ol class="seo-steps">
-        <li>Pick a template from the library.</li>
-        <li>Import a spreadsheet; bind columns to fields.</li>
-        <li>Batch print or export PDF.</li>
+        <li>Choose a template at <a href="/templates">/templates</a> (UI in Chinese) and apply it with sample data.</li>
+        <li>Import your file; use <a href="/help/field-mapping">field mapping</a> if headers differ.</li>
+        <li>Run <a href="/help/preflight">preflight</a>, preview, then print or <a href="/help/pdf-export">export PDF</a>. Data stays in localStorage/IndexedDB on this device.</li>
       </ol>
     </section>
+    <section class="seo-block"><h2>What is included</h2>
+      <ul class="seo-list">
+        <li>Barcodes, QR codes, text expressions, image columns (URL or Base64)</li>
+        <li>A4 imposition and TSPL/ZPL for industrial printers</li>
+        <li>Print queue/history; PDF colors match canvas preview (e.g. red price text)</li>
+        <li>Optional AI layout with built-in model—no API key required for default use</li>
+      </ul>
+    </section>
+    <section class="seo-block"><h2>Common scenarios</h2><ul class="seo-list">${sceneHtml}</ul></section>
+  <section class="seo-block"><h2>Privacy &amp; disambiguation</h2>
+    <p class="seo-note">${escapeHtml(ORGANIZATION_DISAMBIGUATION)} This site ci64.com is the Label Cube product, not the X-Rite Ci64 colorimeter.</p>
+    <p>See <a href="/privacy">privacy (中文)</a> and <a href="/help/local-storage">local storage help</a>.</p>
+  </section>
+    ${englishFaqSection(EN_HOME_FAQ)}
   </article>
   ${PRODUCT_JPGS}`
 }
@@ -508,11 +624,21 @@ function jsonLdEnglish() {
       '@context': 'https://schema.org',
       '@type': 'WebApplication',
       name: 'LabelCube',
+      alternateName: ['签立方', 'Label Cube'],
       url: `${OFFICIAL_SITE_ORIGIN}/en`,
       inLanguage: 'en',
       isAccessibleForFree: true,
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
-    }
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      featureList: [
+        'Excel/CSV batch fill',
+        'Barcodes and QR codes',
+        'Millimeter paper and imposition',
+        'Vector PDF export',
+        'Local browser storage',
+        'Optional AI layout'
+      ]
+    },
+    faqLd(EN_HOME_FAQ)
   ]
 }
 
@@ -542,6 +668,8 @@ function jsonLdHelpTopic(path) {
 }
 
 /** 参与 prerender 的路由（含首页，构建时覆盖 dist/index.html 正文区） */
+const TEMPLATE_SCENE_PATHS = TEMPLATE_SCENE_SLUGS.map((slug) => `/templates/${slug}`)
+
 export const PRERENDER_PATHS = [
   '/',
   '/en',
@@ -549,6 +677,7 @@ export const PRERENDER_PATHS = [
   '/help',
   '/privacy',
   '/app',
+  ...TEMPLATE_SCENE_PATHS,
   ...Object.keys(USE_CASES),
   ...Object.keys(HELP_TOPICS)
 ]
@@ -559,6 +688,7 @@ export const SITEMAP_PATHS = [
   '/templates',
   '/help',
   '/privacy',
+  ...TEMPLATE_SCENE_PATHS,
   ...Object.keys(USE_CASES),
   ...Object.keys(HELP_TOPICS)
 ]
@@ -567,6 +697,10 @@ export const SITEMAP_PATHS = [
  * @param {string} routePath
  */
 export function getSeoRoutePayload(routePath) {
+  const sceneSlug = parseTemplateSceneSlug(routePath)
+  if (sceneSlug) {
+    return { bodyHtml: renderTemplateSceneBodyHtml(sceneSlug), jsonLd: jsonLdTemplateScene(sceneSlug) }
+  }
   const builder = ROUTE_BODY_BUILDERS[routePath]
   if (!builder) return null
   return builder()

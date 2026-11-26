@@ -39,6 +39,21 @@ for (const red of edgeone.redirects || []) {
   assert(match, `routes.json includes redirect ${red.source}`)
 }
 
+const fsIdx2 = doc.routes.findIndex((r) => r.handle === 'filesystem')
+const preFs = doc.routes.slice(0, fsIdx2)
+assert(
+  preFs.some((r) => r.headers?.Location === '/templates/retail-price' && r.status === 301),
+  'routes.json scene query 301'
+)
+assert(
+  preFs.some((r) => r.headers?.Location === '/templates' && r.src === '^/templates/$'),
+  'routes.json /templates/ strip'
+)
+assert(
+  preFs.some((r) => r.dest === '/404.html' && r.status === 404 && r.src === '^/templates/[^/]+$'),
+  'routes.json templates child 404 before filesystem'
+)
+
 const assetsCfg = path.join(root, 'dist', '.edgeone-assets-config.json')
 assert(fs.existsSync(assetsCfg), 'dist/.edgeone-assets-config.json')
 const assets = JSON.parse(fs.readFileSync(assetsCfg, 'utf8'))
