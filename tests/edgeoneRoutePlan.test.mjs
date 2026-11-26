@@ -2,7 +2,8 @@ import {
   buildEdgeOneRoutes,
   buildSceneQueryRedirectRoutes,
   buildTrailingSlashStripRoutes,
-  buildPrefixChild404Routes
+  buildPrefixChild404Routes,
+  FILE_404_RESPONSE
 } from '../src/utils/edgeoneRoutePlan.js'
 import { PRERENDER_PATHS } from '../src/content/seoStatic.js'
 import { TEMPLATE_SCENE_SLUGS } from '../src/content/templateSceneSeo.js'
@@ -36,10 +37,21 @@ const tpl404 = buildPrefixChild404Routes(
   '/templates',
   TEMPLATE_SCENE_SLUGS.map((s) => `/templates/${s}`)
 )
-assert(
-  tpl404.some((r) => r.dest === '/404.html' && r.status === 404 && r.src === '^/templates/[^/]+$'),
-  'templates unknown child 404'
-)
+const tplUnknown404 = tpl404.find((r) => r.src === '^/templates/[^/]+$')
+assert(tplUnknown404, 'templates unknown child 404')
+assert(tplUnknown404.dest === '/404.html' && tplUnknown404.status === 404, 'templates 404 shape')
+assert(tplUnknown404['server-name'] === 'file', 'templates prefix 404 server-name file')
+
+for (const prefix of ['/help', '/use-cases']) {
+  const children =
+    prefix === '/help' ?
+      PRERENDER_PATHS.filter((p) => p.startsWith('/help/') && p !== '/help')
+    : PRERENDER_PATHS.filter((p) => p.startsWith('/use-cases/'))
+  const block = buildPrefixChild404Routes(prefix, children)
+  const unk = block.find((r) => r.status === 404)
+  assert(unk?.['server-name'] === 'file', `${prefix} prefix 404 server-name file`)
+  assert(unk?.dest === FILE_404_RESPONSE.dest, `${prefix} prefix 404 dest`)
+}
 assert(
   tpl404.some((r) => r.dest === '/templates/retail-price/index.html'),
   'valid scene dest index.html'
@@ -62,5 +74,6 @@ const tplNope404 = beforeFs.find(
   (r) => r.status === 404 && r.src === '^/templates/[^/]+$' && r.dest === '/404.html'
 )
 assert(tplNope404, 'templates nope 404 before filesystem')
+assert(tplNope404['server-name'] === 'file', 'full config prefix 404 server-name')
 
 console.log('edgeoneRoutePlan ok')
