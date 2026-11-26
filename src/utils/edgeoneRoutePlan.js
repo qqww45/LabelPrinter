@@ -85,10 +85,18 @@ export function buildSceneQueryRedirectRoutes(slugs = TEMPLATE_SCENE_SLUGS) {
 }
 
 /**
+ * Explicit dest for known single-segment children (e.g. /templates/retail-price → index.html).
+ *
+ * Do NOT add pre-filesystem 404 rules for unknown children under /templates, /help, or
+ * /use-cases. Live on EdgeOne Pages (2026-11): `dest: '/404.html', status: 404` before
+ * `handle: filesystem` resets the connection (curl 56 / HTTP2 INTERNAL_ERROR), with or without
+ * `server-name: file`. Unknown paths must miss these dest rules, then filesystem, then the
+ * post-filesystem catch-all (same path as /foo).
+ *
  * @param {string} prefix e.g. /help
  * @param {string[]} validChildPaths full paths e.g. /help/excel-import
  */
-export function buildPrefixChild404Routes(prefix, validChildPaths) {
+export function buildPrefixChildDestRoutes(prefix, validChildPaths) {
   const valid = [...validChildPaths.filter((p) => p.startsWith(`${prefix}/`) && p !== prefix)]
   const routes = []
   for (const p of valid) {
@@ -96,13 +104,11 @@ export function buildPrefixChild404Routes(prefix, validChildPaths) {
     if (!rest || rest.includes('/')) continue
     routes.push({ src: `^${re2EscapePath(p)}$`, dest: `${p}/index.html` })
   }
-  const prefixEsc = re2EscapePath(prefix)
-  routes.push({
-    src: `^${prefixEsc}/[^/]+$`,
-    ...FILE_404_RESPONSE
-  })
   return routes
 }
+
+/** @deprecated use buildPrefixChildDestRoutes — name kept for import stability in tests */
+export const buildPrefixChild404Routes = buildPrefixChildDestRoutes
 
 /**
  * @param {{
@@ -132,13 +138,13 @@ export function buildEdgeOneRoutes(opts) {
   routes.push(...buildTrailingSlashStripRoutes(prerenderPaths))
 
   const templateChildren = templateSceneSlugs.map((s) => `/templates/${s}`)
-  routes.push(...buildPrefixChild404Routes('/templates', templateChildren))
+  routes.push(...buildPrefixChildDestRoutes('/templates', templateChildren))
 
   const helpChildren = prerenderPaths.filter((p) => p.startsWith('/help/') && p !== '/help')
-  routes.push(...buildPrefixChild404Routes('/help', helpChildren))
+  routes.push(...buildPrefixChildDestRoutes('/help', helpChildren))
 
   const useCaseChildren = prerenderPaths.filter((p) => p.startsWith('/use-cases/'))
-  routes.push(...buildPrefixChild404Routes('/use-cases', useCaseChildren))
+  routes.push(...buildPrefixChildDestRoutes('/use-cases', useCaseChildren))
 
   for (const p of prerenderPaths) {
     if (!p || p === '/' || p === '/app') continue
