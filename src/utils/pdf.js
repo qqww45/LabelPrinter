@@ -40,6 +40,22 @@ function captureOptions(scale) {
 }
 
 /**
+ * html2canvas 会先把元素高宽向上取整再乘 scale，底部会多出一行白底。
+ * 裁回元素实际像素高度，避免导出图底部出现白线。
+ */
+function cropCapture(canvas, el, scale) {
+  if (!el?.getBoundingClientRect) return canvas
+  const rect = el.getBoundingClientRect()
+  const h = Math.min(canvas.height, Math.floor(rect.height * scale))
+  if (h >= canvas.height) return canvas
+  const out = document.createElement('canvas')
+  out.width = canvas.width
+  out.height = h
+  out.getContext('2d').drawImage(canvas, 0, 0, canvas.width, h, 0, 0, canvas.width, h)
+  return out
+}
+
+/**
  * 导出 HTML 元素为 PDF（单张）
  * @param {HTMLElement} el  要导出的 DOM 元素
  * @param {Object} paperCfg  { width, height, unit:'mm' }
@@ -54,7 +70,7 @@ export async function exportElementToPDF(el, paperCfg, filename = 'label.pdf') {
     compress: true
   })
 
-  const canvas = await html2canvas(el, captureOptions(3))
+  const canvas = cropCapture(await html2canvas(el, captureOptions(3)), el, 3)
   const img = canvas.toDataURL('image/jpeg', 0.95)
 
   pdf.addImage(img, 'JPEG', 0, 0, width, height)
@@ -79,7 +95,7 @@ export async function exportElementsToPDF(els, paperCfg, filename = 'labels.pdf'
 
   for (let i = 0; i < els.length; i++) {
     if (i > 0) pdf.addPage([width, height], width > height ? 'landscape' : 'portrait')
-    const canvas = await html2canvas(els[i], captureOptions(3))
+    const canvas = cropCapture(await html2canvas(els[i], captureOptions(3)), els[i], 3)
     const img = canvas.toDataURL('image/jpeg', 0.95)
     pdf.addImage(img, 'JPEG', 0, 0, width, height)
   }
@@ -91,7 +107,7 @@ export async function exportElementsToPDF(els, paperCfg, filename = 'labels.pdf'
  * 导出元素为图片
  */
 export async function exportElementToImage(el, filename = 'label.png', scale = 3) {
-  const canvas = await html2canvas(el, captureOptions(scale))
+  const canvas = cropCapture(await html2canvas(el, captureOptions(scale)), el, scale)
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(b => b ? resolve(b) : reject(new Error('导出图片失败')), 'image/png')
   })
