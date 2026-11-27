@@ -90,12 +90,9 @@
         <div class="form-row">
           <label>{{ t('字体') }}</label>
           <select class="input" :value="selected.fontFamily" @change="update('fontFamily', $event.target.value)">
-            <option value="Microsoft YaHei">微软雅黑</option>
-            <option value="SimSun">宋体</option>
-            <option value="SimHei">黑体</option>
-            <option value="KaiTi">楷体</option>
-            <option value="Arial">Arial</option>
-            <option value="sans-serif">默认</option>
+            <optgroup v-for="group in fontGroups" :key="group.name" :label="t(group.name)">
+              <option v-for="font in group.items" :key="font.value" :value="font.value">{{ font.label }}</option>
+            </optgroup>
           </select>
         </div>
         <div class="form-row">
@@ -731,12 +728,14 @@ import { RouterLink } from 'vue-router'
 import PropSection from './PropSection.vue'
 import DataBindSection from './DataBindSection.vue'
 import { ONED_SYMBOLOGY_GROUPS, TWOD_SYMBOLOGY_GROUPS } from '../utils/symbologyCatalog.js'
+import { FONT_GROUPS } from '../utils/fontCatalog.js'
 
 const project = useProjectStore()
 const data = useDataStore()
 
 const emit = defineEmits(['field-map'])
 
+const fontGroups = FONT_GROUPS
 const selected = computed(() => project.selectedComponent)
 const isMultiSelect = computed(() => project.isMultiSelect)
 const barcodeTextPercent = computed(() => Math.round(barcodeTextRatio(selected.value?.textRatio) * 100))

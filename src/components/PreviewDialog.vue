@@ -322,6 +322,10 @@ function onDocClick(e) {
 // 预览缩放因子：1mm 对应多少 px（与用户缩放联动）
 function S() { return MM_TO_PX * scale.value }
 
+// 图片在 DOM 里按更高分辨率绘制再等比缩回，避免细线条在小尺寸下被浏览器抹掉。
+// 导出截图复用同一套 DOM，所以设计、预览、导出能看到同样的效果。
+const PREVIEW_IMG_SUPERSAMPLE = 3
+
 // 等待所有 <img> 真正加载完（data:URL 同步也算完成；外部 URL 最多等 timeout）
 function waitForImages(els, timeout = 3000) {
   const imgs = [...els].flatMap(el => [...el.querySelectorAll('img')])
@@ -470,7 +474,7 @@ const CompRenderer = defineComponent({
         case 'image': {
           const src = imageSrc(c, row)
           if (!src) return null
-          inner = h('img', { src, style: imgStyle(c), crossorigin: 'anonymous' })
+          inner = h('img', { src, style: imgStyle(c), crossorigin: 'anonymous', 'data-preview-hires': '1' })
           break
         }
         case 'qrcode':
@@ -500,7 +504,11 @@ const CompRenderer = defineComponent({
             }
             break
           }
-          inner = h('img', { src: url, style: c.type === 'barcode' ? barcodeImgStyle() : imgStyle(c) })
+          inner = h('img', {
+            src: url,
+            style: c.type === 'barcode' ? barcodeImgStyle() : imgStyle(c),
+            ...(c.type === 'qrcode' ? { 'data-preview-hires': '1' } : {})
+          })
           break
         }
         case 'rect': {
@@ -634,12 +642,19 @@ function textStyle(c) {
   }
 }
 
-function imgStyle() {
-  return { width: '100%', height: '100%', objectFit: 'fill' }
+function imgStyle(c) {
+  const k = PREVIEW_IMG_SUPERSAMPLE
+  return {
+    width: (c.width * S() * k) + 'px',
+    height: (c.height * S() * k) + 'px',
+    transform: `scale(${1 / k})`,
+    transformOrigin: 'top left',
+    display: 'block'
+  }
 }
 
 function barcodeImgStyle() {
-  return { ...imgStyle(), imageRendering: 'pixelated' }
+  return { width: '100%', height: '100%', objectFit: 'fill', imageRendering: 'pixelated' }
 }
 
 function rectStyle(c) {

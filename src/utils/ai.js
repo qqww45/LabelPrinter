@@ -14,6 +14,7 @@ import {
   BUILTIN_DEFAULT_ENDPOINT,
   normalizeBuiltinEndpoint
 } from './aiModels.js'
+import { FONT_SET, FONT_VALUES } from './fontCatalog.js'
 
 const FONT = 'Microsoft YaHei'
 
@@ -511,7 +512,7 @@ function clipCell(value) {
   return s.length > 80 ? s.slice(0, 80) : s
 }
 
-const FONTS = new Set(['Microsoft YaHei', 'SimSun', 'SimHei', 'KaiTi', 'Arial', 'sans-serif'])
+const FONTS = FONT_SET
 const BARCODE_FORMATS = new Set(['CODE128', 'EAN13', 'CODE39'])
 const CELL_TYPES = new Set(['text', 'qrcode', 'barcode', 'image'])
 
@@ -695,7 +696,7 @@ ${JSON.stringify(ctx.layout)}
 - 改布局优先 componentUpdates，用现有 id。不要为了改字号把全部组件重写一遍
 - 用户说「这个」「选中的」时，只改「当前选中」里的 id。没选中就按组件 name 对上那一个
 - 更换组件种类必须在 componentUpdates 里写 type，例如二维码改成条形码：{ "id": "现有id", "type": "barcode" }。保留原来的 binding 和文字。只在 summary 里说「已改成条形码」不会生效
-- 文字还能改 fontFamily（Microsoft YaHei、SimSun、SimHei、KaiTi、Arial）、textAlign、fontWeight。条码 format 只能是 CODE128、EAN13、CODE39。日期 source 是 now 或 field；序号 source 是 print 或 field（可改 prefix/suffix/pad）；勾选框可改 binding、checkedChar、uncheckedChar；椭圆可改 fill/stroke
+- 文字还能改 fontFamily（可选值：${FONT_VALUES.join('、')}）、textAlign、fontWeight。条码 format 只能是 CODE128、EAN13、CODE39。日期 source 是 now 或 field；序号 source 是 print 或 field（可改 prefix/suffix/pad）；勾选框可改 binding、checkedChar、uncheckedChar；椭圆可改 fill/stroke
 - 表格用 rows、cols，以及 cells 的「行,列」只写要改的格子（text、binding、type 为 text/qrcode/barcode/image）
 - 调整叠放顺序用 order，数组最后一个盖在最上面。没写到的组件保持原位
 - 字段名对不上时写 data.fieldMap，键是模板字段，值是已经存在的数据列
