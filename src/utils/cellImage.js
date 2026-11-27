@@ -4,6 +4,20 @@ import { BARCODE_QUIET_MODULES, barcodeBarHeight, barcodeFontSize, barcodeModule
 import { jsBarcodeFormat } from './symbologyCatalog.js'
 import { twoDToCanvas } from './twoDCode.js'
 
+/** 从组件/单元格配置里提取码图绘制选项，画布、预览、PDF 共用。 */
+export function codeImageOptions(source = {}) {
+  const s = source || {}
+  return {
+    transparent: isTransparentCodeBackground(s),
+    dark: s.dark || undefined,
+    light: s.light || undefined
+  }
+}
+
+export function isTransparentCodeBackground(opts = {}) {
+  return !!opts?.transparent || String(opts?.light || '').toLowerCase() === 'transparent'
+}
+
 /**
  * 同步生成二维码 canvas（用于 canvas 内即时渲染，无需等待异步加载）
  * 用 QRCode.create 拿到模块矩阵后手工绘制
@@ -19,8 +33,10 @@ export function qrToCanvas(text, px = 200, opts = {}) {
   const cv = document.createElement('canvas')
   cv.width = cv.height = total * scale
   const ctx = cv.getContext('2d')
-  ctx.fillStyle = opts.light || '#ffffff'
-  ctx.fillRect(0, 0, cv.width, cv.height)
+  if (!isTransparentCodeBackground(opts)) {
+    ctx.fillStyle = opts.light || '#ffffff'
+    ctx.fillRect(0, 0, cv.width, cv.height)
+  }
   ctx.fillStyle = opts.dark || '#000000'
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {

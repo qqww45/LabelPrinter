@@ -31,6 +31,7 @@ export function twoDToCanvas(text, format, targetPx = 200, opts = {}) {
   const bcid = BWIP_BCID[id] || lookup2DSymbology(id)?.id?.toLowerCase()
   if (!bcid || typeof document === 'undefined') return null
 
+  const transparent = !!opts.transparent || String(opts.light || '').toLowerCase() === 'transparent'
   const cv = document.createElement('canvas')
   try {
     bwipjs.toCanvas(cv, {
@@ -38,7 +39,8 @@ export function twoDToCanvas(text, format, targetPx = 200, opts = {}) {
       text: value,
       scale: rasterScale(targetPx),
       padding: opts.margin ?? 1,
-      backgroundcolor: opts.light || 'ffffff',
+      // bwip-js 只认 RRGGBB；传其它值会自行 clearRect，得到透明底
+      backgroundcolor: transparent ? 'transparent' : String(opts.light || 'ffffff').replace('#', ''),
       barcolor: opts.dark ? String(opts.dark).replace('#', '') : '000000'
     })
     return cv

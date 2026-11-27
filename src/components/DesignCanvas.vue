@@ -55,7 +55,7 @@ import { resolveRow, renderTextWithAlert, designTextWithAlert, codePayload, rowI
 import { formatCheckboxText, formatPriceText, formatSerialText, barcodeCanvasOptions, strokeStyleDash } from '../utils/controls'
 import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { availableFields, componentMissingFields } from '../utils/diagnose'
-import { barcodeToCanvas, canvasToDataURL, matrixCodeToDataURL } from '../utils/cellImage'
+import { barcodeToCanvas, canvasToDataURL, codeImageOptions, matrixCodeToDataURL, qrToCanvas } from '../utils/cellImage'
 import { fitZoomToWindow, MM_TO_PX } from '../utils/canvasFit'
 import { arrowGeometryMm, polylinePointsMm } from '../utils/shapeGeom'
 import { readSceneGeometry } from '../utils/sceneGeom'
@@ -792,7 +792,7 @@ function buildFabricObject(c, gen = renderGeneration) {
       const boxH = Math.max(1, c.height * MM_TO_PX)
       const ready = c.type === 'barcode'
         ? Promise.resolve(canvasToDataURL(barcodeToCanvas(txt, barcodeCanvasOptions(c, boxW * 2, boxH * 2))))
-        : Promise.resolve(matrixCodeToDataURL(txt, c.format || 'QR', boxW * 2))
+        : Promise.resolve(matrixCodeToDataURL(txt, c.format || 'QR', boxW * 2, codeImageOptions(c)))
       ready.then(dataUrl => {
         if (!dataUrl) return
         fabric.Image.fromURL(dataUrl).then(img => {
@@ -1008,9 +1008,10 @@ const decodingUrls = new Set()
 
 function makeCellDataUrl(type, value, cell, comp, boxW = 0, boxH = 0) {
   if (type === 'qrcode') {
-    const key = `qr|${value}`
+    const opts = codeImageOptions(cell)
+    const key = `qr|${cell.format || 'QR'}|${opts.transparent ? 't' : 'w'}|${value}`
     if (!cellDataUrlCache.has(key)) {
-      cellDataUrlCache.set(key, canvasToDataURL(qrToCanvas(value, 240)))
+      cellDataUrlCache.set(key, canvasToDataURL(qrToCanvas(value, 240, opts)))
     }
     return cellDataUrlCache.get(key)
   }

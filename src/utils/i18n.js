@@ -1167,6 +1167,8 @@ const EN = {
   '国标二维': 'Chinese Han Xin 2D',
   '点击添加到画布中心': 'Click to add at label center',
   '选择二维码类型并添加': 'Pick a 2D type and add',
+  '透明背景': 'Transparent background',
+  '码点仍为黑色，请放在浅色底上以便扫描。': 'Modules stay black; place on a light background for reliable scanning.',
   '按序号规则生成编码内容，不占用打印流水号设置。': 'Serial rules for encode content; separate from print serial.',
   '每行一条，写入绑定列并自动补足数据行。': 'One value per line; fills the bound column and adds rows.',
   '列名（可空，自动创建）': 'Column name (optional)',

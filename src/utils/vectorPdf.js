@@ -7,7 +7,7 @@ import JsBarcode from 'jsbarcode'
 import { renderText, textPayload } from './render.js'
 import { componentHidden, componentPlainText, paginateLabels, slotOffsetMm } from './printModel.js'
 import { qrMatrix } from './codeGeom.js'
-import { barcodeToCanvas, canvasToDataURL, matrixCodeToCanvas } from './cellImage.js'
+import { barcodeToCanvas, canvasToDataURL, codeImageOptions, matrixCodeToCanvas } from './cellImage.js'
 import { barcodePrintPx } from './barcodeFit.js'
 import { applyPdfLineDash, barcodeCanvasOptions, dividerEndpoints, formatPriceText } from './controls.js'
 import { arrowGeometryMm, polylinePointsMm } from './shapeGeom.js'
@@ -365,7 +365,7 @@ function drawCellVisual(pdf, cell, text, x, y, w, h, rasterCache) {
   const type = cell?.type || 'text'
   if ((type === 'barcode' || type === 'qrcode') && String(text || '').trim() && typeof document !== 'undefined') {
     const cv = type === 'qrcode'
-      ? matrixCodeToCanvas(String(text), cell.format || 'QR', 240)
+      ? matrixCodeToCanvas(String(text), cell.format || 'QR', 240, codeImageOptions(cell))
       : barcodeToCanvas(String(text), barcodeCanvasOptions(
         { format: cell.format || 'CODE128' },
         barcodePrintPx(w),
@@ -462,7 +462,7 @@ function drawComponent(pdf, c, row, ox, oy, rasterCache) {
     const text = componentPlainText(c, row)
     if (!text) return
     if (typeof document === 'undefined') { drawQr(pdf, text, x, y, w, h); return }
-    const cv = matrixCodeToCanvas(String(text), c.format || 'QR', 240)
+    const cv = matrixCodeToCanvas(String(text), c.format || 'QR', 240, codeImageOptions(c))
     if (cv) {
       try { pdf.addImage(canvasToDataURL(cv), x, y, w, h) } catch (e) { /* 跳过 */ }
     }

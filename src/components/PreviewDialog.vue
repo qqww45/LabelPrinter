@@ -208,7 +208,7 @@ import { exportVectorPDF, buildVectorPdfBlob } from '../utils/vectorPdf'
 import { buildPerLabelZipEntries, downloadZipArchive } from '../utils/zipBatchExport'
 import { tableColumnWidths, tableRowHeights } from '../utils/tableGeom'
 import { MM_TO_PX } from '../utils/canvasFit'
-import { matrixCodeToCanvas, barcodeToCanvas, canvasToDataURL } from '../utils/cellImage'
+import { matrixCodeToCanvas, barcodeToCanvas, canvasToDataURL, codeImageOptions } from '../utils/cellImage'
 import { barcodeCanvasOptions } from '../utils/controls'
 import { barcodeScanIssue, barcodeScanText } from '../utils/barcodeScan'
 import { exportElementToImage } from '../utils/pdf'
@@ -492,7 +492,7 @@ const CompRenderer = defineComponent({
               Math.max(1, c.width * S() * 3),
               Math.max(1, c.height * S() * 3)
             ))
-            : matrixCodeToCanvas(String(txt), c.format || 'QR', 240)
+            : matrixCodeToCanvas(String(txt), c.format || 'QR', 240, codeImageOptions(c))
           const url = cv ? canvasToDataURL(cv) : ''
           if (!url) {
             if (c.type === 'barcode') {
@@ -819,10 +819,11 @@ function tableCellNode(c, r, col, row) {
     const rowH = tableRowHeights(c, tableH)
     const tw = Math.max(1, Math.round((colW[col] || 40) * 2))
     const th = Math.max(1, Math.round((rowH[r] || 20) * 2))
-    const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}|${tw}|${th}`
+    const codeOpts = codeImageOptions(cell)
+    const key = `${c.id}|${r},${col}|${type}|${value}|${cell.format || ''}|${codeOpts.transparent ? 't' : 'w'}|${tw}|${th}`
     if (!cellImgCache.value[key]) {
       const cv = type === 'qrcode'
-        ? matrixCodeToCanvas(String(value), cell.format || 'QR', 240)
+        ? matrixCodeToCanvas(String(value), cell.format || 'QR', 240, codeOpts)
         : barcodeToCanvas(String(value), { format: cell.format || 'CODE128', targetWidth: tw, targetHeight: th })
       cellImgCache.value[key] = cv ? canvasToDataURL(cv) : ''
     }

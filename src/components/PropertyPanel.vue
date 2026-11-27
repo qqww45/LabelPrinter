@@ -210,6 +210,11 @@
             </optgroup>
           </select>
         </div>
+        <label class="check-line">
+          <input type="checkbox" :checked="!!selected.transparent" @change="update('transparent', $event.target.checked)" />
+          {{ t('透明背景') }}
+        </label>
+        <div class="hint">{{ t('码点仍为黑色，请放在浅色底上以便扫描。') }}</div>
       </fieldset>
 
       <!-- 条形码 -->
@@ -680,6 +685,14 @@
                     @input="setCell(r - 1, col - 1, 'text', $event.target.value)"
                     :placeholder="(getCell(r-1,col-1,'type') === 'qrcode' ? '二维码内容' : '条码内容')"
                   />
+                  <label v-if="getCell(r-1,col-1,'type') === 'qrcode'" class="cell-check">
+                    <input
+                      type="checkbox"
+                      :checked="!!getCell(r - 1, col - 1, 'transparent')"
+                      @change="setCell(r - 1, col - 1, 'transparent', $event.target.checked)"
+                    />
+                    {{ t('透明背景') }}
+                  </label>
                   <!-- 图片：上传（仅未绑字段时） -->
                   <input
                     v-if="getCell(r-1,col-1,'type') === 'image' && !getCell(r-1,col-1,'binding')"
@@ -1527,6 +1540,16 @@ legend {
 .cell-box .cell-input { font-size: 11px; padding: 2px 4px; width: 100%; }
 .cell-box .cell-select { font-size: 10px; padding: 1px 4px; margin-top: 2px; width: 100%; }
 .cell-box .cell-file { font-size: 10px; width: 100%; margin-top: 2px; }
+.cell-check {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.cell-check input { margin: 0; }
 .cell-hint {
   font-size: 10px;
   color: var(--text-muted);
